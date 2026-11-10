@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="Lucia">
+  <rect x="1" y="1" width="46" height="46" rx="14" fill="#203d3a"/>
+  <path d="M10 33V17l10-6v7l9-6v9l9-5v17H10Z" fill="none" stroke="#e7b06a" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M16 27v6m9-10v10m9-12v12" stroke="#f4f1e8" stroke-width="2" stroke-linecap="round"/>
+</svg>

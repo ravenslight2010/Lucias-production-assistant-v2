@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Lucia’s Production Assistant V2"
+description = "A secure production operations web app for running facility shifts, coordinating production stations, and keeping inventory synchronized across devices."
+version = "1.0.0"
+id = "artifacts/lucia-production-assistant-v2"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23446
+
+[services.development]
+run = "pnpm --filter @workspace/lucia-production-assistant-v2 run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/lucia-production-assistant-v2", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/lucia-production-assistant-v2/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23446"
+BASE_PATH = "/"

@@ -3,13 +3,19 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Run-control API for Lucia's Production Assistant V2
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: facilities
+    description: Facility setup and context
+  - name: runs
+    description: Facility-scoped production run control
+  - name: dashboard
+    description: Production overview
 paths:
   /healthz:
     get:
@@ -24,7 +30,199 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /facility/context:
+    get:
+      operationId: getFacilityContext
+      tags: [facilities]
+      summary: Get the signed-in user's facility
+      responses:
+        "200":
+          description: Facility context, or null before setup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FacilityContext"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /facilities:
+    post:
+      operationId: createFacility
+      tags: [facilities]
+      summary: Create a facility for the signed-in user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FacilityInput"
+      responses:
+        "201":
+          description: Facility created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FacilityContext"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /runs:
+    get:
+      operationId: listRuns
+      tags: [runs]
+      summary: List runs in the signed-in user's facility
+      parameters:
+        - in: query
+          name: status
+          required: false
+          schema:
+            $ref: "#/components/schemas/RunStatus"
+      responses:
+        "200":
+          description: Facility runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProductionRun"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: createRun
+      tags: [runs]
+      summary: Create a draft run in the signed-in user's facility
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunInput"
+      responses:
+        "201":
+          description: Draft run created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductionRun"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /runs/{runId}:
+    get:
+      operationId: getRun
+      tags: [runs]
+      summary: Get a run from the signed-in user's facility
+      parameters:
+        - in: path
+          name: runId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Production run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductionRun"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /runs/{runId}/commands:
+    post:
+      operationId: issueRunCommand
+      tags: [runs]
+      summary: Apply a revision-checked run lifecycle command
+      parameters:
+        - in: path
+          name: runId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunCommandInput"
+      responses:
+        "200":
+          description: Command applied or replayed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunCommandResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get the facility's run summary and recent activity
+      responses:
+        "200":
+          description: Facility production overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
 components:
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Sign in required
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Facility access is not configured
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found in the signed-in user's facility
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: State changed or command conflicts with current revision
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +231,141 @@ components:
           type: string
       required:
         - status
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+    RunStatus:
+      type: string
+      enum: [draft, running, paused, completed]
+    Facility:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, createdAt]
+    FacilityContext:
+      type: object
+      properties:
+        facility:
+          anyOf:
+            - $ref: "#/components/schemas/Facility"
+            - type: "null"
+        role:
+          anyOf:
+            - type: string
+              enum: [owner, manager, operator]
+            - type: "null"
+      required: [facility, role]
+    FacilityInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+      required: [name]
+    ProductionRun:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        facilityId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        status:
+          $ref: "#/components/schemas/RunStatus"
+        revision:
+          type: integer
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        startedAt:
+          type: [string, "null"]
+          format: date-time
+        pausedAt:
+          type: [string, "null"]
+          format: date-time
+        completedAt:
+          type: [string, "null"]
+          format: date-time
+      required:
+        - id
+        - facilityId
+        - name
+        - status
+        - revision
+        - createdAt
+        - updatedAt
+        - startedAt
+        - pausedAt
+        - completedAt
+    RunInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+      required: [name]
+    RunCommandInput:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [start, pause, resume, complete]
+        expectedRevision:
+          type: integer
+          minimum: 1
+        idempotencyKey:
+          type: string
+          format: uuid
+      required: [action, expectedRevision, idempotencyKey]
+    RunCommandResult:
+      type: object
+      properties:
+        run:
+          $ref: "#/components/schemas/ProductionRun"
+        replayed:
+          type: boolean
+      required: [run, replayed]
+    DashboardSummary:
+      type: object
+      properties:
+        facility:
+          $ref: "#/components/schemas/Facility"
+        counts:
+          type: object
+          properties:
+            active:
+              type: integer
+            draft:
+              type: integer
+            completed:
+              type: integer
+          required: [active, draft, completed]
+        activeRuns:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductionRun"
+        recentRuns:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductionRun"
+      required: [facility, counts, activeRuns, recentRuns]
 

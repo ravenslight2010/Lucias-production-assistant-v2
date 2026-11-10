@@ -1,15 +1,17 @@
-# [Project name]
+# Lucia’s Production Assistant V2
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A secure production operations app for facility teams to create and control runs while keeping confirmed state aligned across devices.
 
 ## Run & Operate
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/lucia-production-assistant-v2 run dev` — run the V2 web app
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Required env: `DATABASE_URL` — this V2 project's PostgreSQL connection string
+- Authentication uses the Replit-managed Clerk setup; do not add V1 credentials.
 
 ## Stack
 
@@ -22,15 +24,22 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/lucia-production-assistant-v2/` — V2 web app and run-control screens
+- `lib/api-spec/openapi.yaml` — source of truth for API routes and data contracts
+- `artifacts/api-server/src/routes/production.ts` — facility-scoped run endpoints
+- `artifacts/api-server/src/lib/run-command-service.ts` — revision-checked lifecycle transactions
+- `lib/db/src/schema/production.ts` — facility, membership, run, audit, receipt, and outbox tables
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- V2 is a separate Replit project with its own database and deployment; never connect it to V1 credentials or production data.
+- The server is authoritative for facility and actor identity; lifecycle commands check revisions and stable idempotency keys.
+- A lifecycle change, its receipt, audit event, and outbox event are committed in one database transaction.
+- V1 historical runs are not imported; opening inventory at cutover must come from a new physical count.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+The current slice supports facility setup, draft run creation, run listing, and start/pause/resume/complete controls. Dashboard, run list, and run detail refresh periodically while online; offline views are read-only. Production stations, imports, automatic tracking, and inventory workflows are not implemented yet.
 
 ## User preferences
 

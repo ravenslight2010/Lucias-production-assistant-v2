@@ -1,4 +1,5 @@
-import { and, count, desc, eq, gt, inArray, lte } from "drizzle-orm";
+import { and, count, desc, eq, gt, inArray, isNull, lte, sql } from "drizzle-orm";
+import { createHash } from "node:crypto";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { clerkClient } from "@clerk/express";
 import {
@@ -20,6 +21,13 @@ import {
   GetRunStationProgressResponse,
   InviteFacilityMemberBody,
   InviteFacilityMemberResponse,
+  ImportProductProfileBody,
+  ImportProductProfileResponse,
+  ListProductProfilesResponse,
+  ListImportBatchesResponse,
+  MergeProductProfileBody,
+  MergeProductProfileParams,
+  MergeProductProfileResponse,
   ListFacilityMembersResponse,
   ListRunsQueryParams,
   ListRunsResponse,
@@ -29,12 +37,17 @@ import {
   UpdateFacilityMemberBody,
   UpdateFacilityMemberParams,
   UpdateFacilityMemberResponse,
+  RenameProductProfileBody,
+  RenameProductProfileParams,
+  RenameProductProfileResponse,
 } from "@workspace/api-zod";
 import {
   db,
+  facilityImportBatchesTable,
   facilityInvitationsTable,
   facilitiesTable,
   facilityMembersTable,
+  facilityProductProfilesTable,
   facilityStationLayoutsTable,
   productionRunsTable,
 } from "@workspace/db";
@@ -818,6 +831,300 @@ router.put(
   },
 );
 
+function normalizedProfileKey(brand: string, flavor: string) {
+  return [brand, flavor]
+    .map((part) => part.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase())
+    .join("::");
+}
+
+function profileSourceEntries(profile: {
+  id: string;
+  brand: string;
+  flavor: string;
+  productData: unknown;
+}): unknown[] {
+  if (
+    profile.productData &&
+    typeof profile.productData === "object" &&
+    !Array.isArray(profile.productData) &&
+    Array.isArray((profile.productData as Record<string, unknown>).sources)
+  ) {
+    return (profile.productData as { sources: unknown[] }).sources;
+  }
+  return [{
+    profileId: profile.id,
+    brand: profile.brand,
+    flavor: profile.flavor,
+    data: profile.productData,
+  }];
+}
+
+function safeJsonPayload(value: unknown) {
+  try {
+    const serialized = JSON.stringify(value);
+    return serialized.length <= 700_000 && serialized.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+router.get("/v2/product-profiles", requireV2Session, async (req, res): Promise<void> => {
+  const access = await membershipOrRespond(req, res);
+  if (!access) return;
+  const profiles = await db
+    .select()
+    .from(facilityProductProfilesTable)
+    .where(and(
+      eq(facilityProductProfilesTable.facilityId, access.membership.facilityId),
+      isNull(facilityProductProfilesTable.mergedIntoId),
+    ))
+    .orderBy(facilityProductProfilesTable.brand, facilityProductProfilesTable.flavor);
+  res.json(ListProductProfilesResponse.parse({ profiles }));
+});
+
+router.get("/v2/import-batches", requireV2Session, async (req, res): Promise<void> => {
+  const access = await membershipOrRespond(req, res);
+  if (!access) return;
+  const rows = await db
+    .select({
+      id: facilityImportBatchesTable.id,
+      sourceName: facilityImportBatchesTable.sourceName,
+      importKind: facilityImportBatchesTable.importKind,
+      status: facilityImportBatchesTable.status,
+      proposedBrand: facilityImportBatchesTable.proposedBrand,
+      proposedFlavor: facilityImportBatchesTable.proposedFlavor,
+      profileId: facilityImportBatchesTable.profileId,
+      createdAt: facilityImportBatchesTable.createdAt,
+      appliedAt: facilityImportBatchesTable.appliedAt,
+    })
+    .from(facilityImportBatchesTable)
+    .where(eq(facilityImportBatchesTable.facilityId, access.membership.facilityId))
+    .orderBy(desc(facilityImportBatchesTable.createdAt))
+    .limit(100);
+  res.json(ListImportBatchesResponse.parse({ imports: rows }));
+});
+
+router.post(
+  "/v2/product-profiles",
+  requireV2Session,
+  requireV2Csrf,
+  mutationRateLimit,
+  async (req, res): Promise<void> => {
+    const parsed = ImportProductProfileBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Review the workbook details and try again." });
+      return;
+    }
+    const input = parsed.data;
+    const brand = input.brand.normalize("NFKC").trim().replace(/\s+/g, " ");
+    const flavor = input.flavor.normalize("NFKC").trim().replace(/\s+/g, " ");
+    const sourceName = input.sourceName.trim();
+    if (
+      !brand ||
+      !flavor ||
+      /[/\\\u0000-\u001f]/.test(sourceName) ||
+      !/^[a-f0-9]{64}$/i.test(input.sourceHash) ||
+      input.importKind === "schedule" ||
+      !safeJsonPayload(input.productData)
+    ) {
+      res.status(400).json({ error: "This workbook cannot be saved as product setup data." });
+      return;
+    }
+    const access = await membershipOrRespond(req, res);
+    if (!access) return;
+    assertRunPermission(access.membership.role, "create");
+    const normalizedKey = normalizedProfileKey(brand, flavor);
+    const dataHash = createHash("sha256")
+      .update(JSON.stringify({ brand, flavor, kind: input.importKind, sourceHash: input.sourceHash }))
+      .digest("hex");
+    try {
+      const result = await db.transaction(async (tx) => {
+        const [previousBatch] = await tx.select().from(facilityImportBatchesTable).where(and(
+          eq(facilityImportBatchesTable.facilityId, access.membership.facilityId),
+          eq(facilityImportBatchesTable.sourceHash, dataHash),
+          eq(facilityImportBatchesTable.status, "applied"),
+        )).limit(1);
+        if (previousBatch?.profileId) {
+          const [previousProfile] = await tx.select().from(facilityProductProfilesTable).where(and(
+            eq(facilityProductProfilesTable.id, previousBatch.profileId),
+            eq(facilityProductProfilesTable.facilityId, access.membership.facilityId),
+          )).limit(1);
+          if (previousProfile) return { profile: previousProfile, batch: previousBatch, imported: false };
+        }
+        const [existing] = await tx
+          .select({ id: facilityProductProfilesTable.id })
+          .from(facilityProductProfilesTable)
+          .where(and(
+            eq(facilityProductProfilesTable.facilityId, access.membership.facilityId),
+            eq(facilityProductProfilesTable.normalizedKey, normalizedKey),
+          ))
+          .limit(1);
+        if (existing) throw new HttpError(409, "A profile with this brand and flavor already exists. Rename it or merge it from the import review.");
+        const [profile] = await tx
+          .insert(facilityProductProfilesTable)
+          .values({
+            facilityId: access.membership.facilityId,
+            brand,
+            flavor,
+            normalizedKey,
+            revision: 0,
+            productData: {
+              importKind: input.importKind,
+              sourceName,
+              sourceHash: input.sourceHash,
+              content: input.productData,
+            },
+            createdBy: access.actorId,
+          })
+          .returning();
+        const [batch] = await tx
+          .insert(facilityImportBatchesTable)
+          .values({
+            facilityId: access.membership.facilityId,
+            sourceName,
+            sourceHash: dataHash,
+            importKind: input.importKind,
+            status: "applied",
+            proposedBrand: brand,
+            proposedFlavor: flavor,
+            workbookData: { sourceHash: input.sourceHash, profileId: profile.id },
+            summary: { profileId: profile.id },
+            profileId: profile.id,
+            createdBy: access.actorId,
+            appliedAt: new Date(),
+          })
+          .returning();
+        return { profile, batch, imported: true };
+      });
+      res.status(201).json(ImportProductProfileResponse.parse({
+        profile: result.profile,
+        imported: result.imported,
+      }));
+      req.log.info({ importId: result.batch.id, profileId: result.profile.id, imported: result.imported }, "Product workbook import processed");
+    } catch (error) {
+      if (error instanceof HttpError) {
+        res.status(error.statusCode).json({ error: error.message });
+        return;
+      }
+      if (typeof error === "object" && error !== null && "code" in error && error.code === "23505") {
+        res.status(409).json({ error: "A profile with this brand and flavor already exists. Review the current profile before retrying." });
+        return;
+      }
+      req.log.error({ err: error }, "Product workbook import failed");
+      res.status(500).json({ error: "Workbook could not be imported." });
+    }
+  },
+);
+
+router.patch(
+  "/v2/product-profiles/:profileId",
+  requireV2Session,
+  requireV2Csrf,
+  mutationRateLimit,
+  async (req, res): Promise<void> => {
+    const params = RenameProductProfileParams.safeParse(req.params);
+    const body = RenameProductProfileBody.safeParse(req.body);
+    if (!params.success || !body.success) {
+      res.status(400).json({ error: "Enter a valid brand and flavor." });
+      return;
+    }
+    const access = await membershipOrRespond(req, res);
+    if (!access) return;
+    assertRunPermission(access.membership.role, "create");
+    const brand = body.data.brand.normalize("NFKC").trim().replace(/\s+/g, " ");
+    const flavor = body.data.flavor.normalize("NFKC").trim().replace(/\s+/g, " ");
+    if (!brand || !flavor) {
+      res.status(400).json({ error: "Enter a valid brand and flavor." });
+      return;
+    }
+    try {
+      const [profile] = await db.update(facilityProductProfilesTable).set({
+        brand,
+        flavor,
+        normalizedKey: normalizedProfileKey(brand, flavor),
+        revision: sql`${facilityProductProfilesTable.revision} + 1`,
+        updatedAt: new Date(),
+      }).where(and(
+        eq(facilityProductProfilesTable.id, params.data.profileId),
+        eq(facilityProductProfilesTable.facilityId, access.membership.facilityId),
+        isNull(facilityProductProfilesTable.mergedIntoId),
+        eq(facilityProductProfilesTable.revision, body.data.expectedRevision),
+      )).returning();
+      if (!profile) {
+        res.status(409).json({ error: "This profile changed on another device. Refresh and try again." });
+        return;
+      }
+      res.json(RenameProductProfileResponse.parse({ profile }));
+    } catch (error) {
+      if (typeof error === "object" && error !== null && "code" in error && error.code === "23505") {
+        res.status(409).json({ error: "A profile with this brand and flavor already exists." });
+        return;
+      }
+      throw error;
+    }
+  },
+);
+
+router.post(
+  "/v2/product-profiles/:profileId/merge",
+  requireV2Session,
+  requireV2Csrf,
+  mutationRateLimit,
+  async (req, res): Promise<void> => {
+    const params = MergeProductProfileParams.safeParse(req.params);
+    const body = MergeProductProfileBody.safeParse(req.body);
+    if (!params.success || !body.success || params.data.profileId === body.data.targetProfileId) {
+      res.status(400).json({ error: "Choose two different product profiles to merge." });
+      return;
+    }
+    const access = await membershipOrRespond(req, res);
+    if (!access) return;
+    assertRunPermission(access.membership.role, "create");
+    const result = await db.transaction(async (tx) => {
+      const profiles = await tx.select().from(facilityProductProfilesTable).where(and(
+        eq(facilityProductProfilesTable.facilityId, access.membership.facilityId),
+        inArray(facilityProductProfilesTable.id, [params.data.profileId, body.data.targetProfileId]),
+      ));
+      const source = profiles.find((profile) => profile.id === params.data.profileId);
+      const target = profiles.find((profile) => profile.id === body.data.targetProfileId);
+      if (!source || !target) throw new HttpError(404, "One of the selected profiles is unavailable.");
+      if (
+        source.mergedIntoId ||
+        target.mergedIntoId ||
+        source.revision !== body.data.expectedSourceRevision ||
+        target.revision !== body.data.expectedTargetRevision
+      ) {
+        throw new HttpError(409, "A profile changed on another device. Refresh and review the merge again.");
+      }
+      const sourceParts = profileSourceEntries(target);
+      const incomingParts = profileSourceEntries(source);
+      const [updatedTarget] = await tx.update(facilityProductProfilesTable).set({
+        productData: { sources: [...sourceParts, ...incomingParts] },
+        revision: sql`${facilityProductProfilesTable.revision} + 1`,
+        updatedAt: new Date(),
+      }).where(and(
+        eq(facilityProductProfilesTable.id, target.id),
+        eq(facilityProductProfilesTable.revision, body.data.expectedTargetRevision),
+      )).returning();
+      const [updatedSource] = await tx.update(facilityProductProfilesTable).set({
+        mergedIntoId: target.id,
+        revision: sql`${facilityProductProfilesTable.revision} + 1`,
+        updatedAt: new Date(),
+      }).where(and(
+        eq(facilityProductProfilesTable.id, source.id),
+        eq(facilityProductProfilesTable.revision, body.data.expectedSourceRevision),
+        isNull(facilityProductProfilesTable.mergedIntoId),
+      )).returning();
+      if (!updatedTarget || !updatedSource) {
+        throw new HttpError(409, "A profile changed on another device. Refresh and review the merge again.");
+      }
+      return { profile: updatedTarget, mergedProfileId: updatedSource.id };
+    });
+    res.json(MergeProductProfileResponse.parse(result));
+    req.log.info({ profileId: result.mergedProfileId, targetProfileId: result.profile.id }, "Product profiles merged");
+  },
+);
+
 router.get(
   "/v2/runs",
   requireV2Session,
@@ -863,7 +1170,10 @@ router.post(
       facilityId: access.membership.facilityId,
       actorUserId: access.actorId,
       requestId: parsed.data.requestId,
-      setupSnapshot: parsed.data.setupSnapshot,
+      setupSnapshot: {
+        ...parsed.data.setupSnapshot,
+        productProfileId: parsed.data.setupSnapshot.productProfileId ?? null,
+      },
     });
     const response = CreateRunResponse.parse(result);
     res.status(response.replayed ? 200 : 201).json(response);

@@ -14,7 +14,9 @@ export function toContractRun(run: ProductionRun) {
     setupSnapshot: {
       label: run.name,
       targetCases: run.targetCases,
+      productProfileId: run.productProfileId,
     },
+    productSnapshot: run.productSnapshot,
     pauseIntervals: run.pauseIntervals,
   };
 }

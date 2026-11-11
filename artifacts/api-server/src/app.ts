@@ -55,6 +55,7 @@ app.use((req, res, next) => {
   res.on("finish", () => clearTimeout(timeout));
   next();
 });
+app.use("/api/v2/product-profiles", express.json({ limit: "1mb" }));
 app.use(express.json({ limit: "32kb" }));
 app.use(cookieParser());
 

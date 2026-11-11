@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { PauseInterval } from './pauseInterval.ts';
+import type { ProductProfile } from './productProfile.ts';
 import type { RunSetup } from './runSetup.ts';
 import type { RunStatus } from './runStatus.ts';
 
@@ -28,5 +29,6 @@ export interface Run {
   /** @nullable */
   completedAt: Date | null;
   setupSnapshot: RunSetup;
+  productSnapshot: ProductProfile | null;
   pauseIntervals: PauseInterval[];
 }

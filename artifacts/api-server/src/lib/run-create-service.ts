@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
+  facilityProductProfilesTable,
   productionRunsTable,
   runCreateReceiptsTable,
 } from "@workspace/db";
@@ -11,6 +12,7 @@ import { toContractRun } from "./run-contract";
 export interface RunSetupSnapshot {
   label: string;
   targetCases: number;
+  productProfileId?: string | null;
 }
 
 function setupHash(setupSnapshot: RunSetupSnapshot) {
@@ -18,6 +20,7 @@ function setupHash(setupSnapshot: RunSetupSnapshot) {
     .update(JSON.stringify({
       label: setupSnapshot.label.trim(),
       targetCases: setupSnapshot.targetCases,
+      productProfileId: setupSnapshot.productProfileId ?? null,
     }))
     .digest("hex");
 }
@@ -70,11 +73,34 @@ export async function createPlannedRun(input: {
 
   try {
     return await db.transaction(async (tx) => {
+      const profileId = input.setupSnapshot.productProfileId ?? null;
+      const [productProfile] = profileId
+        ? await tx.select().from(facilityProductProfilesTable).where(and(
+            eq(facilityProductProfilesTable.id, profileId),
+            eq(facilityProductProfilesTable.facilityId, input.facilityId),
+          )).limit(1)
+        : [];
+      if (profileId && !productProfile) {
+        throw new HttpError(404, "The selected product profile is no longer available.");
+      }
+      const productSnapshot = productProfile
+        ? {
+            id: productProfile.id,
+            brand: productProfile.brand,
+            flavor: productProfile.flavor,
+            revision: productProfile.revision,
+            productData: productProfile.productData,
+            createdAt: productProfile.createdAt,
+            updatedAt: productProfile.updatedAt,
+          }
+        : null;
       const [run] = await tx
         .insert(productionRunsTable)
         .values({
           facilityId: input.facilityId,
           name: input.setupSnapshot.label.trim(),
+          productProfileId: profileId,
+          productSnapshot,
           targetCases: input.setupSnapshot.targetCases,
           status: "planned",
           revision: 0,

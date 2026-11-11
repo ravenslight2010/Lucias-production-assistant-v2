@@ -273,6 +273,145 @@ export interface RunSetup {
      * @maximum 9007199254740991
      */
   targetCases: number;
+  /** @nullable */
+  productProfileId?: string | null;
+}
+
+export type ProductProfileProductData = { [key: string]: unknown };
+
+export interface ProductProfile {
+  id: string;
+  brand: string;
+  flavor: string;
+  revision: number;
+  productData: ProductProfileProductData;
+  createdAt: string;
+  updatedAt: string;
+  /** @nullable */
+  mergedIntoId: string | null;
+}
+
+export interface ProductProfileList {
+  profiles: ProductProfile[];
+}
+
+export interface ProductProfileEnvelope {
+  profile: ProductProfile;
+}
+
+export type ProductProfileImportInputImportKind = typeof ProductProfileImportInputImportKind[keyof typeof ProductProfileImportInputImportKind];
+
+
+export const ProductProfileImportInputImportKind = {
+  product_specs: 'product_specs',
+  premix: 'premix',
+  cheese: 'cheese',
+  shipping: 'shipping',
+  sauce_guide: 'sauce_guide',
+  dough_guide: 'dough_guide',
+  schedule: 'schedule',
+} as const;
+
+export type ProductProfileImportInputProductData = { [key: string]: unknown };
+
+export interface ProductProfileImportInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  brand: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  flavor: string;
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  sourceName: string;
+  /**
+     * @minLength 64
+     * @maxLength 64
+     */
+  sourceHash: string;
+  importKind: ProductProfileImportInputImportKind;
+  productData: ProductProfileImportInputProductData;
+}
+
+export interface ProductProfileImportResult {
+  profile: ProductProfile;
+  imported: boolean;
+}
+
+export interface ProductProfileRenameInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  brand: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  flavor: string;
+  /** @minimum 0 */
+  expectedRevision: number;
+}
+
+export interface ProductProfileMergeInput {
+  targetProfileId: string;
+  /** @minimum 0 */
+  expectedSourceRevision: number;
+  /** @minimum 0 */
+  expectedTargetRevision: number;
+}
+
+export interface ProductProfileMergeResult {
+  profile: ProductProfile;
+  mergedProfileId: string;
+}
+
+export type ImportBatchImportKind = typeof ImportBatchImportKind[keyof typeof ImportBatchImportKind];
+
+
+export const ImportBatchImportKind = {
+  product_specs: 'product_specs',
+  premix: 'premix',
+  cheese: 'cheese',
+  shipping: 'shipping',
+  sauce_guide: 'sauce_guide',
+  dough_guide: 'dough_guide',
+  schedule: 'schedule',
+} as const;
+
+export type ImportBatchStatus = typeof ImportBatchStatus[keyof typeof ImportBatchStatus];
+
+
+export const ImportBatchStatus = {
+  draft: 'draft',
+  applied: 'applied',
+} as const;
+
+export interface ImportBatch {
+  id: string;
+  sourceName: string;
+  importKind: ImportBatchImportKind;
+  status: ImportBatchStatus;
+  /** @nullable */
+  proposedBrand: string | null;
+  /** @nullable */
+  proposedFlavor: string | null;
+  /** @nullable */
+  profileId: string | null;
+  createdAt: string;
+  /** @nullable */
+  appliedAt: string | null;
+}
+
+export interface ImportBatchList {
+  /** @maxItems 100 */
+  imports: ImportBatch[];
 }
 
 export interface PauseInterval {
@@ -300,6 +439,7 @@ export interface Run {
   /** @nullable */
   completedAt: string | null;
   setupSnapshot: RunSetup;
+  productSnapshot: ProductProfile | null;
   pauseIntervals: PauseInterval[];
 }
 

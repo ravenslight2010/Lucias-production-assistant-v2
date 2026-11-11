@@ -13,6 +13,7 @@ import {
   getGetFacilityContextQueryKey,
   getGetRunQueryKey,
   getGetRunStationProgressQueryKey,
+  getListProductProfilesQueryKey,
   getListRunsQueryKey,
   revokeV2Session,
   setV2CsrfToken,
@@ -24,6 +25,7 @@ import {
   useGetRun,
   useHealthCheck,
   useListRuns,
+  useListProductProfiles,
 } from '@workspace/api-client-react';
 import type { HealthStatus, Run, RunCommandRequest, RunStatus } from '@workspace/api-client-react';
 import { Link, Redirect, Route, Switch, Router as WouterRouter, useLocation, useRoute } from 'wouter';
@@ -34,6 +36,7 @@ import FacilityMembersPage from '@/components/facility-members-page';
 import StationLineupPage from '@/components/station-lineup-page';
 import RunStationProgressSection from '@/components/run-station-progress';
 import NotFound from '@/pages/not-found';
+import ImportsPage from '@/pages/imports';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -115,6 +118,7 @@ function SiteShell({ children, facilityName }: { children: ReactNode; facilityNa
   const links = [
     { href: '/', label: 'Overview', icon: Gauge },
     { href: '/runs', label: 'Production runs', icon: ClipboardList },
+    { href: '/imports', label: 'Product profiles', icon: Factory },
     { href: '/stations', label: 'Stations', icon: MapPinned },
   ];
   if (facilityContext.data?.role === 'owner') {
@@ -377,10 +381,15 @@ function RunsPage() {
   const [targetCases, setTargetCases] = useState('1');
   const [validation, setValidation] = useState('');
   const [filter, setFilter] = useState<RunStatus | 'all'>('all');
+  const [productProfileId, setProductProfileId] = useState('');
   const queryArgs = { limit: 100 };
   const queryKey = getListRunsQueryKey(queryArgs);
   const runsQuery = useListRuns(queryArgs, {
     query: { queryKey, refetchInterval: online ? 5000 : false },
+    request: { credentials: 'include' },
+  });
+  const profilesQuery = useListProductProfiles({
+    query: { queryKey: getListProductProfilesQueryKey() },
     request: { credentials: 'include' },
   });
   const createRun = useCreateRun({ request: { credentials: 'include' } });
@@ -398,19 +407,20 @@ function RunsPage() {
       return;
     }
     setValidation('');
-    const fingerprint = JSON.stringify({ label: cleaned, targetCases: countValue });
+    const fingerprint = JSON.stringify({ label: cleaned, targetCases: countValue, productProfileId: productProfileId || null });
     if (!createAttempt.current || createAttempt.current.fingerprint !== fingerprint) {
       createAttempt.current = { fingerprint, requestId: crypto.randomUUID() };
     }
     createRun.mutate({
       data: {
         requestId: createAttempt.current.requestId,
-        setupSnapshot: { label: cleaned, targetCases: countValue },
+        setupSnapshot: { label: cleaned, targetCases: countValue, ...(productProfileId ? { productProfileId } : {}) },
       },
     }, {
       onSuccess: (created) => {
         setName('');
         setTargetCases('1');
+        setProductProfileId('');
         setIsCreating(false);
         createAttempt.current = null;
         client.setQueryData<{ runs: Run[] }>(queryKey, (old) => ({
@@ -438,6 +448,15 @@ function RunsPage() {
           <div className="eyebrow">New planned run</div><h2>Set up this production run</h2>
           <div className="form-field"><label htmlFor="run-name">Run label</label><input id="run-name" data-testid="input-run-name" autoFocus maxLength={120} value={name} onChange={(event) => setName(event.target.value)} aria-describedby={validation ? 'run-error' : 'run-label-help'} required /><span className="field-help" id="run-label-help">A clear label helps the next operator identify this run.</span></div>
           <div className="form-field"><label htmlFor="run-target-cases">Target cases</label><input id="run-target-cases" data-testid="input-run-target-cases" type="number" inputMode="numeric" min={1} step={1} value={targetCases} onChange={(event) => setTargetCases(event.target.value)} aria-describedby={validation ? 'run-error' : undefined} required /></div>
+          <div className="form-field">
+            <label htmlFor="run-product-profile">Imported product profile <span className="field-help">(optional)</span></label>
+            <select id="run-product-profile" value={productProfileId} onChange={(event) => setProductProfileId(event.target.value)} style={{ width: '100%', minHeight: 48, padding: '0 13px', border: '1px solid hsl(var(--input))', borderRadius: 8, background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }} disabled={profilesQuery.isLoading || profilesQuery.isError}>
+              <option value="">{profilesQuery.isLoading ? 'Loading profiles…' : profilesQuery.isError ? 'Profiles could not be loaded' : 'No product profile'}</option>
+              {(profilesQuery.data?.profiles ?? []).map((profile) => <option key={profile.id} value={profile.id}>{profile.brand} / {profile.flavor} · rev {profile.revision}</option>)}
+            </select>
+            {profilesQuery.isError && <span className="field-help" role="status">Profile selection is unavailable. Retry on Product profiles before creating a run with product setup.</span>}
+            {productProfileId && <span className="field-help">The selected profile is captured as a run snapshot at creation. Later profile changes will not alter it.</span>}
+          </div>
           {validation && <span className="field-help" id="run-error" role="alert">{validation}</span>}
           {createRun.isError && <div className="error-banner" role="alert">{getErrorMessage(createRun.error, 'Run could not be created.')}</div>}
           <div className="control-row"><button className="button button-primary" type="submit" disabled={!online || createRun.isPending}>{createRun.isPending ? <LoaderCircle size={16} /> : <Plus size={16} />} {createRun.isPending ? 'Saving planned run…' : 'Create planned run'}</button><button className="button button-secondary" type="button" onClick={() => setIsCreating(false)}>Cancel</button></div>
@@ -550,6 +569,21 @@ function RunDetailPage() {
               <Property label="Completed" value={run.completedAt ? formatDateTime(run.completedAt) : '—'} />
             </aside>
           </div>
+          <section className="panel snapshot-panel" style={{ marginTop: 16 }} aria-labelledby="product-snapshot-heading">
+            <div className="snapshot-title">
+              <div className="snapshot-mark"><Factory size={18} aria-hidden="true" /></div>
+              <div><div className="eyebrow">Captured at run creation</div><h2 id="product-snapshot-heading">Product setup snapshot</h2></div>
+            </div>
+            {run.productSnapshot
+              ? <>
+                <div className="property-row"><span>Profile</span><strong>{run.productSnapshot.brand} / {run.productSnapshot.flavor}</strong></div>
+                <div className="property-row"><span>Captured revision</span><strong className="mono">#{run.productSnapshot.revision}</strong></div>
+                <div className="property-row"><span>Source profile last updated</span><strong>{formatDateTime(run.productSnapshot.updatedAt)}</strong></div>
+                <p style={{ marginTop: 14 }}>This is the immutable product profile captured for this run. It may differ from the profile currently in the facility list.</p>
+                <details className="profile-bundle"><summary>View captured source data</summary><pre>{JSON.stringify(run.productSnapshot.productData, null, 2)}</pre></details>
+              </>
+              : <div className="notice" role="status">No product profile snapshot was attached when this run was created. The run setup remains unchanged.</div>}
+          </section>
           <RunStationProgressSection
             runId={run.id}
             run={run}
@@ -818,6 +852,7 @@ function RouterContent() {
           <Route path="/sign-in/*?" component={SignInPage} />
           <Route path="/sign-up/*?" component={SignUpPage} />
           <Route path="/runs" component={() => <Protected><RunsPage /></Protected>} />
+          <Route path="/imports" component={() => <Protected><SiteShell><ImportsPage /></SiteShell></Protected>} />
           <Route path="/runs/:runId" component={() => <Protected><RunDetailPage /></Protected>} />
           <Route path="/stations" component={() => <Protected><SiteShell><StationLineupPage /></SiteShell></Protected>} />
           <Route path="/team" component={() => <Protected><FacilityTeamRoute /></Protected>} />

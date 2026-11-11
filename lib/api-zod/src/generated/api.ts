@@ -289,8 +289,19 @@ export const ListRunsResponse = zod.object({
   "completedAt": zod.coerce.date().nullable(),
   "setupSnapshot": zod.object({
   "label": zod.string().min(1).max(listRunsResponseRunsItemSetupSnapshotLabelMax),
-  "targetCases": zod.number().int().min(1).max(listRunsResponseRunsItemSetupSnapshotTargetCasesMax)
+  "targetCases": zod.number().int().min(1).max(listRunsResponseRunsItemSetupSnapshotTargetCasesMax),
+  "productProfileId": zod.string().uuid().nullish()
 }),
+  "productSnapshot": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "brand": zod.string(),
+  "flavor": zod.string(),
+  "revision": zod.number().int(),
+  "productData": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "mergedIntoId": zod.string().uuid().nullable()
+}),zod.null()]),
   "pauseIntervals": zod.array(zod.object({
   "startedAt": zod.coerce.date(),
   "endedAt": zod.coerce.date().nullable()
@@ -317,7 +328,8 @@ export const CreateRunBody = zod.object({
   "requestId": zod.string().uuid(),
   "setupSnapshot": zod.object({
   "label": zod.string().min(1).max(createRunBodySetupSnapshotLabelMax),
-  "targetCases": zod.number().int().min(1).max(createRunBodySetupSnapshotTargetCasesMax)
+  "targetCases": zod.number().int().min(1).max(createRunBodySetupSnapshotTargetCasesMax),
+  "productProfileId": zod.string().uuid().nullish()
 })
 })
 
@@ -345,13 +357,188 @@ export const CreateRunResponse = zod.object({
   "completedAt": zod.coerce.date().nullable(),
   "setupSnapshot": zod.object({
   "label": zod.string().min(1).max(createRunResponseRunSetupSnapshotLabelMax),
-  "targetCases": zod.number().int().min(1).max(createRunResponseRunSetupSnapshotTargetCasesMax)
+  "targetCases": zod.number().int().min(1).max(createRunResponseRunSetupSnapshotTargetCasesMax),
+  "productProfileId": zod.string().uuid().nullish()
 }),
+  "productSnapshot": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "brand": zod.string(),
+  "flavor": zod.string(),
+  "revision": zod.number().int(),
+  "productData": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "mergedIntoId": zod.string().uuid().nullable()
+}),zod.null()]),
   "pauseIntervals": zod.array(zod.object({
   "startedAt": zod.coerce.date(),
   "endedAt": zod.coerce.date().nullable()
 }))
 })
+})
+
+
+/**
+ * @summary List product profiles for the authenticated facility
+ */
+export const ListProductProfilesResponse = zod.object({
+  "profiles": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "brand": zod.string(),
+  "flavor": zod.string(),
+  "revision": zod.number().int(),
+  "productData": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "mergedIntoId": zod.string().uuid().nullable()
+}))
+})
+
+
+/**
+ * @summary Save a reviewed workbook as facility product data
+ */
+export const ImportProductProfileHeader = zod.object({
+  "X-CSRF-Token": zod.string()
+})
+
+export const importProductProfileBodyBrandMax = 120;
+
+export const importProductProfileBodyFlavorMax = 120;
+
+export const importProductProfileBodySourceNameMax = 255;
+
+export const importProductProfileBodySourceHashMin = 64;
+export const importProductProfileBodySourceHashMax = 64;
+
+
+
+export const ImportProductProfileBody = zod.object({
+  "brand": zod.string().min(1).max(importProductProfileBodyBrandMax),
+  "flavor": zod.string().min(1).max(importProductProfileBodyFlavorMax),
+  "sourceName": zod.string().min(1).max(importProductProfileBodySourceNameMax),
+  "sourceHash": zod.string().min(importProductProfileBodySourceHashMin).max(importProductProfileBodySourceHashMax),
+  "importKind": zod.enum(['product_specs', 'premix', 'cheese', 'shipping', 'sauce_guide', 'dough_guide', 'schedule']),
+  "productData": zod.record(zod.string(), zod.unknown())
+})
+
+export const ImportProductProfileResponse = zod.object({
+  "profile": zod.object({
+  "id": zod.string().uuid(),
+  "brand": zod.string(),
+  "flavor": zod.string(),
+  "revision": zod.number().int(),
+  "productData": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "mergedIntoId": zod.string().uuid().nullable()
+}),
+  "imported": zod.boolean()
+})
+
+
+/**
+ * @summary List recent workbook imports for the authenticated facility
+ */
+export const listImportBatchesResponseImportsMax = 100;
+
+
+
+export const ListImportBatchesResponse = zod.object({
+  "imports": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "sourceName": zod.string(),
+  "importKind": zod.enum(['product_specs', 'premix', 'cheese', 'shipping', 'sauce_guide', 'dough_guide', 'schedule']),
+  "status": zod.enum(['draft', 'applied']),
+  "proposedBrand": zod.string().nullable(),
+  "proposedFlavor": zod.string().nullable(),
+  "profileId": zod.string().uuid().nullable(),
+  "createdAt": zod.coerce.date(),
+  "appliedAt": zod.coerce.date().nullable()
+})).max(listImportBatchesResponseImportsMax)
+})
+
+
+/**
+ * @summary Rename an imported product profile
+ */
+export const renameProductProfilePathProfileIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
+export const RenameProductProfileParams = zod.object({
+  "profileId": zod.coerce.string().regex(renameProductProfilePathProfileIdRegExp)
+})
+
+export const RenameProductProfileHeader = zod.object({
+  "X-CSRF-Token": zod.string()
+})
+
+export const renameProductProfileBodyBrandMax = 120;
+
+export const renameProductProfileBodyFlavorMax = 120;
+
+export const renameProductProfileBodyExpectedRevisionMin = 0;
+
+
+
+export const RenameProductProfileBody = zod.object({
+  "brand": zod.string().min(1).max(renameProductProfileBodyBrandMax),
+  "flavor": zod.string().min(1).max(renameProductProfileBodyFlavorMax),
+  "expectedRevision": zod.number().int().min(renameProductProfileBodyExpectedRevisionMin)
+})
+
+export const RenameProductProfileResponse = zod.object({
+  "profile": zod.object({
+  "id": zod.string().uuid(),
+  "brand": zod.string(),
+  "flavor": zod.string(),
+  "revision": zod.number().int(),
+  "productData": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "mergedIntoId": zod.string().uuid().nullable()
+})
+})
+
+
+/**
+ * @summary Preserve a product profile inside another profile
+ */
+export const mergeProductProfilePathProfileIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
+export const MergeProductProfileParams = zod.object({
+  "profileId": zod.coerce.string().regex(mergeProductProfilePathProfileIdRegExp)
+})
+
+export const MergeProductProfileHeader = zod.object({
+  "X-CSRF-Token": zod.string()
+})
+
+export const mergeProductProfileBodyExpectedSourceRevisionMin = 0;
+
+export const mergeProductProfileBodyExpectedTargetRevisionMin = 0;
+
+
+
+export const MergeProductProfileBody = zod.object({
+  "targetProfileId": zod.string().uuid(),
+  "expectedSourceRevision": zod.number().int().min(mergeProductProfileBodyExpectedSourceRevisionMin),
+  "expectedTargetRevision": zod.number().int().min(mergeProductProfileBodyExpectedTargetRevisionMin)
+})
+
+export const MergeProductProfileResponse = zod.object({
+  "profile": zod.object({
+  "id": zod.string().uuid(),
+  "brand": zod.string(),
+  "flavor": zod.string(),
+  "revision": zod.number().int(),
+  "productData": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "mergedIntoId": zod.string().uuid().nullable()
+}),
+  "mergedProfileId": zod.string().uuid()
 })
 
 
@@ -387,8 +574,19 @@ export const GetRunResponse = zod.object({
   "completedAt": zod.coerce.date().nullable(),
   "setupSnapshot": zod.object({
   "label": zod.string().min(1).max(getRunResponseRunSetupSnapshotLabelMax),
-  "targetCases": zod.number().int().min(1).max(getRunResponseRunSetupSnapshotTargetCasesMax)
+  "targetCases": zod.number().int().min(1).max(getRunResponseRunSetupSnapshotTargetCasesMax),
+  "productProfileId": zod.string().uuid().nullish()
 }),
+  "productSnapshot": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "brand": zod.string(),
+  "flavor": zod.string(),
+  "revision": zod.number().int(),
+  "productData": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "mergedIntoId": zod.string().uuid().nullable()
+}),zod.null()]),
   "pauseIntervals": zod.array(zod.object({
   "startedAt": zod.coerce.date(),
   "endedAt": zod.coerce.date().nullable()
@@ -449,8 +647,19 @@ export const ApplyRunCommandResponse = zod.object({
   "completedAt": zod.coerce.date().nullable(),
   "setupSnapshot": zod.object({
   "label": zod.string().min(1).max(applyRunCommandResponseRunSetupSnapshotLabelMax),
-  "targetCases": zod.number().int().min(1).max(applyRunCommandResponseRunSetupSnapshotTargetCasesMax)
+  "targetCases": zod.number().int().min(1).max(applyRunCommandResponseRunSetupSnapshotTargetCasesMax),
+  "productProfileId": zod.string().uuid().nullish()
 }),
+  "productSnapshot": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "brand": zod.string(),
+  "flavor": zod.string(),
+  "revision": zod.number().int(),
+  "productData": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "mergedIntoId": zod.string().uuid().nullable()
+}),zod.null()]),
   "pauseIntervals": zod.array(zod.object({
   "startedAt": zod.coerce.date(),
   "endedAt": zod.coerce.date().nullable()
@@ -540,8 +749,19 @@ export const GetDashboardSummaryResponse = zod.object({
   "completedAt": zod.coerce.date().nullable(),
   "setupSnapshot": zod.object({
   "label": zod.string().min(1).max(getDashboardSummaryResponseActiveRunsItemSetupSnapshotLabelMax),
-  "targetCases": zod.number().int().min(1).max(getDashboardSummaryResponseActiveRunsItemSetupSnapshotTargetCasesMax)
+  "targetCases": zod.number().int().min(1).max(getDashboardSummaryResponseActiveRunsItemSetupSnapshotTargetCasesMax),
+  "productProfileId": zod.string().uuid().nullish()
 }),
+  "productSnapshot": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "brand": zod.string(),
+  "flavor": zod.string(),
+  "revision": zod.number().int(),
+  "productData": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "mergedIntoId": zod.string().uuid().nullable()
+}),zod.null()]),
   "pauseIntervals": zod.array(zod.object({
   "startedAt": zod.coerce.date(),
   "endedAt": zod.coerce.date().nullable()
@@ -559,8 +779,19 @@ export const GetDashboardSummaryResponse = zod.object({
   "completedAt": zod.coerce.date().nullable(),
   "setupSnapshot": zod.object({
   "label": zod.string().min(1).max(getDashboardSummaryResponseRecentRunsItemSetupSnapshotLabelMax),
-  "targetCases": zod.number().int().min(1).max(getDashboardSummaryResponseRecentRunsItemSetupSnapshotTargetCasesMax)
+  "targetCases": zod.number().int().min(1).max(getDashboardSummaryResponseRecentRunsItemSetupSnapshotTargetCasesMax),
+  "productProfileId": zod.string().uuid().nullish()
 }),
+  "productSnapshot": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "brand": zod.string(),
+  "flavor": zod.string(),
+  "revision": zod.number().int(),
+  "productData": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "mergedIntoId": zod.string().uuid().nullable()
+}),zod.null()]),
   "pauseIntervals": zod.array(zod.object({
   "startedAt": zod.coerce.date(),
   "endedAt": zod.coerce.date().nullable()

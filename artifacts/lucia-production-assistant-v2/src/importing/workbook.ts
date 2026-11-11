@@ -1,5 +1,3 @@
-import * as XLSX from "xlsx";
-
 export const WORKBOOK_LIMITS = {
   maxBytes: 25 * 1024 * 1024,
   maxSheets: 100,
@@ -30,6 +28,94 @@ export type ParsedWorkbook = {
   kindConfidence: "high" | "review";
   sheets: WorkbookSheet[];
 };
+
+export type ParsedScheduleRun = {
+  date: string;
+  brand: string;
+  flavor: string;
+  casesPlanned: number;
+  notes: string;
+  source: { file: string; sheet: string; row: number };
+};
+
+export type ScheduleParseResult = {
+  runs: ParsedScheduleRun[];
+  errors: Array<{ sheet: string; row: number; message: string }>;
+};
+
+const scheduleUnitHeaders = new Set(["units", "cases", "qty", "quantity", "cases planned"]);
+
+function cellText(value: WorkbookCell | undefined) {
+  return value == null ? "" : String(value).trim();
+}
+
+function cellDate(value: WorkbookCell | undefined): string | null {
+  if (typeof value === "number" && value >= 20_000 && value <= 90_000) {
+    return new Date(Math.round((value - 25_569) * 86_400_000)).toISOString().slice(0, 10);
+  }
+  const text = cellText(value);
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(text);
+  if (iso) return `${iso[1]}-${String(Number(iso[2])).padStart(2, "0")}-${String(Number(iso[3])).padStart(2, "0")}`;
+  const us = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$/.exec(text);
+  if (!us) return null;
+  const year = us[3].length === 2 ? 2000 + Number(us[3]) : Number(us[3]);
+  return `${year}-${String(Number(us[1])).padStart(2, "0")}-${String(Number(us[2])).padStart(2, "0")}`;
+}
+
+export function parseScheduleWorkbook(workbook: ParsedWorkbook): ScheduleParseResult {
+  const runs: ParsedScheduleRun[] = [];
+  const errors: ScheduleParseResult["errors"] = [];
+  for (const sheet of workbook.sheets) {
+    let row = 0;
+    while (row < sheet.rows.length) {
+      const header = sheet.rows[row];
+      const findCol = (wanted: string[]) => header.findIndex((cell) => typeof cell === "string" && wanted.includes(cell.trim().toLowerCase()));
+      const brandCol = findCol(["brand"]);
+      const flavorCol = findCol(["flavor"]);
+      const unitsCol = findCol([...scheduleUnitHeaders]);
+      if (brandCol < 0 || flavorCol < 0 || unitsCol < 0) { row++; continue; }
+      const date = header.map(cellDate).find((value) => value !== null) ?? null;
+      const customerCol = findCol(["customer"]);
+      const shipCol = findCol(["ship", "ship date", "shipdate"]);
+      const poCol = findCol(["po", "po #", "po#", "po number"]);
+      let next = row + 1;
+      for (; next < sheet.rows.length; next++) {
+        const cells = sheet.rows[next];
+        const isHeader = cells.some((cell, index) =>
+          typeof cell === "string" && cell.trim().toLowerCase() === "brand",
+        ) && cells.some((cell) => typeof cell === "string" && cell.trim().toLowerCase() === "flavor")
+          && cells.some((cell) => typeof cell === "string" && scheduleUnitHeaders.has(cell.trim().toLowerCase()));
+        if (isHeader) break;
+        const brand = cellText(cells[brandCol]);
+        const flavor = cellText(cells[flavorCol]);
+        const units = cellText(cells[unitsCol]);
+        if (!brand && !flavor) continue;
+        if (/^-?\d+(\.\d+)?$/.test(brand) || (!brand && /^-?\d+(\.\d+)?$/.test(flavor))) continue;
+        const normalizedFlavor = flavor.toLowerCase().replace(/\s+/g, " ");
+        if (!brand && (/^(carton |closed -|inventory|qc school)/.test(normalizedFlavor) || normalizedFlavor === "breakfast is old shells and old labels")) continue;
+        if (!date) { errors.push({ sheet: sheet.name, row: next + 1, message: `${brand || flavor} has no valid day date` }); continue; }
+        if (!brand) { errors.push({ sheet: sheet.name, row: next + 1, message: "Missing brand" }); continue; }
+        const quantity = units === "" ? 0 : Number(units.replace(/[, ]/g, ""));
+        if (!Number.isFinite(quantity) || quantity < 0) { errors.push({ sheet: sheet.name, row: next + 1, message: `Invalid units: ${units}` }); continue; }
+        const noteParts = [
+          customerCol >= 0 ? cellText(cells[customerCol]) : "",
+          poCol >= 0 && cellText(cells[poCol]) ? `PO ${cellText(cells[poCol])}` : "",
+          shipCol >= 0 && cellText(cells[shipCol]) ? `Ship ${cellDate(cells[shipCol]) ?? cellText(cells[shipCol])}` : "",
+        ].filter(Boolean);
+        runs.push({
+          date,
+          brand,
+          flavor,
+          casesPlanned: Math.round(quantity),
+          notes: noteParts.join(" · "),
+          source: { file: workbook.fileName, sheet: sheet.name, row: next + 1 },
+        });
+      }
+      row = next;
+    }
+  }
+  return { runs, errors };
+}
 
 function cellValue(value: unknown): WorkbookCell {
   if (typeof value === "string" || typeof value === "boolean") return value;
@@ -71,6 +157,7 @@ export async function parseWorkbookFile(file: File): Promise<ParsedWorkbook> {
   if (file.size <= 0 || file.size > WORKBOOK_LIMITS.maxBytes) {
     throw new Error("Workbook must be between 1 byte and 25 MB.");
   }
+  const XLSX = await import("xlsx");
   const bytes = await file.arrayBuffer();
   const workbook = XLSX.read(bytes, {
     type: "array",

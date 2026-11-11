@@ -244,6 +244,68 @@ h3 { font: 700 16px/1.25 var(--app-font-display); }
 .clerk-intro .brand { justify-content: center; margin-bottom: 24px; color: hsl(var(--foreground)); }
 .clerk-intro p { margin: 0; color: hsl(var(--muted-foreground)); font-size: 13px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.import-layout { display: grid; grid-template-columns: minmax(280px,.82fr) minmax(0,1.18fr); gap: 20px; align-items: start; }
+.import-panel { padding: clamp(18px,3vw,28px); }
+.import-panel h2 { margin: 7px 0 8px; }
+.import-intro { max-width: 680px; margin: -14px 0 25px; color: hsl(var(--muted-foreground)); font-size: 14px; line-height: 1.65; }
+.upload-zone { min-height: 138px; display: grid; place-items: center; padding: 20px; border: 1px dashed hsl(var(--primary) / .42); border-radius: 12px; background: hsl(var(--primary) / .045); text-align: center; }
+.upload-zone input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.upload-zone label { display: grid; justify-items: center; gap: 8px; color: hsl(var(--primary)); cursor: pointer; font-weight: 700; }
+.upload-zone label span { color: hsl(var(--muted-foreground)); font-size: 12px; font-weight: 500; }
+.import-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.import-fields .form-field { min-width: 0; }
+.import-fields select, .import-fields input, .profile-actions select { width: 100%; min-height: 46px; padding: 0 12px; border: 1px solid hsl(var(--input)); border-radius: 8px; background: hsl(var(--background)); color: hsl(var(--foreground)); }
+.workbook-preview { margin-top: 18px; border: 1px solid hsl(var(--border)); border-radius: 10px; overflow: hidden; }
+.workbook-preview-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 12px 14px; background: hsl(var(--muted)); font-size: 12px; }
+.workbook-sheet { padding: 12px 14px; border-top: 1px solid hsl(var(--border)); }
+.workbook-sheet strong { font-size: 12px; }
+.sheet-cells { display: grid; gap: 5px; margin-top: 9px; }
+.sheet-cell { display: grid; grid-template-columns: 46px minmax(0,1fr); gap: 8px; color: hsl(var(--muted-foreground)); font: 11px/1.45 var(--app-font-mono); overflow-wrap: anywhere; }
+.sheet-cell b { color: hsl(var(--primary)); font-weight: 500; }
+.profile-list { display: grid; gap: 11px; }
+.profile-card { padding: 18px 20px; }
+.profile-card-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+.profile-card h3 { margin: 0 0 5px; font-size: 17px; }
+.profile-meta { color: hsl(var(--muted-foreground)); font: 11px/1.5 var(--app-font-mono); }
+.profile-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 15px; padding-top: 13px; border-top: 1px solid hsl(var(--border)); }
+.profile-actions select { max-width: 230px; min-height: 42px; }
+.profile-bundle { margin-top: 12px; padding: 12px; border-radius: 8px; background: hsl(var(--muted) / .65); color: hsl(var(--muted-foreground)); font: 11px/1.6 var(--app-font-mono); overflow-wrap: anywhere; }
+.profile-bundle summary { cursor: pointer; color: hsl(var(--foreground)); font: 600 12px var(--app-font-sans); }
+.profile-bundle pre { max-height: 250px; overflow: auto; white-space: pre-wrap; }
+.snapshot-panel { padding: 22px; }
+.snapshot-title { display: flex; align-items: flex-start; gap: 12px; }
+.snapshot-mark { flex: 0 0 38px; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; color: hsl(var(--primary)); background: hsl(var(--primary) / .09); }
+.snapshot-panel h2 { margin: 0 0 6px; }
+.snapshot-panel p { margin-bottom: 14px; color: hsl(var(--muted-foreground)); font-size: 13px; line-height: 1.55; }
+.confirm-merge { flex-basis: 100%; padding: 12px; border: 1px solid #e6c8a2; border-radius: 9px; background: #fff5e8; color: #684923; font-size: 12px; line-height: 1.5; }
+.import-history-section { margin-top: 32px; }
+.import-history-section .section-heading { align-items: flex-end; margin-bottom: 13px; }
+.import-history-section .section-heading h2 { margin: 4px 0 0; }
+.import-history { overflow: hidden; }
+.history-row { min-height: 76px; display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 14px 19px; border-bottom: 1px solid hsl(var(--border)); }
+.history-row:last-child { border-bottom: 0; }
+.history-file { min-width: 0; display: flex; align-items: center; gap: 12px; }
+.history-file > svg { flex: 0 0 auto; color: hsl(var(--primary)); }
+.history-file > div { min-width: 0; display: grid; gap: 4px; }
+.history-file strong { font-size: 13px; overflow-wrap: anywhere; }
+.history-file span, .history-state > span:last-child { color: hsl(var(--muted-foreground)); font: 11px/1.45 var(--app-font-mono); }
+.history-state { flex: 0 0 auto; display: grid; justify-items: end; gap: 5px; text-align: right; }
+.import-state { display: inline-flex; align-items: center; min-height: 23px; padding: 2px 8px; border-radius: 999px; background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.import-state-applied { background: #e3f1e9; color: #256f57; }
+.history-loading { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.history-loading .skeleton { margin: 0; }
+@media (max-width: 850px) { .import-layout { grid-template-columns: 1fr; } }
+@media (max-width: 700px) {
+  .import-fields { grid-template-columns: 1fr; }
+  .profile-card-head { flex-direction: column; }
+  .profile-actions { align-items: stretch; }
+  .profile-actions select, .profile-actions .button { width: 100%; max-width: none; }
+  .import-panel { padding: 18px; }
+  .import-history-section .section-heading { align-items: flex-start; flex-direction: column; }
+  .history-row { align-items: flex-start; flex-direction: column; gap: 10px; padding: 15px; }
+  .history-state { justify-items: start; text-align: left; }
+  .history-loading { grid-template-columns: 1fr; }
+}
 
 @media (max-width: 900px) {
   .sidebar { width: 214px; flex-basis: 214px; }

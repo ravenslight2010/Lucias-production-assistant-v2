@@ -56,6 +56,34 @@ export const facilityMembersTable = pgTable(
   ],
 );
 
+export const facilityProductProfilesTable = pgTable(
+  "facility_product_profiles",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    facilityId: uuid("facility_id")
+      .notNull()
+      .references(() => facilitiesTable.id, { onDelete: "cascade" }),
+    brand: text("brand").notNull(),
+    flavor: text("flavor").notNull(),
+    normalizedKey: text("normalized_key").notNull(),
+    revision: integer("revision").notNull().default(0),
+    productData: jsonb("product_data").notNull(),
+    mergedIntoId: uuid("merged_into_id"),
+    createdBy: text("created_by").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    check("facility_product_profiles_revision_nonnegative_chk", sql`${table.revision} >= 0`),
+    uniqueIndex("facility_product_profiles_facility_key_uq").on(table.facilityId, table.normalizedKey),
+    index("facility_product_profiles_facility_brand_idx").on(table.facilityId, table.brand),
+  ],
+);
+
 export const facilityInvitationsTable = pgTable(
   "facility_invitations",
   {
@@ -86,6 +114,11 @@ export const productionRunsTable = pgTable(
       .notNull()
       .references(() => facilitiesTable.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
+    productProfileId: uuid("product_profile_id").references(
+      () => facilityProductProfilesTable.id,
+      { onDelete: "set null" },
+    ),
+    productSnapshot: jsonb("product_snapshot"),
     // Older V2 rows stored only a name, so the additive upgrade uses one as
     // the smallest valid target rather than guessing a historical quantity.
     targetCases: integer("target_cases").notNull().default(1),

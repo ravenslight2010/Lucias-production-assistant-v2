@@ -17,4 +17,6 @@ export interface RunSetup {
      * @maximum 9007199254740991
      */
   targetCases: number;
+  /** @nullable */
+  productProfileId?: string | null;
 }

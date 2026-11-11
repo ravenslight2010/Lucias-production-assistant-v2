@@ -36,9 +36,17 @@ import type {
   FacilityStationLayoutUpdate,
   ForbiddenResponse,
   HealthStatus,
+  ImportBatchList,
   InvalidTransition,
   ListRunsParams,
   NotFoundResponse,
+  ProductProfileEnvelope,
+  ProductProfileImportInput,
+  ProductProfileImportResult,
+  ProductProfileList,
+  ProductProfileMergeInput,
+  ProductProfileMergeResult,
+  ProductProfileRenameInput,
   RunCommandAccepted,
   RunCommandRequest,
   RunConflict,
@@ -1210,6 +1218,426 @@ export const useCreateRun = <TError = ErrorType<BadRequestResponse | Unauthorize
         TContext
       > => {
       return useMutation(getCreateRunMutationOptions(options));
+    }
+
+export const getListProductProfilesUrl = () => {
+
+
+
+
+  return `/api/v2/product-profiles`
+}
+
+/**
+ * @summary List product profiles for the authenticated facility
+ */
+export const listProductProfiles = async ( options?: Parameters<typeof customFetch>[1]): Promise<ProductProfileList> => {
+
+  return customFetch<ProductProfileList>(getListProductProfilesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProductProfilesQueryKey = () => {
+    return [
+    `/api/v2/product-profiles`
+    ] as const;
+    }
+
+
+export const getListProductProfilesQueryOptions = <TData = Awaited<ReturnType<typeof listProductProfiles>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProductProfiles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProductProfilesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProductProfiles>>> = ({ signal }) => listProductProfiles({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProductProfiles>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProductProfilesQueryResult = NonNullable<Awaited<ReturnType<typeof listProductProfiles>>>
+export type ListProductProfilesQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary List product profiles for the authenticated facility
+ */
+
+export function useListProductProfiles<TData = Awaited<ReturnType<typeof listProductProfiles>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProductProfiles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProductProfilesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getImportProductProfileUrl = () => {
+
+
+
+
+  return `/api/v2/product-profiles`
+}
+
+/**
+ * @summary Save a reviewed workbook as facility product data
+ */
+export const importProductProfile = async (productProfileImportInput: ProductProfileImportInput, options?: Parameters<typeof customFetch>[1]): Promise<ProductProfileImportResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ProductProfileImportResult>(getImportProductProfileUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(productProfileImportInput)
+  }
+);}
+
+
+
+
+
+export const getImportProductProfileMutationKey = () => ['importProductProfile'] as const;
+
+export const getImportProductProfileMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importProductProfile>>, TError,ImportProductProfileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importProductProfile>>, TError,ImportProductProfileMutationVariables, TContext> => {
+
+const mutationKey = getImportProductProfileMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importProductProfile>>, ImportProductProfileMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  importProductProfile(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportProductProfileMutationResult = NonNullable<Awaited<ReturnType<typeof importProductProfile>>>
+    export type ImportProductProfileMutationBody = BodyType<ProductProfileImportInput>
+    export type ImportProductProfileMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>
+    export type ImportProductProfileMutationVariables = {data: BodyType<ProductProfileImportInput>}
+
+    /**
+ * @summary Save a reviewed workbook as facility product data
+ */
+export const useImportProductProfile = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importProductProfile>>, TError,ImportProductProfileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof importProductProfile>>,
+        TError,
+        ImportProductProfileMutationVariables,
+        TContext
+      > => {
+      return useMutation(getImportProductProfileMutationOptions(options));
+    }
+
+export const getListImportBatchesUrl = () => {
+
+
+
+
+  return `/api/v2/import-batches`
+}
+
+/**
+ * @summary List recent workbook imports for the authenticated facility
+ */
+export const listImportBatches = async ( options?: Parameters<typeof customFetch>[1]): Promise<ImportBatchList> => {
+
+  return customFetch<ImportBatchList>(getListImportBatchesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListImportBatchesQueryKey = () => {
+    return [
+    `/api/v2/import-batches`
+    ] as const;
+    }
+
+
+export const getListImportBatchesQueryOptions = <TData = Awaited<ReturnType<typeof listImportBatches>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listImportBatches>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListImportBatchesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listImportBatches>>> = ({ signal }) => listImportBatches({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listImportBatches>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListImportBatchesQueryResult = NonNullable<Awaited<ReturnType<typeof listImportBatches>>>
+export type ListImportBatchesQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary List recent workbook imports for the authenticated facility
+ */
+
+export function useListImportBatches<TData = Awaited<ReturnType<typeof listImportBatches>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listImportBatches>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListImportBatchesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRenameProductProfileUrl = (profileId: string,) => {
+
+
+
+
+  return `/api/v2/product-profiles/${profileId}`
+}
+
+/**
+ * @summary Rename an imported product profile
+ */
+export const renameProductProfile = async (profileId: string,
+    productProfileRenameInput: ProductProfileRenameInput, options?: Parameters<typeof customFetch>[1]): Promise<ProductProfileEnvelope> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ProductProfileEnvelope>(getRenameProductProfileUrl(profileId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(productProfileRenameInput)
+  }
+);}
+
+
+
+
+
+export const getRenameProductProfileMutationKey = () => ['renameProductProfile'] as const;
+
+export const getRenameProductProfileMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameProductProfile>>, TError,RenameProductProfileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof renameProductProfile>>, TError,RenameProductProfileMutationVariables, TContext> => {
+
+const mutationKey = getRenameProductProfileMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof renameProductProfile>>, RenameProductProfileMutationVariables> = (props) => {
+          const {profileId,data} = props ?? {};
+
+          return  renameProductProfile(profileId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RenameProductProfileMutationResult = NonNullable<Awaited<ReturnType<typeof renameProductProfile>>>
+    export type RenameProductProfileMutationBody = BodyType<ProductProfileRenameInput>
+    export type RenameProductProfileMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+    export type RenameProductProfileMutationVariables = {profileId: string;data: BodyType<ProductProfileRenameInput>}
+
+    /**
+ * @summary Rename an imported product profile
+ */
+export const useRenameProductProfile = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameProductProfile>>, TError,RenameProductProfileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof renameProductProfile>>,
+        TError,
+        RenameProductProfileMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRenameProductProfileMutationOptions(options));
+    }
+
+export const getMergeProductProfileUrl = (profileId: string,) => {
+
+
+
+
+  return `/api/v2/product-profiles/${profileId}/merge`
+}
+
+/**
+ * @summary Preserve a product profile inside another profile
+ */
+export const mergeProductProfile = async (profileId: string,
+    productProfileMergeInput: ProductProfileMergeInput, options?: Parameters<typeof customFetch>[1]): Promise<ProductProfileMergeResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ProductProfileMergeResult>(getMergeProductProfileUrl(profileId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(productProfileMergeInput)
+  }
+);}
+
+
+
+
+
+export const getMergeProductProfileMutationKey = () => ['mergeProductProfile'] as const;
+
+export const getMergeProductProfileMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeProductProfile>>, TError,MergeProductProfileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof mergeProductProfile>>, TError,MergeProductProfileMutationVariables, TContext> => {
+
+const mutationKey = getMergeProductProfileMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof mergeProductProfile>>, MergeProductProfileMutationVariables> = (props) => {
+          const {profileId,data} = props ?? {};
+
+          return  mergeProductProfile(profileId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MergeProductProfileMutationResult = NonNullable<Awaited<ReturnType<typeof mergeProductProfile>>>
+    export type MergeProductProfileMutationBody = BodyType<ProductProfileMergeInput>
+    export type MergeProductProfileMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+    export type MergeProductProfileMutationVariables = {profileId: string;data: BodyType<ProductProfileMergeInput>}
+
+    /**
+ * @summary Preserve a product profile inside another profile
+ */
+export const useMergeProductProfile = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeProductProfile>>, TError,MergeProductProfileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof mergeProductProfile>>,
+        TError,
+        MergeProductProfileMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMergeProductProfileMutationOptions(options));
     }
 
 export const getGetRunUrl = (runId: string,) => {

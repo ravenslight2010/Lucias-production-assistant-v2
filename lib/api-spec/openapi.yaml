@@ -18,6 +18,10 @@ tags:
     description: Facility production station lineup
   - name: runs
     description: Facility-scoped production run control
+  - name: product-profiles
+    description: Imported facility product setup data
+  - name: imports
+    description: Facility workbook import history
   - name: dashboard
     description: Production overview
 paths:
@@ -364,6 +368,147 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /v2/product-profiles:
+    get:
+      operationId: listProductProfiles
+      tags: [product-profiles]
+      summary: List product profiles for the authenticated facility
+      security:
+        - v2Session: []
+      responses:
+        "200":
+          description: Facility product profiles
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductProfileList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: importProductProfile
+      tags: [product-profiles]
+      summary: Save a reviewed workbook as facility product data
+      security:
+        - v2Session: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductProfileImportInput"
+      responses:
+        "201":
+          description: Product profile imported
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductProfileImportResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /v2/import-batches:
+    get:
+      operationId: listImportBatches
+      tags: [imports]
+      summary: List recent workbook imports for the authenticated facility
+      security:
+        - v2Session: []
+      responses:
+        "200":
+          description: Recent import history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportBatchList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /v2/product-profiles/{profileId}:
+    patch:
+      operationId: renameProductProfile
+      tags: [product-profiles]
+      summary: Rename an imported product profile
+      security:
+        - v2Session: []
+      parameters:
+        - in: path
+          name: profileId
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductProfileRenameInput"
+      responses:
+        "200":
+          description: Product profile renamed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductProfileEnvelope"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /v2/product-profiles/{profileId}/merge:
+    post:
+      operationId: mergeProductProfile
+      tags: [product-profiles]
+      summary: Preserve a product profile inside another profile
+      security:
+        - v2Session: []
+      parameters:
+        - in: path
+          name: profileId
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductProfileMergeInput"
+      responses:
+        "200":
+          description: Profile data preserved in the destination profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductProfileMergeResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
   /v2/runs/{runId}:
@@ -791,7 +936,162 @@ components:
           type: integer
           minimum: 1
           maximum: 9007199254740991
+        productProfileId:
+          type: [string, "null"]
+          format: uuid
       required: [label, targetCases]
+    ProductProfile:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        brand:
+          type: string
+        flavor:
+          type: string
+        revision:
+          type: integer
+        productData:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        mergedIntoId:
+          type: [string, "null"]
+          format: uuid
+      required: [id, brand, flavor, revision, productData, createdAt, updatedAt, mergedIntoId]
+    ProductProfileList:
+      type: object
+      properties:
+        profiles:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductProfile"
+      required: [profiles]
+    ProductProfileEnvelope:
+      type: object
+      properties:
+        profile:
+          $ref: "#/components/schemas/ProductProfile"
+      required: [profile]
+    ProductProfileImportInput:
+      type: object
+      additionalProperties: false
+      properties:
+        brand:
+          type: string
+          minLength: 1
+          maxLength: 120
+        flavor:
+          type: string
+          minLength: 1
+          maxLength: 120
+        sourceName:
+          type: string
+          minLength: 1
+          maxLength: 255
+        sourceHash:
+          type: string
+          minLength: 64
+          maxLength: 64
+        importKind:
+          type: string
+          enum: [product_specs, premix, cheese, shipping, sauce_guide, dough_guide, schedule]
+        productData:
+          type: object
+          additionalProperties: true
+      required: [brand, flavor, sourceName, sourceHash, importKind, productData]
+    ProductProfileImportResult:
+      type: object
+      properties:
+        profile:
+          $ref: "#/components/schemas/ProductProfile"
+        imported:
+          type: boolean
+      required: [profile, imported]
+    ProductProfileRenameInput:
+      type: object
+      additionalProperties: false
+      properties:
+        brand:
+          type: string
+          minLength: 1
+          maxLength: 120
+        flavor:
+          type: string
+          minLength: 1
+          maxLength: 120
+        expectedRevision:
+          type: integer
+          minimum: 0
+      required: [brand, flavor, expectedRevision]
+    ProductProfileMergeInput:
+      type: object
+      additionalProperties: false
+      properties:
+        targetProfileId:
+          type: string
+          format: uuid
+        expectedSourceRevision:
+          type: integer
+          minimum: 0
+        expectedTargetRevision:
+          type: integer
+          minimum: 0
+      required: [targetProfileId, expectedSourceRevision, expectedTargetRevision]
+    ProductProfileMergeResult:
+      type: object
+      properties:
+        profile:
+          $ref: "#/components/schemas/ProductProfile"
+        mergedProfileId:
+          type: string
+          format: uuid
+      required: [profile, mergedProfileId]
+    ImportBatch:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        sourceName:
+          type: string
+        importKind:
+          type: string
+          enum: [product_specs, premix, cheese, shipping, sauce_guide, dough_guide, schedule]
+        status:
+          type: string
+          enum: [draft, applied]
+        proposedBrand:
+          type: [string, "null"]
+        proposedFlavor:
+          type: [string, "null"]
+        profileId:
+          type: [string, "null"]
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        appliedAt:
+          type: [string, "null"]
+          format: date-time
+      required: [id, sourceName, importKind, status, proposedBrand, proposedFlavor, profileId, createdAt, appliedAt]
+    ImportBatchList:
+      type: object
+      properties:
+        imports:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/ImportBatch"
+      required: [imports]
     PauseInterval:
       type: object
       properties:
@@ -834,6 +1134,10 @@ components:
           format: date-time
         setupSnapshot:
           $ref: "#/components/schemas/RunSetup"
+        productSnapshot:
+          anyOf:
+            - $ref: "#/components/schemas/ProductProfile"
+            - type: "null"
         pauseIntervals:
           type: array
           items:
@@ -849,6 +1153,7 @@ components:
         - resumedAt
         - completedAt
         - setupSnapshot
+        - productSnapshot
         - pauseIntervals
     RunCreateInput:
       type: object

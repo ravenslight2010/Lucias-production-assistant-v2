@@ -364,6 +364,46 @@ test("API stable for 60 seconds resets the restart delay", () => {
   assert.equal(timers.at(-1).delayMs, 1_000);
 });
 
+test("worker clean exit after 60 seconds resets the restart delay", () => {
+  const { supervisor, children, timers, setNow } = createHarness();
+  supervisor.start();
+
+  let worker = children[1];
+  worker.emit("close", 0, null);
+  assert.equal(timers.at(-1).delayMs, 1_000);
+  timers.at(-1).callback();
+
+  worker = children.at(-1);
+  worker.emit("close", 0, null);
+  assert.equal(timers.at(-1).delayMs, 2_000);
+  timers.at(-1).callback();
+
+  worker = children.at(-1);
+  setNow(60_100);
+  worker.emit("close", 0, null);
+  assert.equal(timers.at(-1).delayMs, 1_000);
+});
+
+test("API clean exit after 60 seconds resets the restart delay", () => {
+  const { supervisor, children, timers, setNow } = createHarness();
+  supervisor.start();
+
+  let api = children[0];
+  api.emit("close", 0, null);
+  assert.equal(timers.at(-1).delayMs, 1_000);
+  timers.at(-1).callback();
+
+  api = children.at(-1);
+  api.emit("close", 0, null);
+  assert.equal(timers.at(-1).delayMs, 2_000);
+  timers.at(-1).callback();
+
+  api = children.at(-1);
+  setNow(60_100);
+  api.emit("close", 0, null);
+  assert.equal(timers.at(-1).delayMs, 1_000);
+});
+
 test("spawn errors are logged and retried after the child closes", () => {
   const { supervisor, children, timers, logs } = createHarness();
   supervisor.start();

@@ -7,17 +7,18 @@ import {
   supervisedServices,
 } from "../dist/supervisor-runtime.mjs";
 
-const quietLogger = {
-  info() {},
-  warn() {},
-  error() {},
-};
-
 function createHarness() {
   const children = [];
   const timers = [];
   const exits = [];
   let currentTime = 100;
+  const logs = { info: [], warn: [], error: [] };
+  const logger = Object.fromEntries(
+    Object.entries(logs).map(([level, entries]) => [
+      level,
+      (...args) => entries.push(args),
+    ]),
+  );
   const supervisor = createSupervisor({
     spawnProcess(_command, args, options) {
       const child = new EventEmitter();
@@ -37,7 +38,7 @@ function createHarness() {
       children.push(child);
       return child;
     },
-    logger: quietLogger,
+    logger,
     exit: (code) => exits.push(code),
     setTimer(callback, delayMs) {
       const timer = {
@@ -60,6 +61,7 @@ function createHarness() {
     children,
     timers,
     exits,
+    logs,
     setNow(value) {
       currentTime = value;
     },
@@ -160,6 +162,67 @@ test("worker stable for 60 seconds resets the restart delay", () => {
   setNow(60_100);
   worker.emit("close", 1, "SIGKILL");
   assert.equal(timers.at(-1).delayMs, 1_000);
+});
+
+test("spawn errors are logged and retried after the child closes", () => {
+  const { supervisor, children, timers, logs } = createHarness();
+  supervisor.start();
+
+  const [api, worker] = children;
+  const spawnError = Object.assign(new Error("worker entry not found"), {
+    code: "ENOENT",
+  });
+  worker.emit("error", spawnError);
+
+  assert.equal(logs.error.length, 1);
+  assert.deepEqual(logs.error[0], [
+    { service: "worker", errorCode: "ENOENT" },
+    "Supervised process could not start",
+  ]);
+  assert.equal(children.length, 2);
+  assert.equal(timers.length, 0);
+
+  worker.emit("close", -2, null);
+  assert.equal(timers.length, 1);
+  assert.equal(timers[0].delayMs, 1_000);
+
+  timers[0].callback();
+  assert.equal(children.length, 3);
+  assert.equal(children[2].options.env.DB_APPLICATION_NAME, "lucia-v2-worker");
+  assert.equal(children[2].closed, false);
+
+  supervisor.stop("SIGTERM");
+  assert.deepEqual(api.signals, ["SIGTERM"]);
+  assert.deepEqual(children[2].signals, ["SIGTERM"]);
+  assert.deepEqual(worker.signals, []);
+});
+
+test("shutdown after a spawn error clears pending retry and exits on close", () => {
+  const { supervisor, children, timers, exits, logs } = createHarness();
+  supervisor.start();
+
+  const [api, worker] = children;
+  worker.emit(
+    "error",
+    Object.assign(new Error("worker entry not found"), { code: "ENOENT" }),
+  );
+  supervisor.stop("SIGTERM");
+
+  assert.deepEqual(api.signals, ["SIGTERM"]);
+  assert.deepEqual(worker.signals, ["SIGTERM"]);
+  assert.equal(timers.filter((timer) => timer.delayMs === 1_000).length, 0);
+
+  worker.emit("close", -2, null);
+  api.emit("close", 0, "SIGTERM");
+
+  assert.deepEqual(exits, [0]);
+  assert.equal(
+    timers.some((timer) => timer.delayMs === 12_000 && timer.cleared),
+    true,
+  );
+  assert.equal(timers.some((timer) => timer.delayMs === 1_000), false);
+  assert.equal(logs.warn.length, 0);
+  assert.equal(children.length, 2);
 });
 
 test("graceful shutdown signals both children and prevents a replacement worker", () => {

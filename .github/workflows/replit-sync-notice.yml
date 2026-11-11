@@ -1,0 +1,104 @@
+# After main moves on GitHub, open/update a tracker issue Replit can read.
+name: Replit sync notice
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: replit-sync-notice
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    name: Update Replit sync issue
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Upsert sync tracker issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const sha = context.sha;
+            const short = sha.slice(0, 12);
+            const title = "Replit sync: pull latest GitHub main";
+            const when = new Date().toISOString();
+            const pushUrl = `https://github.com/${owner}/${repo}/commit/${sha}`;
+            const compare = `https://github.com/${owner}/${repo}/compare/main`;
+            const body = [
+              "<!-- replit-sync-tracker -->",
+              "",
+              "GitHub **main** was updated. Pull this into the Replit workspace before continuing agent work.",
+              "",
+              "| | |",
+              "|---|---|",
+              `| **When (UTC)** | ${when} |`,
+              `| **Commit** | [\`${short}\`](${pushUrl}) |`,
+              `| **Actor** | ${context.actor} |`,
+              `| **Event** | ${context.eventName} |`,
+              "",
+              "### On Replit",
+              "```bash",
+              "git fetch origin",
+              "git checkout main",
+              "git pull --ff-only origin main",
+              "pnpm install --frozen-lockfile",
+              "```",
+              "",
+              "Then reopen this issue or leave a comment: `synced ${short}`.",
+              "",
+              `- Compare: ${compare}`,
+              `- Full SHA: \`${sha}\``,
+            ].join("\n");
+
+            const q = await github.rest.search.issuesAndPullRequests({
+              q: `repo:${owner}/${repo} is:issue in:body replit-sync-tracker`,
+            });
+            let issue = q.data.items.find((i) =>
+              (i.body || "").includes("replit-sync-tracker")
+            );
+
+            if (!issue) {
+              const created = await github.rest.issues.create({
+                owner,
+                repo,
+                title,
+                body,
+                labels: ["replit-sync"],
+              });
+              issue = created.data;
+              core.info(`Created issue #${issue.number}`);
+            } else {
+              // Ensure label exists; ignore errors if label missing until created below
+              try {
+                await github.rest.issues.addLabels({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  labels: ["replit-sync"],
+                });
+              } catch (_) {}
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: issue.number,
+                title,
+                body,
+                state: "open",
+              });
+              core.info(`Updated issue #${issue.number}`);
+            }
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issue.number,
+              body: `main advanced to [\`${short}\`](${pushUrl}) by @${context.actor} at ${when} UTC.`,
+            });

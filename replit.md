@@ -2,6 +2,16 @@
 
 A secure production operations app for facility teams to create and control runs while keeping confirmed state aligned across devices.
 
+## GitHub sync
+
+When GitHub `main` is updated outside Replit, issue **Replit sync: pull latest GitHub main** (`label: replit-sync`) is opened/updated automatically. Pull before continuing:
+
+```bash
+git fetch origin && git pull --ff-only origin main && pnpm install --frozen-lockfile
+```
+
+Details: `docs/replit-github-sync.md`.
+
 ## Run & Operate
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)

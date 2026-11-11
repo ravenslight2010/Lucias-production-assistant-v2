@@ -48,6 +48,33 @@ test("independent signed-in sessions share canonical revisions and safe retries"
   assert.equal(verifiedA?.actorId, actorA);
   assert.equal(verifiedB?.actorId, actorB);
 
+  const [upgradedLegacyRun] = await db
+    .select()
+    .from(productionRunsTable)
+    .where(eq(productionRunsTable.id, "20000000-0000-4000-8000-000000000001"))
+    .limit(1);
+  assert.ok(upgradedLegacyRun, "the pre-upgrade V2 run should remain present");
+  const upgradedLegacyContract = toContractRun(upgradedLegacyRun);
+  assert.equal(upgradedLegacyContract.setupSnapshot.label, "Legacy V2 run label");
+  assert.equal(
+    upgradedLegacyContract.setupSnapshot.targetCases,
+    1,
+    "legacy V2 runs use the smallest valid target because the old schema stored no count",
+  );
+  const v1Fixture = await pool.query(
+    "SELECT id, label, target_cases FROM v1_archive.v1_runs WHERE id = $1",
+    ["v1-fixture"],
+  );
+  assert.deepEqual(v1Fixture.rows, [
+    { id: "v1-fixture", label: "V1 data stays separate", target_cases: 37 },
+  ]);
+  const v2Rows = await db.select().from(productionRunsTable);
+  assert.equal(
+    v2Rows.some((run) => run.name === "V1 data stays separate"),
+    false,
+    "V1 rows must not be included in V2 production runs",
+  );
+
   const [legacyDraft] = await db
     .insert(productionRunsTable)
     .values({
@@ -73,6 +100,10 @@ test("independent signed-in sessions share canonical revisions and safe retries"
   assert.equal(created.replayed, false);
   assert.equal(created.run.status, "planned");
   assert.equal(created.run.revision, 0);
+  assert.deepEqual(created.run.setupSnapshot, {
+    label: "Synthetic run",
+    targetCases: 24,
+  });
 
   const replayedCreate = await createPlannedRun({
     facilityId: facility.id,

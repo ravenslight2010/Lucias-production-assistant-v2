@@ -62,6 +62,8 @@ export const productionRunsTable = pgTable(
       .notNull()
       .references(() => facilitiesTable.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
+    // Older V2 rows stored only a name, so the additive upgrade uses one as
+    // the smallest valid target rather than guessing a historical quantity.
     targetCases: integer("target_cases").notNull().default(1),
     status: runStatusEnum("status").notNull().default("planned"),
     revision: integer("revision").notNull().default(0),

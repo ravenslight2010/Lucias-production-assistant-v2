@@ -1,11 +1,11 @@
 # V2 Reserved VM pilot evidence
 
-**Status: incomplete.** Local process and database checks passed. The separate
-no-schema-change publish used the confirmed 1 CPU / 4 GiB VM, recovered after
-brief startup health-check failures, and showed outgoing/incoming API and
-worker process lifetimes overlapping for about 12 seconds. Pool event gaps
-prevent a reliable overlap peak from being reported. Aggregate VM uptime
-metrics cannot prove a full compute restart or VM-level overlap.
+**Status: incomplete.** The current published build uses the confirmed 1 CPU /
+4 GiB VM, and the API and worker recovered after brief startup health-check
+failures. The latest publish replaced the VM, but it was not a separate
+user-triggered compute restart. Event-sequenced pool logs are now live; one
+incoming API sequence gap means no reliable overlap peak can be reported from
+that publish. A separate compute restart remains.
 
 ## Boundary and data
 
@@ -140,6 +140,27 @@ A read-only SRE investigation identified the next publish build as created at
 - Post-start monitoring showed no persistent API or database failure. It was
   not a load test.
 
+### Event-sequenced telemetry publish
+
+A read-only SRE investigation identified the latest build as created at
+2026-11-11 17:01:58 UTC and successful at 17:04:46 UTC. It used 1 vCPU and
+4 GiB RAM.
+
+- Startup health checks briefly failed through 17:04:23 UTC. The API started
+  at 17:04:25 UTC, the worker database check passed at 17:04:25 UTC, and
+  `/api/healthz` returned 200 at 17:04:52 UTC.
+- The outgoing processes were from the prior build and did not include
+  `eventSequence`. They logged zero-count shutdowns at 17:04:37 UTC.
+- The incoming worker sequence was contiguous from 1 through 18 in the
+  observed window. The incoming API sequence was 1, 3, 4, 5: sequence 2 is
+  missing, and its first removal has no matching recorded connection.
+- The complete paged log query returned 129 matching records through
+  17:08:27 UTC, but the API sequence gap makes the overlap capture incomplete.
+  Do not report a measured peak from it.
+- Build logs show VM creation during this publish and aggregate uptime reset.
+  These indicate publish-time replacement, not a separate user-triggered full
+  compute restart.
+
 ## V2 application pool instrumentation
 
 The API and worker emit structured `v2_db_pool` observations at process
@@ -152,9 +173,8 @@ user, SQL, or V1 identifier. The event-based records avoid periodic sampling
 gaps and allow the open connection count to be reconstructed for each
 instrumented process when the sequence and lifecycle checks pass.
 
-The development source now emits `eventSequence`; the current published build
-from 16:43 UTC predates this field. Publish the source change before using
-sequence checks in another production capture.
+The 17:01 UTC published build emits `eventSequence`. Use sequence checks in the
+next production capture; the API gap above must not be treated as complete.
 
 ### Check capture completeness before reporting a peak
 
@@ -248,10 +268,10 @@ Observed 2026-11-11 15:58 UTC before the next V2 publish:
 
 ## Remaining gates
 
-- Publish the event-sequenced pool instrumentation, then verify startup and
-  shutdown logs contain no sequence or connection-count gaps.
-- Exercise the approved full compute restart and verify API and worker recovery.
-- Report a replacement peak only from a complete capture; compare it with the
+- Exercise the approved full compute restart on the current event-sequenced
+  build and verify API and worker recovery.
+- Check the restart-window event sequences and connection counts. Report a
+  replacement peak only from a complete capture; compare it with the
   356-connection planning ceiling.
 
 Do not treat the V2 pilot as passed until the remaining live-deployment checks

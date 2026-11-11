@@ -1,8 +1,9 @@
 # V2 Reserved VM pilot evidence
 
-**Status: incomplete.** Local process and database checks passed. The live
-Reserved VM publish and full deployment restart were not tested from this task
-fork, so this evidence does not clear the feature-work gate.
+**Status: incomplete.** Local process and database checks passed. A live VM
+deployment startup and API health response have now been observed, and the
+production synthetic-marker query returned zero rows. The full restart and
+measured production connection peak remain unverified.
 
 ## Boundary and data
 
@@ -57,15 +58,54 @@ observation, not a measured deployment-restart peak. The replacement-overlap
 and monitoring/admin figures are budget estimates, not observed production
 counts.
 
+## Live deployment spot-check
+
+Observed 2026-11-11 02:24 UTC from the V2 published deployment. No V1 endpoint,
+database, or credentials were accessed.
+
+- Deployment metadata reported an active deployment, type `vm`, and a
+  successful current build. The configured target in this project is `vm`;
+  the exact machine configuration was not independently inspected in the
+  Publishing UI.
+- The latest observed build was created at 2026-11-11 02:20:38 UTC and
+  succeeded at 02:23:30 UTC. Build logs recorded creation of a new VM.
+- Runtime logs recorded the API listening on port 8080 at 02:23:06 UTC and the
+  worker database check succeeding at 02:23:07 UTC.
+- `GET /api/healthz` returned HTTP 200 with `{"status":"ok"}` at 02:24:19 UTC.
+  The health route executes a database `SELECT 1` before returning success.
+- Deployment health checks briefly failed while the new API process was
+  starting; the API then became ready and health returned 200. The logs do not
+  establish when the previous VM shut down or whether requests were interrupted.
+- A read-only production query at 2026-11-11 02:53 UTC found zero facilities
+  named `Synthetic V2 deployment pilot marker`.
+- The production read replica reported `max_connections = 450`,
+  `superuser_reserved_connections = 4`, and `reserved_connections = 0`. This
+  gives 446 application-usable connections and a rounded-down 80% planning
+  ceiling of 356. These are capacity settings, not an overlap measurement.
+- A `pg_stat_activity` sample from the production read replica showed one
+  connection. Because production SQL reads use a replica, that value is not a
+  count of application connections to the primary and cannot establish the
+  publish/restart peak.
+- Replit endpoint monitoring for 2026-11-11 02:20–02:40 UTC recorded two
+  `/api/healthz` requests with zero 4xx/5xx responses and 213.5 ms average
+  latency, plus nine `/__ready` requests with zero 4xx/5xx. Startup readiness
+  failures are separately recorded in deployment logs; endpoint metrics do not
+  establish whether the old VM shut down cleanly.
+- The deployment time-series metric query was unavailable. The documented
+  database Monitoring views show active-query snapshots and query-performance
+  statistics, not a historical total-connection peak.
+- The observed VM creation is evidence of a published VM startup, but it does
+  not establish a separate full compute restart, a harmless update independent
+  of that publish, or the database connection peak during overlap.
+
 ## Remaining gates
 
-- The project is configured for a VM deployment and its API production command
-  starts the supervised API and worker.
-- The project currently has no published deployment. Therefore the actual
-  Reserved VM runtime type, harmless publish behavior, full deployment restart,
-  production database availability, and real publish-overlap connection peak
-  remain unverified.
-- This workspace is a task fork. Live publishing was not performed here.
+- Confirm the exact Reserved VM machine configuration in the Publishing UI.
+- Exercise a full compute restart and a separate harmless published update;
+  verify API and worker recovery after each.
+- Measure the actual production database connection count during publish or
+  restart overlap and compare it with the documented 80% planning ceiling
+  (the production read replica settings indicate 356 connections).
 
 Do not treat the V2 pilot as passed until the remaining live-deployment checks
 are completed in an authorized V2 deployment environment.

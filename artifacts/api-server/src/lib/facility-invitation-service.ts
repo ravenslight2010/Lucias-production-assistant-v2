@@ -8,22 +8,43 @@ import {
 } from "@workspace/db";
 import { getFacilityMembership } from "./run-permissions";
 
-export async function acceptPendingFacilityInvitation(userId: string) {
+type InvitationEmailAddress = {
+  emailAddress: string;
+  verification?: { status?: string } | null;
+};
+
+type InvitationAcceptanceDependencies = {
+  database: typeof db;
+  getEmailAddresses(userId: string): Promise<InvitationEmailAddress[]>;
+  getMembership: typeof getFacilityMembership;
+};
+
+const defaultDependencies: InvitationAcceptanceDependencies = {
+  database: db,
+  getEmailAddresses: async (userId) =>
+    (await clerkClient.users.getUser(userId)).emailAddresses,
+  getMembership: getFacilityMembership,
+};
+
+export async function acceptPendingFacilityInvitation(
+  userId: string,
+  dependencies: InvitationAcceptanceDependencies = defaultDependencies,
+) {
   const now = new Date();
-  const [hasPendingInvitations] = await db
+  const [hasPendingInvitations] = await dependencies.database
     .select({ id: facilityInvitationsTable.id })
     .from(facilityInvitationsTable)
     .where(gt(facilityInvitationsTable.expiresAt, now))
     .limit(1);
   if (!hasPendingInvitations) return null;
 
-  const user = await clerkClient.users.getUser(userId);
-  const verifiedEmails = user.emailAddresses
+  const emailAddresses = await dependencies.getEmailAddresses(userId);
+  const verifiedEmails = emailAddresses
     .filter((address) => address.verification?.status === "verified")
     .map((address) => address.emailAddress.trim().toLowerCase());
   if (verifiedEmails.length === 0) return null;
 
-  await db.transaction(async (tx) => {
+  await dependencies.database.transaction(async (tx) => {
     const [invitation] = await tx
       .select()
       .from(facilityInvitationsTable)
@@ -72,5 +93,5 @@ export async function acceptPendingFacilityInvitation(userId: string) {
     }
   });
 
-  return getFacilityMembership(userId);
+  return dependencies.getMembership(userId);
 }

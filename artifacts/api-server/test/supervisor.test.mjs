@@ -287,12 +287,12 @@ test("worker restart delay increases exponentially and caps at 30 seconds", () =
   }
 });
 
-test("API restart delay increases exponentially and caps at 30 seconds", () => {
+test("API restart delay caps at 30 seconds without affecting worker retries", () => {
   const { supervisor, children, timers } = createHarness();
   supervisor.start();
 
   let api = children[0];
-  const expectedDelays = [
+  const apiRestartDelays = [
     1_000,
     2_000,
     4_000,
@@ -301,32 +301,27 @@ test("API restart delay increases exponentially and caps at 30 seconds", () => {
     30_000,
     30_000,
   ];
-
-  for (const expectedDelay of expectedDelays) {
+  for (const [index, expectedDelay] of apiRestartDelays.entries()) {
     api.emit("close", 1, "SIGKILL");
     const restartTimer = timers.at(-1);
     assert.equal(restartTimer.delayMs, expectedDelay);
-    restartTimer.callback();
-    api = children.at(-1);
+    assert.ok(restartTimer.delayMs <= 30_000);
+    if (index < apiRestartDelays.length - 1) {
+      restartTimer.callback();
+      api = children.at(-1);
+    }
   }
-});
-
-test("API restart failures do not increase the worker restart delay", () => {
-  const { supervisor, children, timers } = createHarness();
-  supervisor.start();
-
-  let api = children[0];
-  api.emit("close", 1, "SIGKILL");
-  assert.equal(timers.at(-1).delayMs, 1_000);
-  timers.at(-1).callback();
-
-  api = children.at(-1);
-  api.emit("close", 1, "SIGKILL");
-  assert.equal(timers.at(-1).delayMs, 2_000);
+  const cappedApiRestartTimer = timers.at(-1);
 
   const worker = children[1];
   worker.emit("close", 1, "SIGKILL");
   assert.equal(timers.at(-1).delayMs, 1_000);
+  timers.at(-1).callback();
+
+  const restartedWorker = children.at(-1);
+  restartedWorker.emit("close", 1, "SIGKILL");
+  assert.equal(timers.at(-1).delayMs, 2_000);
+  assert.equal(cappedApiRestartTimer.delayMs, 30_000);
 });
 
 test("worker stable for 60 seconds resets the restart delay", () => {

@@ -3,7 +3,10 @@
 **Status: incomplete.** The latest published build uses the confirmed 1 vCPU /
 4 GiB configuration, replaced the VM, and the API and worker recovered.
 Production pool-event logs still have sequence gaps and missing shutdown
-records, so no reliable overlap peak can be reported.
+records, so no reliable observed overlap peak can be reported. The configured
+maximum for one outgoing plus one incoming API/worker pair is 12 connections,
+about 3.4% of the 356-connection planning ceiling; this is a configuration-based
+bound, not a production measurement.
 
 ## Boundary and data
 
@@ -228,6 +231,16 @@ configuration (`n1-custom-1-4096`).
   a measured peak or compare a partial subtotal with the 356-connection
   planning ceiling.
 
+### Configuration-based overlap bound
+
+The supervised API pool maximum is 4 connections and the worker maximum is 2.
+For one outgoing and one incoming process pair, the maximum across those four
+processes is `2 × (4 + 2) = 12` connections. This is 3.4% of the
+356-connection planning ceiling, leaving 344 connections of ceiling headroom
+for this pair. It is a configured upper bound for these V2 pools only, not an
+observed production peak, and does not include unrelated database clients or
+additional overlapping VM generations.
+
 ### Check capture completeness before reporting a peak
 
 Treat a capture as complete only when every observed `instanceId` has one
@@ -320,12 +333,14 @@ Observed 2026-11-11 15:58 UTC before the next V2 publish:
 
 ## Remaining gates
 
-- Determine whether the missing pool events are lost between Pino/stdout and
-  the available Replit logs, or whether shutdown is not being delivered to the
-  processes. The current telemetry cannot distinguish these causes.
-- Capture a replacement window with complete startup-to-shutdown event streams
-  for API and worker instances. Report a replacement peak only from a complete
-  capture; compare it with the 356-connection planning ceiling.
+- The user cannot access raw VM logs. The available production log view cannot
+  distinguish missing emitter output from stdout/log-ingestion loss, or confirm
+  why terminal shutdown events are absent.
+- If an independent log source becomes available, capture a replacement window
+  with complete startup-to-shutdown event streams for API and worker instances.
+  Report a measured peak only from a complete capture; the 12-connection
+  configured bound is already documented separately.
 
-Do not treat the V2 pilot as passed until the remaining live-deployment checks
-are completed in an authorized V2 deployment environment.
+Do not label a measured restart-window peak as verified until the remaining
+live-deployment evidence is available in an authorized V2 deployment
+environment.

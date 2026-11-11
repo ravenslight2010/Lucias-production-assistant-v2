@@ -64,7 +64,13 @@ export function createSupervisor(
   let shutdownTimer: Timer | undefined;
 
   function startService(service: ServiceSpec): void {
-    if (stopping) return;
+    if (
+      stopping ||
+      children.has(service.name) ||
+      restartTimers.has(service.name)
+    ) {
+      return;
+    }
 
     const child = spawnProcess(
       process.execPath,

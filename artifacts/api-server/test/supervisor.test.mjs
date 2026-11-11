@@ -68,6 +68,40 @@ function createHarness() {
   };
 }
 
+test("repeated startup does not duplicate active or scheduled services", () => {
+  const { supervisor, children, timers } = createHarness();
+  supervisor.start();
+  supervisor.start();
+
+  assert.equal(children.length, 2);
+  const [api, worker] = children;
+
+  worker.emit("close", 1, "SIGKILL");
+  supervisor.start();
+  assert.equal(children.length, 2);
+  assert.equal(timers.length, 1);
+
+  timers[0].callback();
+  assert.equal(children.length, 3);
+  assert.equal(
+    children.filter(
+      (child) =>
+        child.options.env.DB_APPLICATION_NAME === "lucia-v2-api" &&
+        !child.closed,
+    ).length,
+    1,
+  );
+  assert.equal(
+    children.filter(
+      (child) =>
+        child.options.env.DB_APPLICATION_NAME === "lucia-v2-worker" &&
+        !child.closed,
+    ).length,
+    1,
+  );
+  assert.equal(api.closed, false);
+});
+
 test("worker termination restarts one worker without duplicating the API", () => {
   const { supervisor, children, timers } = createHarness();
   supervisor.start();

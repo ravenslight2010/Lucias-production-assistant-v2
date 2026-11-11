@@ -324,6 +324,54 @@ test("API restart delay caps at 30 seconds without affecting worker retries", ()
   assert.equal(cappedApiRestartTimer.delayMs, 30_000);
 });
 
+test("clean exits increase each service restart delay independently and cap at 30 seconds", () => {
+  const { supervisor, children, timers } = createHarness();
+  supervisor.start();
+
+  const expectedDelays = [
+    1_000,
+    2_000,
+    4_000,
+    8_000,
+    16_000,
+    30_000,
+    30_000,
+  ];
+  const apiDelays = [];
+  let api = children[0];
+
+  for (const [index, expectedDelay] of expectedDelays.entries()) {
+    api.emit("close", 0, null);
+    const restartTimer = timers.at(-1);
+    assert.equal(restartTimer.delayMs, expectedDelay);
+    apiDelays.push(restartTimer.delayMs);
+    if (index < expectedDelays.length - 1) {
+      restartTimer.callback();
+      api = children.at(-1);
+    }
+  }
+
+  const apiRestartTimer = timers.at(-1);
+  const workerDelays = [];
+  let worker = children[1];
+
+  for (const [index, expectedDelay] of expectedDelays.entries()) {
+    worker.emit("close", 0, null);
+    const restartTimer = timers.at(-1);
+    assert.equal(restartTimer.delayMs, expectedDelay);
+    workerDelays.push(restartTimer.delayMs);
+    if (index < expectedDelays.length - 1) {
+      restartTimer.callback();
+      worker = children.at(-1);
+    }
+  }
+
+  assert.deepEqual(apiDelays, expectedDelays);
+  assert.deepEqual(workerDelays, expectedDelays);
+  assert.equal(apiRestartTimer.delayMs, 30_000);
+  assert.equal(apiRestartTimer.cleared, false);
+});
+
 test("worker stable for 60 seconds resets the restart delay", () => {
   const { supervisor, children, timers, setNow } = createHarness();
   supervisor.start();

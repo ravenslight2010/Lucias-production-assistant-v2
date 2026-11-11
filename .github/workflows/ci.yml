@@ -56,6 +56,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build all packages
+        env:
+          PORT: "4173"
+          BASE_PATH: /
         run: pnpm run build
 
   unit-tests:
@@ -76,8 +79,9 @@ jobs:
           cache: pnpm
       - name: Install PostgreSQL (initdb for disposable DB tests)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql postgresql-contrib
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends postgresql postgresql-contrib ||             sudo apt-get install -y --no-install-recommends postgresql-16 postgresql-contrib-16 ||             sudo apt-get install -y --no-install-recommends postgresql-common postgresql
+          command -v initdb
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: DB pool-config tests

@@ -24,7 +24,7 @@ import {
   useHealthCheck,
   useListRuns,
 } from '@workspace/api-client-react';
-import type { Run, RunCommandRequest, RunStatus } from '@workspace/api-client-react';
+import type { HealthStatus, Run, RunCommandRequest, RunStatus } from '@workspace/api-client-react';
 import { Link, Redirect, Route, Switch, Router as WouterRouter, useLocation, useRoute } from 'wouter';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -163,6 +163,26 @@ function OfflineNotice({ hasCache }: { hasCache: boolean }) {
     <div className="connection-banner" role="status" data-testid="status-offline">
       <WifiOff size={17} aria-hidden="true" />
       <span><strong>Offline — controls are paused.</strong> {hasCache ? 'Showing the last saved view; it is read-only until connection returns.' : 'Reconnect to load the current run state.'}</span>
+    </div>
+  );
+}
+
+function WorkerAvailabilityNotice({ health }: { health?: HealthStatus }) {
+  const worker = health?.worker;
+  if (!health || (worker !== 'starting' && worker !== 'restarting')) return null;
+
+  const workerLabel = worker === 'restarting' ? 'restarting' : 'starting';
+  const describeStatus = (status: string) => status === 'ok' ? 'healthy' : status;
+
+  return (
+    <div className="worker-health-banner" role="status" data-testid="status-worker-availability">
+      <CircleAlert size={17} aria-hidden="true" />
+      <span>
+        <strong>Background worker is {workerLabel}.</strong>
+        <span className="worker-health-details">
+          API: {describeStatus(health.api)} · Database: {describeStatus(health.database)}.
+        </span>
+      </span>
     </div>
   );
 }
@@ -755,8 +775,15 @@ function V2SessionBootstrapper() {
 
 function RouterContent() {
   const [, setLocation] = useLocation();
-  const health = useHealthCheck({ query: { queryKey: ['/api/healthz'], staleTime: 60_000 }, request: { credentials: 'include' } });
-  void health;
+  const health = useHealthCheck({
+    query: {
+      queryKey: ['/api/healthz'],
+      staleTime: 10_000,
+      refetchInterval: 10_000,
+      refetchIntervalInBackground: true,
+    },
+    request: { credentials: 'include' },
+  });
   return (
     <ClerkProvider
       publishableKey={clerkPubKey}
@@ -773,6 +800,7 @@ function RouterContent() {
     >
       <ClerkQueryClientCacheInvalidator />
       <V2SessionBootstrapper />
+      <WorkerAvailabilityNotice health={health.data} />
       <ErrorBoundary resetKey={window.location.pathname}>
         <Switch>
           <Route path="/" component={HomeRoute} />

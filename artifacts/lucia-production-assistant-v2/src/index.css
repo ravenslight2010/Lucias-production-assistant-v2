@@ -170,6 +170,11 @@ h3 { font: 700 16px/1.25 var(--app-font-display); }
 .mono { font-family: var(--app-font-mono); }
 .connection-banner { margin-bottom: 20px; padding: 12px 15px; display: flex; align-items: flex-start; gap: 10px; background: #f6eadb; border: 1px solid #e6c8a2; border-radius: 10px; color: #694b2c; font-size: 13px; line-height: 1.5; }
 .dark .connection-banner { background: #413422; border-color: #71552e; color: #ecd1a7; }
+.worker-health-banner { position: relative; z-index: 2; padding: 12px clamp(16px, 4vw, 40px); display: flex; align-items: flex-start; gap: 10px; background: #fff2df; border-bottom: 1px solid #e6c8a2; color: #694b2c; font-size: 13px; line-height: 1.5; }
+.worker-health-banner > svg { flex: 0 0 auto; margin-top: 1px; }
+.worker-health-banner > span { display: flex; flex-wrap: wrap; gap: 0 8px; }
+.worker-health-details { color: inherit; }
+.dark .worker-health-banner { background: #413422; border-color: #71552e; color: #ecd1a7; }
 .error-banner { margin: 12px 0; padding: 13px 15px; border: 1px solid #e6bdb3; border-radius: 10px; background: #fbebe7; color: #783e31; font-size: 13px; line-height: 1.5; }
 .dark .error-banner { background: #422c28; color: #f1bdb0; border-color: #71473c; }
 .notice { margin: 14px 0; padding: 13px 15px; border: 1px solid hsl(var(--border)); background: hsl(var(--muted)); border-radius: 10px; color: hsl(var(--foreground)); font-size: 13px; line-height: 1.5; }

@@ -5,6 +5,7 @@ import {
   ApplyRunCommandBody,
   ApplyRunCommandParams,
   ApplyRunCommandResponse,
+  CancelFacilityInvitationParams,
   CreateFacilityBody,
   CreateFacilityResponse,
   CreateV2SessionResponse,
@@ -124,6 +125,26 @@ function userEmail(user: {
     user.emailAddresses[0]?.emailAddress ??
     null
   );
+}
+
+async function revokeClerkInvitation(invitationId: string): Promise<void> {
+  try {
+    await clerkClient.invitations.revokeInvitation(invitationId);
+  } catch (revokeError) {
+    try {
+      const revokedInvitations = await clerkClient.invitations.getInvitationList({
+        query: invitationId,
+        status: "revoked",
+        limit: 100,
+      });
+      if (revokedInvitations.data.some((invitation) => invitation.id === invitationId)) {
+        return;
+      }
+    } catch {
+      // Preserve the original revocation error if Clerk cannot confirm the status.
+    }
+    throw revokeError;
+  }
 }
 
 router.get("/facility/context", async (req, res): Promise<void> => {
@@ -449,6 +470,71 @@ router.post(
         status: "invited",
       }),
     );
+  },
+);
+
+router.delete(
+  "/facility/invitations/:invitationId",
+  requireV2Session,
+  requireV2Csrf,
+  mutationRateLimit,
+  async (req, res): Promise<void> => {
+    const access = await ownerAccessOrRespond(req, res);
+    if (!access) return;
+    const params = CancelFacilityInvitationParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: "Invalid facility invitation." });
+      return;
+    }
+
+    const result = await db.transaction(async (tx) => {
+      const [invitation] = await tx
+        .select({
+          id: facilityInvitationsTable.id,
+          clerkInvitationId: facilityInvitationsTable.clerkInvitationId,
+        })
+        .from(facilityInvitationsTable)
+        .where(
+          and(
+            eq(facilityInvitationsTable.id, params.data.invitationId),
+            eq(facilityInvitationsTable.facilityId, access.membership.facilityId),
+            gt(facilityInvitationsTable.expiresAt, new Date()),
+          ),
+        )
+        .limit(1)
+        .for("update");
+
+      if (!invitation) return "not-found" as const;
+      if (!invitation.clerkInvitationId) return "untracked" as const;
+
+      try {
+        await revokeClerkInvitation(invitation.clerkInvitationId);
+      } catch {
+        req.log.warn(
+          { invitationId: invitation.id },
+          "Clerk invitation could not be revoked",
+        );
+        throw new HttpError(502, "The invitation could not be cancelled. Please try again.");
+      }
+
+      await tx
+        .delete(facilityInvitationsTable)
+        .where(eq(facilityInvitationsTable.id, invitation.id));
+      return "cancelled" as const;
+    });
+
+    if (result === "not-found") {
+      res.status(404).json({ error: "Pending facility invitation not found." });
+      return;
+    }
+    if (result === "untracked") {
+      res.status(409).json({
+        error: "This invitation cannot be cancelled because its Clerk record is unavailable.",
+      });
+      return;
+    }
+
+    res.sendStatus(204);
   },
 );
 

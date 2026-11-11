@@ -23,6 +23,7 @@ import type {
   BadRequestResponse,
   ConflictResponse,
   DashboardSummary,
+  ErrorResponse,
   FacilityContext,
   FacilityInput,
   FacilityMember,
@@ -792,6 +793,80 @@ export const useRemoveFacilityMember = <TError = ErrorType<UnauthorizedResponse 
         TContext
       > => {
       return useMutation(getRemoveFacilityMemberMutationOptions(options));
+    }
+
+export const getCancelFacilityInvitationUrl = (invitationId: string,) => {
+
+
+
+
+  return `/api/facility/invitations/${invitationId}`
+}
+
+/**
+ * @summary Cancel a pending facility invitation
+ */
+export const cancelFacilityInvitation = async (invitationId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getCancelFacilityInvitationUrl(invitationId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelFacilityInvitationMutationKey = () => ['cancelFacilityInvitation'] as const;
+
+export const getCancelFacilityInvitationMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelFacilityInvitation>>, TError,CancelFacilityInvitationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelFacilityInvitation>>, TError,CancelFacilityInvitationMutationVariables, TContext> => {
+
+const mutationKey = getCancelFacilityInvitationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelFacilityInvitation>>, CancelFacilityInvitationMutationVariables> = (props) => {
+          const {invitationId} = props ?? {};
+
+          return  cancelFacilityInvitation(invitationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelFacilityInvitationMutationResult = NonNullable<Awaited<ReturnType<typeof cancelFacilityInvitation>>>
+
+    export type CancelFacilityInvitationMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ErrorResponse>
+    export type CancelFacilityInvitationMutationVariables = {invitationId: string}
+
+    /**
+ * @summary Cancel a pending facility invitation
+ */
+export const useCancelFacilityInvitation = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelFacilityInvitation>>, TError,CancelFacilityInvitationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelFacilityInvitation>>,
+        TError,
+        CancelFacilityInvitationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCancelFacilityInvitationMutationOptions(options));
     }
 
 export const getListRunsUrl = (params?: ListRunsParams,) => {

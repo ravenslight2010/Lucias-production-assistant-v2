@@ -213,6 +213,38 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+  /facility/invitations/{invitationId}:
+    delete:
+      operationId: cancelFacilityInvitation
+      tags: [facility-members]
+      summary: Cancel a pending facility invitation
+      security:
+        - v2Session: []
+      parameters:
+        - in: path
+          name: invitationId
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: Invitation cancelled
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "502":
+          description: Invitation could not be revoked in Clerk
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /v2/runs:
     get:
       operationId: listRuns

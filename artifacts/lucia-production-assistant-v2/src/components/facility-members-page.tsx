@@ -12,12 +12,14 @@ import {
   Mail,
   Shield,
   ShieldCheck,
+  Trash2,
   UserRound,
   UserRoundPlus,
   Users,
   UserX,
 } from 'lucide-react';
 import {
+  useCancelFacilityInvitation,
   getListFacilityMembersQueryKey,
   useInviteFacilityMember,
   useListFacilityMembers,
@@ -70,6 +72,7 @@ export default function FacilityMembersPage() {
     request: { credentials: 'include' },
   });
   const inviteMember = useInviteFacilityMember({ request: { credentials: 'include' } });
+  const cancelInvitation = useCancelFacilityInvitation({ request: { credentials: 'include' } });
   const updateMember = useUpdateFacilityMember({ request: { credentials: 'include' } });
   const removeMember = useRemoveFacilityMember({ request: { credentials: 'include' } });
   const [success, setSuccess] = useState('');
@@ -130,7 +133,20 @@ export default function FacilityMembersPage() {
     });
   };
 
-  const writePending = inviteMember.isPending || updateMember.isPending || removeMember.isPending;
+  const cancelPendingInvitation = (invitation: FacilityInvitation) => {
+    if (!window.confirm(`Cancel the invitation for ${invitation.email}? They will no longer get facility access from this invitation.`)) return;
+    setActionError('');
+    setSuccess('');
+    cancelInvitation.mutate({ invitationId: invitation.id }, {
+      onSuccess: () => {
+        afterWrite();
+        setSuccess(`The invitation for ${invitation.email} was cancelled.`);
+      },
+      onError: (error) => setActionError(errorText(error, 'The invitation could not be cancelled. Please try again.')),
+    });
+  };
+
+  const writePending = inviteMember.isPending || cancelInvitation.isPending || updateMember.isPending || removeMember.isPending;
 
   return (
     <main className="workspace team-page" data-testid="page-facility-team">
@@ -244,7 +260,12 @@ export default function FacilityMembersPage() {
             </div>
           )}
           {membersQuery.data && pendingInvitations.length > 0 && (
-            <PendingInvitationList invitations={pendingInvitations} />
+            <PendingInvitationList
+              invitations={pendingInvitations}
+              disabled={writePending}
+              cancellingInvitationId={cancelInvitation.variables?.invitationId}
+              onCancel={cancelPendingInvitation}
+            />
           )}
           <div className="team-roster-footnote"><CircleHelp size={14} /><span>Owners retain full facility control. Role changes apply across the shared workspace.</span></div>
         </section>
@@ -309,7 +330,17 @@ export default function FacilityMembersPage() {
   );
 }
 
-function PendingInvitationList({ invitations }: { invitations: FacilityInvitation[] }) {
+function PendingInvitationList({
+  invitations,
+  disabled,
+  cancellingInvitationId,
+  onCancel,
+}: {
+  invitations: FacilityInvitation[];
+  disabled: boolean;
+  cancellingInvitationId?: string;
+  onCancel: (invitation: FacilityInvitation) => void;
+}) {
   return (
     <section className="team-pending-section" aria-labelledby="pending-invitations-heading" data-testid="list-pending-team-invitations">
       <div className="team-pending-heading">
@@ -323,6 +354,19 @@ function PendingInvitationList({ invitations }: { invitations: FacilityInvitatio
             <span className="team-pending-email" data-testid={`text-team-invitation-email-${invitation.id}`}>{invitation.email}</span>
             <span className={`team-role-pill team-role-${invitation.role}`} data-testid={`status-team-invitation-role-${invitation.id}`}>{roleLabel(invitation.role)}</span>
             <span className="team-pending-expiry">Expires {new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(invitation.expiresAt))}</span>
+            <button
+              className="team-cancel-invitation-button"
+              type="button"
+              aria-label={`Cancel invitation for ${invitation.email}`}
+              title="Cancel invitation"
+              disabled={disabled}
+              onClick={() => onCancel(invitation)}
+              data-testid={`button-cancel-team-invitation-${invitation.id}`}
+            >
+              {cancellingInvitationId === invitation.id
+                ? <LoaderCircle size={15} className="team-control-spinner" />
+                : <Trash2 size={15} />}
+            </button>
           </article>
         ))}
       </div>

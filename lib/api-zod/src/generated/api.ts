@@ -160,6 +160,23 @@ export const RemoveFacilityMemberResponse = zod.void()
 
 
 /**
+ * @summary Cancel a pending facility invitation
+ */
+export const cancelFacilityInvitationPathInvitationIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
+export const CancelFacilityInvitationParams = zod.object({
+  "invitationId": zod.coerce.string().regex(cancelFacilityInvitationPathInvitationIdRegExp)
+})
+
+export const CancelFacilityInvitationHeader = zod.object({
+  "X-CSRF-Token": zod.string()
+})
+
+export const CancelFacilityInvitationResponse = zod.void()
+
+
+/**
  * @summary List runs for the authenticated facility
  */
 export const listRunsQueryLimitDefault = 50;

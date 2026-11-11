@@ -936,10 +936,49 @@ test("shutdown fails after an unexpected signal even when a sibling exits cleanl
   api.emit("close", 0, null);
 
   assert.deepEqual(exits, [1]);
-  assert.deepEqual(logs.error.at(-1), [
-    { service: "worker", code: null, signal: "SIGKILL" },
-    "Supervised process exited unexpectedly during shutdown",
-  ]);
+  assert.deepEqual(
+    logs.error.filter(
+      ([, message]) =>
+        message === "Supervised process exited unexpectedly during shutdown",
+    ),
+    [
+      [
+        { service: "worker", code: null, signal: "SIGKILL" },
+        "Supervised process exited unexpectedly during shutdown",
+      ],
+    ],
+  );
+});
+
+test("shutdown logs each child that exits abnormally and fails once", () => {
+  const { supervisor, children, exits, logs } = createHarness();
+  supervisor.start();
+
+  const [api, worker] = children;
+  supervisor.stop("SIGTERM");
+
+  api.emit("close", 1, null);
+  assert.deepEqual(exits, []);
+
+  worker.emit("close", null, "SIGKILL");
+
+  assert.deepEqual(exits, [1]);
+  assert.deepEqual(
+    logs.error.filter(
+      ([, message]) =>
+        message === "Supervised process exited unexpectedly during shutdown",
+    ),
+    [
+      [
+        { service: "api", code: 1, signal: null },
+        "Supervised process exited unexpectedly during shutdown",
+      ],
+      [
+        { service: "worker", code: null, signal: "SIGKILL" },
+        "Supervised process exited unexpectedly during shutdown",
+      ],
+    ],
+  );
 });
 
 test("shutdown cancels a pending worker restart and waits for active children", () => {

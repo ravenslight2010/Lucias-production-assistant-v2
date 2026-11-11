@@ -1164,6 +1164,75 @@ test("deleting a run clears its lifecycle history and pending notifications", as
   );
 });
 
+test("run creation rolls back the run when its retry receipt write fails", async () => {
+  const [facility] = await db
+    .insert(facilitiesTable)
+    .values({ name: "Run creation rollback facility" })
+    .returning();
+  const actorUserId = `run-create-rollback-user-${randomUUID()}`;
+  const requestId = randomUUID();
+
+  await pool.query(`
+    CREATE FUNCTION fail_test_run_create_receipt() RETURNS trigger
+    LANGUAGE plpgsql AS $$
+    BEGIN
+      IF NEW.request_id = '${requestId}' THEN
+        RAISE EXCEPTION 'intentional run creation receipt failure';
+      END IF;
+      RETURN NEW;
+    END;
+    $$;
+    CREATE TRIGGER fail_test_run_create_receipt
+      BEFORE INSERT ON run_create_receipts
+      FOR EACH ROW EXECUTE FUNCTION fail_test_run_create_receipt();
+  `);
+
+  try {
+    await assert.rejects(
+      createPlannedRun({
+        facilityId: facility.id,
+        actorUserId,
+        requestId,
+        setupSnapshot: { label: "Run whose receipt fails", targetCases: 7 },
+      }),
+      (error: unknown) =>
+        error instanceof Error &&
+        (error.message.includes("intentional run creation receipt failure") ||
+          (error.cause instanceof Error &&
+            error.cause.message.includes(
+              "intentional run creation receipt failure",
+            ))),
+    );
+
+    const runsAfter = await db
+      .select()
+      .from(productionRunsTable)
+      .where(eq(productionRunsTable.facilityId, facility.id));
+    const receiptsAfter = await db
+      .select()
+      .from(runCreateReceiptsTable)
+      .where(
+        and(
+          eq(runCreateReceiptsTable.facilityId, facility.id),
+          eq(runCreateReceiptsTable.actorUserId, actorUserId),
+          eq(runCreateReceiptsTable.requestId, requestId),
+        ),
+      );
+
+    assert.deepEqual(runsAfter, [], "the newly inserted run should roll back");
+    assert.deepEqual(
+      receiptsAfter,
+      [],
+      "the failed retry receipt should not be partially recorded",
+    );
+  } finally {
+    await pool.query(`
+      DROP TRIGGER IF EXISTS fail_test_run_create_receipt ON run_create_receipts;
+      DROP FUNCTION IF EXISTS fail_test_run_create_receipt();
+    `);
+  }
+});
+
 test("deleting a run removes its create receipt and allows a retry to recreate it", async () => {
   const [facility] = await db
     .insert(facilitiesTable)

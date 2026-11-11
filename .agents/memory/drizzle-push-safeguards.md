@@ -9,4 +9,4 @@ Drizzle schema pushes can treat custom indexes and check constraints that are no
 
 **How to apply:** Do not disable confirmation for normal schema pushes. Tests that need an unprompted initial schema setup may opt out only for fixture initialization; test externally maintained objects by declining the repeat push and checking that they remain.
 
-Non-interactive confirmation failures should be checked explicitly: the current CLI can print the terminal error but still return a successful process status.
+Non-interactive confirmation failures should be checked explicitly: the current CLI can print the terminal error but still return a successful process status. Require an explicit schema-completion message as well as a successful exit before treating unattended setup as complete.

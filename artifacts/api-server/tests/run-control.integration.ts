@@ -1,6 +1,6 @@
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import { and, eq, inArray } from "drizzle-orm";
 import express, {
@@ -25,6 +25,7 @@ import { executeRunCommand } from "../src/lib/run-command-service";
 import { toContractRun } from "../src/lib/run-contract";
 import {
   issueV2Session,
+  requireV2Session,
   verifyV2SessionToken,
 } from "../src/lib/v2-session";
 import { HttpError } from "../src/lib/http-error";
@@ -44,6 +45,7 @@ test("V2 session middleware rejects changed Clerk identities over HTTP", async (
   let currentClerkUserId = actorId;
   let currentClerkSessionId = clerkSessionId;
   const v2Session = issueV2Session(actorId, clerkSessionId);
+  let protectedRouteReached = false;
 
   const app = express();
   app.use(express.json(), cookieParser());
@@ -58,6 +60,10 @@ test("V2 session middleware rejects changed Clerk identities over HTTP", async (
     );
     (req as Request & { auth: typeof authHandler }).auth = authHandler;
     next();
+  });
+  app.get("/test-protected", requireV2Session, (_req, res) => {
+    protectedRouteReached = true;
+    res.sendStatus(204);
   });
   app.use(productionRouter);
   app.use(
@@ -84,8 +90,73 @@ test("V2 session middleware rejects changed Clerk identities over HTTP", async (
         "x-csrf-token": v2Session.csrfToken,
       },
     });
+  const sendToProtectedRoute = (token: string) =>
+    fetch(`${origin}/test-protected`, {
+      headers: { cookie: `v2_session=${token}` },
+    });
 
   try {
+    const signatureSeparator = v2Session.token.lastIndexOf(".") + 1;
+    const changedSignature =
+      v2Session.token[signatureSeparator] === "A" ? "B" : "A";
+    const alteredSignatureToken =
+      v2Session.token.slice(0, signatureSeparator) +
+      changedSignature +
+      v2Session.token.slice(signatureSeparator + 1);
+
+    protectedRouteReached = false;
+    assert.equal(
+      (await sendToProtectedRoute(alteredSignatureToken)).status,
+      401,
+      "a cookie with an altered signature must be rejected",
+    );
+    assert.equal(
+      protectedRouteReached,
+      false,
+      "the protected route must not run for a cookie with an altered signature",
+    );
+
+    const [sessionBody] = v2Session.token.split(".");
+    assert.ok(sessionBody);
+    const expiredPayload = JSON.parse(
+      Buffer.from(sessionBody, "base64url").toString("utf8"),
+    ) as { expiresAt: number };
+    expiredPayload.expiresAt = Math.floor(Date.now() / 1000) - 1;
+    const expiredBody = Buffer.from(
+      JSON.stringify(expiredPayload),
+    ).toString("base64url");
+    const sessionSecret = process.env.SESSION_SECRET;
+    assert.ok(sessionSecret, "the integration test requires SESSION_SECRET");
+    const expiredSignature = createHmac("sha256", sessionSecret)
+      .update(expiredBody)
+      .digest("base64url");
+
+    protectedRouteReached = false;
+    assert.equal(
+      (
+        await sendToProtectedRoute(`${expiredBody}.${expiredSignature}`)
+      ).status,
+      401,
+      "an otherwise valid but expired cookie must be rejected",
+    );
+    assert.equal(
+      protectedRouteReached,
+      false,
+      "the protected route must not run for an expired cookie",
+    );
+
+    protectedRouteReached = false;
+    assert.equal(
+      (await sendToProtectedRoute(v2Session.token)).status,
+      204,
+      "a valid cookie must reach the protected route",
+    );
+    assert.equal(
+      protectedRouteReached,
+      true,
+      "the valid session must invoke the protected route",
+    );
+
     currentClerkUserId = `${actorId}-different`;
     assert.equal(
       (await send()).status,

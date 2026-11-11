@@ -121,13 +121,25 @@ test("signed HTTP requests enforce current facility roles without rotating the s
     .returning();
   const ownerId = `http-owner-${randomUUID()}`;
   const operatorId = `http-operator-${randomUUID()}`;
-  await db.insert(facilityMembersTable).values([
-    { facilityId: facility.id, userId: ownerId, role: "owner" },
-    { facilityId: facility.id, userId: operatorId, role: "operator" },
-  ]);
+  const memberships = await db
+    .insert(facilityMembersTable)
+    .values([
+      { facilityId: facility.id, userId: ownerId, role: "owner" },
+      { facilityId: facility.id, userId: operatorId, role: "operator" },
+    ])
+    .returning({
+      id: facilityMembersTable.id,
+      userId: facilityMembersTable.userId,
+    });
+  const operatorMembership = memberships.find(
+    (membership) => membership.userId === operatorId,
+  );
+  assert.ok(operatorMembership);
 
   const clerkSessionId = `http-clerk-session-${randomUUID()}`;
+  const ownerClerkSessionId = `http-owner-clerk-session-${randomUUID()}`;
   const v2Session = issueV2Session(operatorId, clerkSessionId);
+  const ownerSession = issueV2Session(ownerId, ownerClerkSessionId);
   const initialRun = await createPlannedRun({
     facilityId: facility.id,
     actorUserId: ownerId,
@@ -136,13 +148,14 @@ test("signed HTTP requests enforce current facility roles without rotating the s
   });
   const run = initialRun.run;
 
+  let authenticatedIdentity = { userId: operatorId, sessionId: clerkSessionId };
   const app = express();
   app.use(express.json(), cookieParser());
   app.use((req, _res, next) => {
     const authHandler = Object.assign(
       () => ({
-        userId: operatorId,
-        sessionId: clerkSessionId,
+        userId: authenticatedIdentity.userId,
+        sessionId: authenticatedIdentity.sessionId,
         tokenType: "session_token" as const,
       }),
       { [Symbol.for("@clerk/express.auth")]: true },
@@ -166,16 +179,21 @@ test("signed HTTP requests enforce current facility roles without rotating the s
   const address = server.address();
   assert.ok(address && typeof address !== "string");
   const origin = `http://127.0.0.1:${address.port}`;
-  const send = async (path: string, body: unknown) =>
+  const send = async (
+    path: string,
+    body: unknown,
+    session = v2Session,
+    method = "POST",
+  ) =>
     fetch(`${origin}${path}`, {
-      method: "POST",
+      method,
       headers: {
         "content-type": "application/json",
-        cookie: `v2_session=${v2Session.token}`,
+        cookie: `v2_session=${session.token}`,
         origin,
-        "x-csrf-token": v2Session.csrfToken,
+        "x-csrf-token": session.csrfToken,
       },
-      body: JSON.stringify(body),
+      body: body === undefined ? undefined : JSON.stringify(body),
     });
 
   try {
@@ -256,6 +274,77 @@ test("signed HTTP requests enforce current facility roles without rotating the s
     assert.equal(demotedCreate.status, 403);
     const demotedComplete = await command("complete", 4);
     assert.equal(demotedComplete.status, 403);
+
+    authenticatedIdentity = {
+      userId: ownerId,
+      sessionId: ownerClerkSessionId,
+    };
+    const removed = await send(
+      `/facility/members/${operatorMembership.id}`,
+      undefined,
+      ownerSession,
+      "DELETE",
+    );
+    assert.equal(removed.status, 204);
+
+    authenticatedIdentity = { userId: operatorId, sessionId: clerkSessionId };
+    const historyBeforeDeniedRequests = {
+      runs: await db
+        .select()
+        .from(productionRunsTable)
+        .where(eq(productionRunsTable.facilityId, facility.id)),
+      events: await db
+        .select()
+        .from(runEventsTable)
+        .where(eq(runEventsTable.facilityId, facility.id)),
+      createReceipts: await db
+        .select()
+        .from(runCreateReceiptsTable)
+        .where(eq(runCreateReceiptsTable.facilityId, facility.id)),
+      commandReceipts: await db
+        .select()
+        .from(runCommandReceiptsTable)
+        .where(eq(runCommandReceiptsTable.facilityId, facility.id)),
+      outbox: await db
+        .select()
+        .from(runOutboxTable)
+        .where(eq(runOutboxTable.facilityId, facility.id)),
+    };
+
+    const removedMemberCreate = await send("/v2/runs", {
+      requestId: randomUUID(),
+      setupSnapshot: { label: "Removed member create attempt", targetCases: 4 },
+    });
+    assert.equal(removedMemberCreate.status, 403);
+    const removedMemberCommand = await command("start", 4);
+    assert.equal(removedMemberCommand.status, 403);
+
+    assert.deepEqual(
+      {
+        runs: await db
+          .select()
+          .from(productionRunsTable)
+          .where(eq(productionRunsTable.facilityId, facility.id)),
+        events: await db
+          .select()
+          .from(runEventsTable)
+          .where(eq(runEventsTable.facilityId, facility.id)),
+        createReceipts: await db
+          .select()
+          .from(runCreateReceiptsTable)
+          .where(eq(runCreateReceiptsTable.facilityId, facility.id)),
+        commandReceipts: await db
+          .select()
+          .from(runCommandReceiptsTable)
+          .where(eq(runCommandReceiptsTable.facilityId, facility.id)),
+        outbox: await db
+          .select()
+          .from(runOutboxTable)
+          .where(eq(runOutboxTable.facilityId, facility.id)),
+      },
+      historyBeforeDeniedRequests,
+      "denied requests from a removed member must not change run history",
+    );
   } finally {
     await new Promise<void>((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),

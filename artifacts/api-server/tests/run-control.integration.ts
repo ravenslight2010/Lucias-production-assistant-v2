@@ -876,3 +876,107 @@ test("run command rolls back all history when the receipt write fails", async ()
     `);
   }
 });
+
+test("deleting a run removes its create receipt and allows a retry to recreate it", async () => {
+  const [facility] = await db
+    .insert(facilitiesTable)
+    .values({ name: "Run creation deletion facility" })
+    .returning();
+  const actorUserId = `run-create-deletion-user-${randomUUID()}`;
+  const requestId = randomUUID();
+  const setupSnapshot = { label: "Replaceable run", targetCases: 8 };
+
+  const original = await createPlannedRun({
+    facilityId: facility.id,
+    actorUserId,
+    requestId,
+    setupSnapshot,
+  });
+  assert.equal(original.replayed, false);
+
+  const originalReceipt = await db
+    .select()
+    .from(runCreateReceiptsTable)
+    .where(
+      and(
+        eq(runCreateReceiptsTable.facilityId, facility.id),
+        eq(runCreateReceiptsTable.actorUserId, actorUserId),
+        eq(runCreateReceiptsTable.requestId, requestId),
+      ),
+    );
+  assert.equal(originalReceipt.length, 1);
+  assert.equal(originalReceipt[0].runId, original.run.id);
+
+  await db
+    .delete(productionRunsTable)
+    .where(eq(productionRunsTable.id, original.run.id));
+
+  const deletedRuns = await db
+    .select()
+    .from(productionRunsTable)
+    .where(eq(productionRunsTable.id, original.run.id));
+  const deletedReceipts = await db
+    .select()
+    .from(runCreateReceiptsTable)
+    .where(
+      and(
+        eq(runCreateReceiptsTable.facilityId, facility.id),
+        eq(runCreateReceiptsTable.actorUserId, actorUserId),
+        eq(runCreateReceiptsTable.requestId, requestId),
+      ),
+    );
+  assert.deepEqual(deletedRuns, [], "the original run should be deleted");
+  assert.deepEqual(
+    deletedReceipts,
+    [],
+    "deleting the run should cascade to its create receipt",
+  );
+
+  const retry = await createPlannedRun({
+    facilityId: facility.id,
+    actorUserId,
+    requestId,
+    setupSnapshot,
+  });
+  assert.equal(retry.replayed, false);
+  assert.notEqual(
+    retry.run.id,
+    original.run.id,
+    "a retry after deletion should create a replacement run",
+  );
+
+  const replacementReplay = await createPlannedRun({
+    facilityId: facility.id,
+    actorUserId,
+    requestId,
+    setupSnapshot,
+  });
+  assert.equal(replacementReplay.replayed, true);
+  assert.equal(
+    replacementReplay.run.id,
+    retry.run.id,
+    "later retries should resolve to the replacement run",
+  );
+
+  const remainingRuns = await db
+    .select()
+    .from(productionRunsTable)
+    .where(eq(productionRunsTable.facilityId, facility.id));
+  const replacementReceipts = await db
+    .select()
+    .from(runCreateReceiptsTable)
+    .where(
+      and(
+        eq(runCreateReceiptsTable.facilityId, facility.id),
+        eq(runCreateReceiptsTable.actorUserId, actorUserId),
+        eq(runCreateReceiptsTable.requestId, requestId),
+      ),
+    );
+  assert.deepEqual(
+    remainingRuns.map((run) => run.id),
+    [retry.run.id],
+    "only the replacement run should remain",
+  );
+  assert.equal(replacementReceipts.length, 1);
+  assert.equal(replacementReceipts[0].runId, retry.run.id);
+});

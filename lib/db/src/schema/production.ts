@@ -184,6 +184,7 @@ export const runCreateReceiptsTable = pgTable(
     actorUserId: text("actor_user_id").notNull(),
     requestId: uuid("request_id").notNull(),
     requestHash: text("request_hash").notNull(),
+    // Deleting a run releases its create request ID for a later retry.
     runId: uuid("run_id")
       .notNull()
       .references(() => productionRunsTable.id, { onDelete: "cascade" }),

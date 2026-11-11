@@ -1,10 +1,9 @@
 # V2 Reserved VM pilot evidence
 
-**Status: incomplete.** The latest published build replaced the VM and the API
-and worker recovered after brief startup health-check failures. However, that
-build is configured for 0.5 vCPU / 2 GiB, not the user's confirmed target of
-1 vCPU / 4 GiB. Pool-event capture also has sequence and lifecycle gaps, so no
-reliable overlap peak can be reported.
+**Status: incomplete.** The latest published build uses the confirmed 1 vCPU /
+4 GiB configuration, replaced the VM, and the API and worker recovered.
+Production pool-event logs still have sequence gaps and missing shutdown
+records, so no reliable overlap peak can be reported.
 
 ## Boundary and data
 
@@ -202,6 +201,33 @@ successful at 19:34:41 UTC. Its published machine configuration is
   an in-place compute restart. The next attempt must first use the requested
   1 vCPU / 4 GiB setting and then repeat the pool-event completeness checks.
 
+### Corrected-capacity republish
+
+A read-only SRE investigation identified build
+`4218f825-c960-48c3-b64f-e02b5fc7dfb1`, created at 2026-11-11 20:53:18 UTC and
+successful at 20:56:13 UTC. It uses the requested **1 vCPU / 4 GiB**
+configuration (`n1-custom-1-4096`).
+
+- Build logs recorded VM creation from 20:54:27–20:54:37 UTC. New API and
+  worker processes started at 20:55:49 UTC, confirming deployment replacement.
+- The worker database check passed at 20:55:50 UTC. The API listened on port
+  8080 at 20:55:50 UTC, and `/api/healthz` returned HTTP 200 at 20:56:19 UTC.
+  Startup checks had connection-refused/500 responses through 20:55:49 UTC.
+- The incoming API and worker each show startup seq 1/open=0, then missing
+  seq 2 and a remove at seq 3/open=0; sequence 2 is likely a missing connect
+  record, but that event is not present in the captured logs. Later events
+  continue, so process exit does not explain these initial gaps.
+- The outgoing worker is contiguous through seq 326, but has no shutdown
+  record. The outgoing API first appears at seq 2, with no startup or shutdown.
+  A later paged query through 21:00:32 UTC found no outgoing shutdown record.
+- Paged queries were complete and untruncated, but available production logs
+  cannot distinguish an emitted line lost by stdout/log ingestion from an event
+  that was never retained. No shutdown/pool-close errors were present in the
+  queried logs; this does not rule out upstream loss or abrupt termination.
+- The capture fails sequence and lifecycle completeness checks. Do not report
+  a measured peak or compare a partial subtotal with the 356-connection
+  planning ceiling.
+
 ### Check capture completeness before reporting a peak
 
 Treat a capture as complete only when every observed `instanceId` has one
@@ -294,10 +320,12 @@ Observed 2026-11-11 15:58 UTC before the next V2 publish:
 
 ## Remaining gates
 
-- Set the published VM to the confirmed 1 vCPU / 4 GiB target and republish.
-- Check the resulting restart-window event sequences and connection counts.
-  Report a replacement peak only from a complete capture; compare it with the
-  356-connection planning ceiling.
+- Determine whether the missing pool events are lost between Pino/stdout and
+  the available Replit logs, or whether shutdown is not being delivered to the
+  processes. The current telemetry cannot distinguish these causes.
+- Capture a replacement window with complete startup-to-shutdown event streams
+  for API and worker instances. Report a replacement peak only from a complete
+  capture; compare it with the 356-connection planning ceiling.
 
 Do not treat the V2 pilot as passed until the remaining live-deployment checks
 are completed in an authorized V2 deployment environment.

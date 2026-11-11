@@ -2,8 +2,12 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { getAuth } from "@clerk/express";
 import type { Request, RequestHandler, Response } from "express";
 import { HttpError } from "./http-error";
+import {
+  V2_SESSION_COOKIE_NAME,
+  buildV2SessionCookieOptions,
+  buildV2SessionClearCookieOptions,
+} from "./v2-session-cookie";
 
-const SESSION_COOKIE = "v2_session";
 const SESSION_TTL_SECONDS = 8 * 60 * 60;
 const TOKEN_VERSION = 1;
 
@@ -104,28 +108,24 @@ export function setV2SessionCookie(
   token: string,
   maxAgeSeconds: number,
 ) {
-  res.cookie(SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/api/v2",
-    maxAge: maxAgeSeconds * 1000,
-  });
+  res.cookie(
+    V2_SESSION_COOKIE_NAME,
+    token,
+    buildV2SessionCookieOptions(maxAgeSeconds, process.env.NODE_ENV === "production"),
+  );
 }
 
 export function clearV2SessionCookie(res: Response) {
-  res.clearCookie(SESSION_COOKIE, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/api/v2",
-  });
+  res.clearCookie(
+    V2_SESSION_COOKIE_NAME,
+    buildV2SessionClearCookieOptions(process.env.NODE_ENV === "production"),
+  );
 }
 
 export const requireV2Session: RequestHandler = (req, res, next) => {
   const clerkAuth = getAuth(req);
   const session = verifyV2SessionToken(
-    req.cookies?.[SESSION_COOKIE],
+    req.cookies?.[V2_SESSION_COOKIE_NAME],
     clerkAuth.userId,
     clerkAuth.sessionId,
   );

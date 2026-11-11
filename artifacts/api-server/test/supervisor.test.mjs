@@ -124,6 +124,24 @@ test("worker restart delay increases exponentially and caps at 30 seconds", () =
   }
 });
 
+test("API restart failures do not increase the worker restart delay", () => {
+  const { supervisor, children, timers } = createHarness();
+  supervisor.start();
+
+  let api = children[0];
+  api.emit("close", 1, "SIGKILL");
+  assert.equal(timers.at(-1).delayMs, 1_000);
+  timers.at(-1).callback();
+
+  api = children.at(-1);
+  api.emit("close", 1, "SIGKILL");
+  assert.equal(timers.at(-1).delayMs, 2_000);
+
+  const worker = children[1];
+  worker.emit("close", 1, "SIGKILL");
+  assert.equal(timers.at(-1).delayMs, 1_000);
+});
+
 test("worker stable for 60 seconds resets the restart delay", () => {
   const { supervisor, children, timers, setNow } = createHarness();
   supervisor.start();

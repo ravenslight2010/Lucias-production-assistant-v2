@@ -37,7 +37,7 @@ A secure production operations app for facility teams to create and control runs
 - Clerk remains the V2 sign-in provider. The API issues a short-lived `v2_session` bound to the currently verified Clerk user and session; run requests still resolve facility membership and role from PostgreSQL on every request. Never accept or transfer V1 cookies, sessions, or credentials.
 - A lifecycle change, its receipt, audit event, and outbox event are committed in one database transaction.
 - V1 historical runs are not imported; opening inventory at cutover must come from a new physical count.
-- The separate-project Reserved VM pilot has passed. Continue using a disposable V2 database and synthetic data for infrastructure checks; never test against V1.
+- The separate-project Reserved VM pilot is not yet complete: confirm the VM configuration, verify a compute restart and harmless published update, and measure the database connection peak during an instrumented overlap. The pilot is a gate before more feature work. Use only a disposable V2 database and synthetic data; never test against V1.
 
 ## Product
 

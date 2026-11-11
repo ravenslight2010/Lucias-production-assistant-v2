@@ -122,6 +122,14 @@ active V2 API and worker instances at each event to find the overlap peak. A
 `shutdown` observation removes that instance from subsequent totals. Record
 only the UTC capture interval, the summed peak, the 80% planning ceiling (356),
 and the resulting headroom or exceedance here.
+
+A service emits its terminal `shutdown` observation only after its database
+pool closes successfully. If `pool.end()` fails during API or worker shutdown
+(including worker cleanup after a failed database check), no terminal event is
+emitted: the event stream cannot prove the instance is gone, so do not remove it
+from reconstructed totals based on a missing event. Treat the capture as
+incomplete and investigate the corresponding shutdown error.
+
 The deterministic fixture in `artifacts/api-server/test/db-pool-metrics.test.mjs`
 reconstructs a 12-connection peak across overlapping API and worker instances;
 it verifies the aggregation behavior and is not a production measurement.

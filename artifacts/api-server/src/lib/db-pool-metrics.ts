@@ -56,3 +56,16 @@ export function attachDbPoolMetrics({
     getPeakConnectionsOpen: () => peakConnectionsOpen,
   };
 }
+
+/**
+ * A shutdown observation is terminal for peak reconstruction, so emit it only
+ * after the pool confirms it has closed. If end() rejects, callers must leave
+ * the instance unclosed in the event stream rather than imply a clean exit.
+ */
+export async function closeDbPoolAndObserveShutdown(
+  pool: { end: () => Promise<void> },
+  metrics: { observeShutdown: () => void },
+): Promise<void> {
+  await pool.end();
+  metrics.observeShutdown();
+}

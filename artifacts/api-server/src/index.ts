@@ -1,7 +1,10 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { configuredPoolMax, pool } from "@workspace/db";
-import { attachDbPoolMetrics } from "./lib/db-pool-metrics";
+import {
+  attachDbPoolMetrics,
+  closeDbPoolAndObserveShutdown,
+} from "./lib/db-pool-metrics";
 import { updateWorkerAvailabilityFromSupervisor } from "./lib/worker-availability";
 
 process.on("message", updateWorkerAvailabilityFromSupervisor);
@@ -50,8 +53,7 @@ async function shutdown(signal: string) {
   server.close(async (error) => {
     if (error) logger.error({ err: error, signal }, "HTTP server close failed");
     try {
-      await pool.end();
-      poolMetrics.observeShutdown();
+      await closeDbPoolAndObserveShutdown(pool, poolMetrics);
       clearTimeout(timeout);
       process.exit(error ? 1 : 0);
     } catch (poolError) {

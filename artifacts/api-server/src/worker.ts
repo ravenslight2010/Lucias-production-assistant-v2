@@ -1,7 +1,10 @@
 import { eq, sql } from "drizzle-orm";
 import { configuredPoolMax, db, facilitiesTable, pool } from "@workspace/db";
 import { logger } from "./lib/logger";
-import { attachDbPoolMetrics } from "./lib/db-pool-metrics";
+import {
+  attachDbPoolMetrics,
+  closeDbPoolAndObserveShutdown,
+} from "./lib/db-pool-metrics";
 
 const poolMetrics = attachDbPoolMetrics({
   pool,
@@ -11,12 +14,21 @@ const poolMetrics = attachDbPoolMetrics({
 });
 
 const intervalMs = Number(process.env.WORKER_HEARTBEAT_MS ?? "30000");
-if (!Number.isSafeInteger(intervalMs) || intervalMs < 10_000 || intervalMs > 300_000) {
+if (
+  !Number.isSafeInteger(intervalMs) ||
+  intervalMs < 10_000 ||
+  intervalMs > 300_000
+) {
   throw new Error("WORKER_HEARTBEAT_MS must be between 10000 and 300000.");
 }
 
 const pilotMarkerId = process.env.PILOT_MARKER_ID;
-if (pilotMarkerId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pilotMarkerId)) {
+if (
+  pilotMarkerId &&
+  !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    pilotMarkerId,
+  )
+) {
   throw new Error("PILOT_MARKER_ID must be a UUID.");
 }
 if (pilotMarkerId && process.env.NODE_ENV !== "development") {
@@ -71,8 +83,7 @@ async function stop(signal: string): Promise<void> {
   if (timer) clearTimeout(timer);
   logger.info({ signal }, "Worker shutting down");
   try {
-    await pool.end();
-    poolMetrics.observeShutdown();
+    await closeDbPoolAndObserveShutdown(pool, poolMetrics);
     process.exit(0);
   } catch {
     logger.error({ signal }, "Worker database pool shutdown failed");
@@ -94,9 +105,10 @@ async function runHeartbeat(): Promise<void> {
         : "worker_check_failed";
     logger.error({ errorCode }, "Worker database check failed");
     try {
-      await pool.end();
+      await closeDbPoolAndObserveShutdown(pool, poolMetrics);
+    } catch {
+      logger.error({ errorCode }, "Worker database pool shutdown failed");
     } finally {
-      poolMetrics.observeShutdown();
       process.exit(1);
     }
   }

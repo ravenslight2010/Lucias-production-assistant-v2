@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { attachDbPoolMetrics } from "../dist/lib/db-pool-metrics.mjs";
+import {
+  attachDbPoolMetrics,
+  closeDbPoolAndObserveShutdown,
+} from "../dist/lib/db-pool-metrics.mjs";
 
 const evidenceDocument = readFileSync(
   new URL("../../../docs/v2-reserved-vm-pilot-evidence.md", import.meta.url),
@@ -110,6 +113,84 @@ test("pool metrics track physical connection peaks without logging credentials",
     ),
   );
   assert.equal(metrics.getPeakConnectionsOpen(), 2);
+});
+
+test("API and worker record terminal pool observations only after pool close succeeds", async (t) => {
+  for (const service of ["api", "worker"]) {
+    await t.test(
+      `${service} records a final shutdown observation`,
+      async () => {
+        const pool = new FakePool();
+        const observations = [];
+        let poolClosed = false;
+        pool.totalCount = 2;
+        pool.idleCount = 1;
+        pool.end = async () => {
+          poolClosed = true;
+          pool.totalCount = 0;
+          pool.idleCount = 0;
+        };
+        const metrics = attachDbPoolMetrics({
+          pool,
+          service,
+          configuredPoolMax: 4,
+          logger: {
+            info(fields) {
+              observations.push({ fields, poolClosed });
+            },
+          },
+          instanceId: `${service}-shutdown-test`,
+        });
+
+        await closeDbPoolAndObserveShutdown(pool, metrics);
+
+        const finalObservation = observations.at(-1);
+        assert.ok(finalObservation);
+        assert.equal(finalObservation.poolClosed, true);
+        assert.deepEqual(
+          {
+            metric: finalObservation.fields.metric,
+            service: finalObservation.fields.service,
+            event: finalObservation.fields.event,
+            connectionsOpen: finalObservation.fields.connectionsOpen,
+          },
+          {
+            metric: "v2_db_pool",
+            service,
+            event: "shutdown",
+            connectionsOpen: 0,
+          },
+        );
+      },
+    );
+
+    await t.test(
+      `${service} omits shutdown when pool close fails`,
+      async () => {
+        const pool = new FakePool();
+        const observations = [];
+        pool.end = async () => {
+          throw new Error("pool close failed");
+        };
+        const metrics = attachDbPoolMetrics({
+          pool,
+          service,
+          configuredPoolMax: 4,
+          logger: { info: (fields) => observations.push(fields) },
+          instanceId: `${service}-failed-shutdown-test`,
+        });
+
+        await assert.rejects(
+          closeDbPoolAndObserveShutdown(pool, metrics),
+          /pool close failed/,
+        );
+        assert.equal(
+          observations.some(({ event }) => event === "shutdown"),
+          false,
+        );
+      },
+    );
+  }
 });
 
 test("reconstructs the overlap peak across ordered API and worker instances", () => {

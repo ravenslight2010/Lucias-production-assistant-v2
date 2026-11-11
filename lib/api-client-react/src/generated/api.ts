@@ -46,12 +46,15 @@ import type {
   RunCreated,
   RunEnvelope,
   RunList,
+  RunStationProgressConflict,
+  RunStationProgressList,
+  RunStationProgressUpdate,
   UnauthorizedResponse,
   V2Session
-} from './api.schemas';
+} from './api.schemas.ts';
 
-import { customFetch } from '../custom-fetch';
-import type { ErrorType , BodyType } from '../custom-fetch';
+import { customFetch } from '../custom-fetch.ts';
+import type { ErrorType , BodyType } from '../custom-fetch.ts';
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -1375,6 +1378,175 @@ export const useApplyRunCommand = <TError = ErrorType<BadRequestResponse | Unaut
         TContext
       > => {
       return useMutation(getApplyRunCommandMutationOptions(options));
+    }
+
+export const getGetRunStationProgressUrl = (runId: string,) => {
+
+
+
+
+  return `/api/v2/runs/${runId}/stations`
+}
+
+/**
+ * @summary Get station progress for a run
+ */
+export const getRunStationProgress = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<RunStationProgressList> => {
+
+  return customFetch<RunStationProgressList>(getGetRunStationProgressUrl(runId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRunStationProgressQueryKey = (runId: string,) => {
+    return [
+    `/api/v2/runs/${runId}/stations`
+    ] as const;
+    }
+
+
+export const getGetRunStationProgressQueryOptions = <TData = Awaited<ReturnType<typeof getRunStationProgress>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRunStationProgress>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRunStationProgressQueryKey(runId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRunStationProgress>>> = ({ signal }) => getRunStationProgress(runId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: runId !== null && runId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRunStationProgress>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRunStationProgressQueryResult = NonNullable<Awaited<ReturnType<typeof getRunStationProgress>>>
+export type GetRunStationProgressQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary Get station progress for a run
+ */
+
+export function useGetRunStationProgress<TData = Awaited<ReturnType<typeof getRunStationProgress>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+ runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRunStationProgress>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRunStationProgressQueryOptions(runId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateRunStationProgressUrl = (runId: string,
+    stationId: string,) => {
+
+
+
+
+  return `/api/v2/runs/${runId}/stations/${stationId}`
+}
+
+/**
+ * Facility members can update station progress while a run is running or paused. Updates use a station revision so simultaneous edits can be reconciled.
+ * @summary Update one station's progress for a run
+ */
+export const updateRunStationProgress = async (runId: string,
+    stationId: string,
+    runStationProgressUpdate: RunStationProgressUpdate, options?: Parameters<typeof customFetch>[1]): Promise<RunStationProgressList> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<RunStationProgressList>(getUpdateRunStationProgressUrl(runId,stationId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(runStationProgressUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateRunStationProgressMutationKey = () => ['updateRunStationProgress'] as const;
+
+export const getUpdateRunStationProgressMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | RunStationProgressConflict>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRunStationProgress>>, TError,UpdateRunStationProgressMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateRunStationProgress>>, TError,UpdateRunStationProgressMutationVariables, TContext> => {
+
+const mutationKey = getUpdateRunStationProgressMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateRunStationProgress>>, UpdateRunStationProgressMutationVariables> = (props) => {
+          const {runId,stationId,data} = props ?? {};
+
+          return  updateRunStationProgress(runId,stationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateRunStationProgressMutationResult = NonNullable<Awaited<ReturnType<typeof updateRunStationProgress>>>
+    export type UpdateRunStationProgressMutationBody = BodyType<RunStationProgressUpdate>
+    export type UpdateRunStationProgressMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | RunStationProgressConflict>
+    export type UpdateRunStationProgressMutationVariables = {runId: string;stationId: string;data: BodyType<RunStationProgressUpdate>}
+
+    /**
+ * @summary Update one station's progress for a run
+ */
+export const useUpdateRunStationProgress = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | RunStationProgressConflict>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRunStationProgress>>, TError,UpdateRunStationProgressMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateRunStationProgress>>,
+        TError,
+        UpdateRunStationProgressMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateRunStationProgressMutationOptions(options));
     }
 
 export const getGetDashboardSummaryUrl = () => {

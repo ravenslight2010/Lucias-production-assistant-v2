@@ -126,6 +126,48 @@ export const RunStatus = {
   completed: 'completed',
 } as const;
 
+export type RunStationProgressStatus = typeof RunStationProgressStatus[keyof typeof RunStationProgressStatus];
+
+
+export const RunStationProgressStatus = {
+  not_started: 'not_started',
+  in_progress: 'in_progress',
+  completed: 'completed',
+} as const;
+
+export interface RunStationProgress {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  stationId: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  stationName: string;
+  area: FacilityStationArea;
+  /**
+     * @minimum 0
+     * @maximum 9007199254740991
+     */
+  order: number;
+  status: RunStationProgressStatus;
+  /**
+     * @minimum 0
+     * @maximum 9007199254740991
+     */
+  revision: number;
+  /** @nullable */
+  updatedAt: string | null;
+}
+
+export interface RunStationProgressList {
+  initialized: boolean;
+  /** @maxItems 50 */
+  stations: RunStationProgress[];
+}
+
 export interface Facility {
   id: string;
   name: string;
@@ -287,6 +329,20 @@ export interface RunCommandRequest {
      * @maximum 9007199254740991
      */
   expectedRevision: number;
+}
+
+export interface RunStationProgressUpdate {
+  /**
+     * @minimum 0
+     * @maximum 9007199254740991
+     */
+  expectedRevision: number;
+  status: RunStationProgressStatus;
+}
+
+export interface RunStationProgressConflict {
+  error: string;
+  current: RunStationProgressList;
 }
 
 export interface RunList {

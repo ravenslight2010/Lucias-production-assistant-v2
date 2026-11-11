@@ -16,6 +16,8 @@ import {
   GetFacilityContextResponse,
   GetRunParams,
   GetRunResponse,
+  GetRunStationProgressParams,
+  GetRunStationProgressResponse,
   InviteFacilityMemberBody,
   InviteFacilityMemberResponse,
   ListFacilityMembersResponse,
@@ -27,6 +29,10 @@ import {
   UpdateFacilityMemberBody,
   UpdateFacilityMemberParams,
   UpdateFacilityMemberResponse,
+  UpdateRunStationProgressBody,
+  UpdateRunStationProgressParams,
+  UpdateRunStationProgressResponse,
+  type RunStationProgressConflict,
 } from "@workspace/api-zod";
 import {
   db,
@@ -50,6 +56,10 @@ import {
   resolveUntrackedClerkInvitation,
 } from "../lib/facility-invitation-service";
 import { executeRunCommand } from "../lib/run-command-service";
+import {
+  getRunStationProgress,
+  updateRunStationProgress,
+} from "../lib/run-station-progress-service";
 import { createPlannedRun } from "../lib/run-create-service";
 import { toContractRun } from "../lib/run-contract";
 import {
@@ -926,6 +936,80 @@ router.post(
       return;
     }
     res.json(ApplyRunCommandResponse.parse(result));
+  },
+);
+
+router.get(
+  "/v2/runs/:runId/stations",
+  requireV2Session,
+  async (req, res): Promise<void> => {
+    const params = GetRunStationProgressParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: "Invalid run identifier." });
+      return;
+    }
+    const access = await membershipOrRespond(req, res);
+    if (!access) return;
+
+    const progress = await getRunStationProgress({
+      facilityId: access.membership.facilityId,
+      runId: params.data.runId,
+    });
+    res.json(GetRunStationProgressResponse.parse(progress));
+  },
+);
+
+router.put(
+  "/v2/runs/:runId/stations/:stationId",
+  requireV2Session,
+  requireV2Csrf,
+  mutationRateLimit,
+  async (req, res): Promise<void> => {
+    const params = UpdateRunStationProgressParams.safeParse(req.params);
+    const body = UpdateRunStationProgressBody.safeParse(req.body);
+    if (!params.success || !body.success) {
+      res.status(400).json({ error: "Check the station and progress status." });
+      return;
+    }
+    const access = await membershipOrRespond(req, res);
+    if (!access) return;
+
+    const result = await updateRunStationProgress({
+      facilityId: access.membership.facilityId,
+      actorUserId: access.actorId,
+      runId: params.data.runId,
+      stationId: params.data.stationId,
+      expectedRevision: body.data.expectedRevision,
+      status: body.data.status,
+    });
+    if (result.outcome === "not_found") {
+      res.status(404).json({ error: "Run station not found." });
+      return;
+    }
+    if (result.outcome === "conflict" || result.outcome === "inactive") {
+      const error =
+        result.outcome === "conflict"
+          ? "This station changed on another device. The latest progress is shown."
+          : "Station progress can only be changed while a run is running or paused.";
+      const conflict: RunStationProgressConflict = {
+        error,
+        current: UpdateRunStationProgressResponse.parse(result.current),
+      };
+      res.status(409).json(conflict);
+      return;
+    }
+
+    if (result.outcome === "updated") {
+      req.log.info(
+        {
+          runId: params.data.runId,
+          stationId: params.data.stationId,
+          status: body.data.status,
+        },
+        "Run station progress updated",
+      );
+    }
+    res.json(UpdateRunStationProgressResponse.parse(result.current));
   },
 );
 

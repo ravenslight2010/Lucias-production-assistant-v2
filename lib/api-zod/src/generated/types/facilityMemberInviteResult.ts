@@ -5,8 +5,8 @@
  * Run-control API for Lucia's Production Assistant V2
  * OpenAPI spec version: 0.1.0
  */
-import type { FacilityAssignableRole } from './facilityAssignableRole';
-import type { FacilityMemberInviteResultStatus } from './facilityMemberInviteResultStatus';
+import type { FacilityAssignableRole } from './facilityAssignableRole.ts';
+import type { FacilityMemberInviteResultStatus } from './facilityMemberInviteResultStatus.ts';
 
 export interface FacilityMemberInviteResult {
   email: string;

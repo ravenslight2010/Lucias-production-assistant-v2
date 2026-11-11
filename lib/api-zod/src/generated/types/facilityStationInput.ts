@@ -5,7 +5,7 @@
  * Run-control API for Lucia's Production Assistant V2
  * OpenAPI spec version: 0.1.0
  */
-import type { FacilityStationArea } from './facilityStationArea';
+import type { FacilityStationArea } from './facilityStationArea.ts';
 
 export interface FacilityStationInput {
   /**

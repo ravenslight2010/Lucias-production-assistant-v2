@@ -5,8 +5,8 @@
  * Run-control API for Lucia's Production Assistant V2
  * OpenAPI spec version: 0.1.0
  */
-import type { Facility } from './facility';
-import type { FacilityContextRole } from './facilityContextRole';
+import type { Facility } from './facility.ts';
+import type { FacilityContextRole } from './facilityContextRole.ts';
 
 export interface FacilityContext {
   facility: Facility | null;

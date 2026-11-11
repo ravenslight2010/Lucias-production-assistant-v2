@@ -2,14 +2,18 @@ import { createHash } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
+  facilityStationLayoutsTable,
   productionRunsTable,
   runCommandReceiptsTable,
   runEventsTable,
   runOutboxTable,
+  runStationProgressTable,
 } from "@workspace/db";
 import { HttpError } from "./http-error";
 import { transitionRun, type RunAction } from "./run-lifecycle";
 import { toContractRun } from "./run-contract";
+import { DEFAULT_FACILITY_STATIONS } from "./facility-stations";
+import { buildRunStationProgressRows } from "./run-station-progress-logic";
 
 export interface RunCommand {
   commandId: string;
@@ -126,6 +130,24 @@ export async function executeRunCommand(input: {
       .returning();
 
     if (!updated) throw new HttpError(404, "Run not found.");
+
+    if (command.commandType === "start") {
+      const [layout] = await tx
+        .select({ stations: facilityStationLayoutsTable.stations })
+        .from(facilityStationLayoutsTable)
+        .where(eq(facilityStationLayoutsTable.facilityId, facilityId))
+        .limit(1);
+      const stationSnapshot = buildRunStationProgressRows(
+        runId,
+        layout?.stations ?? DEFAULT_FACILITY_STATIONS,
+      );
+      if (stationSnapshot.length > 0) {
+        await tx
+          .insert(runStationProgressTable)
+          .values(stationSnapshot)
+          .onConflictDoNothing();
+      }
+    }
 
     const result = {
       outcome: "accepted" as const,

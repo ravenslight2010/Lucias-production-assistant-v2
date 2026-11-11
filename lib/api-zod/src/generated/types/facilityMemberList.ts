@@ -5,8 +5,8 @@
  * Run-control API for Lucia's Production Assistant V2
  * OpenAPI spec version: 0.1.0
  */
-import type { FacilityInvitation } from './facilityInvitation';
-import type { FacilityMember } from './facilityMember';
+import type { FacilityInvitation } from './facilityInvitation.ts';
+import type { FacilityMember } from './facilityMember.ts';
 
 export interface FacilityMemberList {
   members: FacilityMember[];

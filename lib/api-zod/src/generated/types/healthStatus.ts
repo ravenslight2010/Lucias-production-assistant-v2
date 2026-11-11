@@ -5,10 +5,10 @@
  * Run-control API for Lucia's Production Assistant V2
  * OpenAPI spec version: 0.1.0
  */
-import type { HealthStatusApi } from './healthStatusApi';
-import type { HealthStatusDatabase } from './healthStatusDatabase';
-import type { HealthStatusStatus } from './healthStatusStatus';
-import type { HealthStatusWorker } from './healthStatusWorker';
+import type { HealthStatusApi } from './healthStatusApi.ts';
+import type { HealthStatusDatabase } from './healthStatusDatabase.ts';
+import type { HealthStatusStatus } from './healthStatusStatus.ts';
+import type { HealthStatusWorker } from './healthStatusWorker.ts';
 
 export interface HealthStatus {
   status: HealthStatusStatus;

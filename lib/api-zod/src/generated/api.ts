@@ -460,6 +460,100 @@ export const ApplyRunCommandResponse = zod.object({
 
 
 /**
+ * @summary Get station progress for a run
+ */
+export const getRunStationProgressPathRunIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
+export const GetRunStationProgressParams = zod.object({
+  "runId": zod.coerce.string().regex(getRunStationProgressPathRunIdRegExp)
+})
+
+export const getRunStationProgressResponseStationsItemStationIdMax = 80;
+
+export const getRunStationProgressResponseStationsItemStationNameMax = 80;
+
+export const getRunStationProgressResponseStationsItemOrderMin = 0;
+export const getRunStationProgressResponseStationsItemOrderMax = 9007199254740991;
+
+export const getRunStationProgressResponseStationsItemRevisionMin = 0;
+export const getRunStationProgressResponseStationsItemRevisionMax = 9007199254740991;
+
+export const getRunStationProgressResponseStationsMax = 50;
+
+
+
+export const GetRunStationProgressResponse = zod.object({
+  "initialized": zod.boolean(),
+  "stations": zod.array(zod.object({
+  "stationId": zod.string().min(1).max(getRunStationProgressResponseStationsItemStationIdMax),
+  "stationName": zod.string().min(1).max(getRunStationProgressResponseStationsItemStationNameMax),
+  "area": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']),
+  "order": zod.number().int().min(getRunStationProgressResponseStationsItemOrderMin).max(getRunStationProgressResponseStationsItemOrderMax),
+  "status": zod.enum(['not_started', 'in_progress', 'completed']),
+  "revision": zod.number().int().min(getRunStationProgressResponseStationsItemRevisionMin).max(getRunStationProgressResponseStationsItemRevisionMax),
+  "updatedAt": zod.coerce.date().nullable()
+})).max(getRunStationProgressResponseStationsMax)
+})
+
+
+/**
+ * Facility members can update station progress while a run is running or paused. Updates use a station revision so simultaneous edits can be reconciled.
+ * @summary Update one station's progress for a run
+ */
+export const updateRunStationProgressPathRunIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+export const updateRunStationProgressPathStationIdMax = 80;
+
+
+
+export const UpdateRunStationProgressParams = zod.object({
+  "runId": zod.coerce.string().regex(updateRunStationProgressPathRunIdRegExp),
+  "stationId": zod.coerce.string().min(1).max(updateRunStationProgressPathStationIdMax)
+})
+
+export const UpdateRunStationProgressHeader = zod.object({
+  "X-CSRF-Token": zod.string()
+})
+
+export const updateRunStationProgressBodyExpectedRevisionMin = 0;
+export const updateRunStationProgressBodyExpectedRevisionMax = 9007199254740991;
+
+
+
+export const UpdateRunStationProgressBody = zod.object({
+  "expectedRevision": zod.number().int().min(updateRunStationProgressBodyExpectedRevisionMin).max(updateRunStationProgressBodyExpectedRevisionMax),
+  "status": zod.enum(['not_started', 'in_progress', 'completed'])
+})
+
+export const updateRunStationProgressResponseStationsItemStationIdMax = 80;
+
+export const updateRunStationProgressResponseStationsItemStationNameMax = 80;
+
+export const updateRunStationProgressResponseStationsItemOrderMin = 0;
+export const updateRunStationProgressResponseStationsItemOrderMax = 9007199254740991;
+
+export const updateRunStationProgressResponseStationsItemRevisionMin = 0;
+export const updateRunStationProgressResponseStationsItemRevisionMax = 9007199254740991;
+
+export const updateRunStationProgressResponseStationsMax = 50;
+
+
+
+export const UpdateRunStationProgressResponse = zod.object({
+  "initialized": zod.boolean(),
+  "stations": zod.array(zod.object({
+  "stationId": zod.string().min(1).max(updateRunStationProgressResponseStationsItemStationIdMax),
+  "stationName": zod.string().min(1).max(updateRunStationProgressResponseStationsItemStationNameMax),
+  "area": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']),
+  "order": zod.number().int().min(updateRunStationProgressResponseStationsItemOrderMin).max(updateRunStationProgressResponseStationsItemOrderMax),
+  "status": zod.enum(['not_started', 'in_progress', 'completed']),
+  "revision": zod.number().int().min(updateRunStationProgressResponseStationsItemRevisionMin).max(updateRunStationProgressResponseStationsItemRevisionMax),
+  "updatedAt": zod.coerce.date().nullable()
+})).max(updateRunStationProgressResponseStationsMax)
+})
+
+
+/**
  * @summary Get the facility's run summary and recent activity
  */
 export const getDashboardSummaryResponseActiveRunsItemRevisionMin = 0;

@@ -5,9 +5,9 @@
  * Run-control API for Lucia's Production Assistant V2
  * OpenAPI spec version: 0.1.0
  */
-import type { PauseInterval } from './pauseInterval';
-import type { RunSetup } from './runSetup';
-import type { RunStatus } from './runStatus';
+import type { PauseInterval } from './pauseInterval.ts';
+import type { RunSetup } from './runSetup.ts';
+import type { RunStatus } from './runStatus.ts';
 
 export interface Run {
   id: string;

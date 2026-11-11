@@ -12,6 +12,7 @@ import {
   getGetDashboardSummaryQueryKey,
   getGetFacilityContextQueryKey,
   getGetRunQueryKey,
+  getGetRunStationProgressQueryKey,
   getListRunsQueryKey,
   revokeV2Session,
   setV2CsrfToken,
@@ -31,6 +32,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import FacilityMembersPage from '@/components/facility-members-page';
 import StationLineupPage from '@/components/station-lineup-page';
+import RunStationProgressSection from '@/components/run-station-progress';
 import NotFound from '@/pages/not-found';
 
 const queryClient = new QueryClient({
@@ -500,6 +502,7 @@ function RunDetailPage() {
           commandKeys.current.delete(commandScope);
           setConflict('This run changed on another device. Your command was not applied. The latest state is being refreshed; review it before trying again.');
           void client.invalidateQueries({ queryKey: getGetRunQueryKey(run.id) });
+        void client.invalidateQueries({ queryKey: getGetRunStationProgressQueryKey(run.id) });
           void client.invalidateQueries({ queryKey: getListRunsQueryKey() });
         }
       },
@@ -546,6 +549,11 @@ function RunDetailPage() {
               <Property label="Completed" value={run.completedAt ? formatDateTime(run.completedAt) : '—'} />
             </aside>
           </div>
+          <RunStationProgressSection
+            runId={run.id}
+            runStatus={run.status}
+            online={online}
+          />
           {command.isPending && <div className="notice" role="status"><LoaderCircle size={15} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />Sending the revision-checked command. Wait for confirmation before leaving this page.</div>}
         </>}
       </main>

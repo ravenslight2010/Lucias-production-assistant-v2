@@ -5,7 +5,7 @@
  * Run-control API for Lucia's Production Assistant V2
  * OpenAPI spec version: 0.1.0
  */
-import type { Run } from './run';
+import type { Run } from './run.ts';
 
 export interface RunCreated {
   outcome: 'created';

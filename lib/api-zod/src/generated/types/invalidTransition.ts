@@ -5,7 +5,7 @@
  * Run-control API for Lucia's Production Assistant V2
  * OpenAPI spec version: 0.1.0
  */
-import type { RunStatus } from './runStatus';
+import type { RunStatus } from './runStatus.ts';
 
 export interface InvalidTransition {
   outcome: 'invalid_transition';

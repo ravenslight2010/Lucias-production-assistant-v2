@@ -48,6 +48,74 @@ export interface ErrorResponse {
   error: string;
 }
 
+export type FacilityStationArea = typeof FacilityStationArea[keyof typeof FacilityStationArea];
+
+
+export const FacilityStationArea = {
+  dough_sauce_prep: 'dough_sauce_prep',
+  production_line: 'production_line',
+  freezing_packaging: 'freezing_packaging',
+  warehouse: 'warehouse',
+} as const;
+
+export interface FacilityStation {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  name: string;
+  area: FacilityStationArea;
+  isActive: boolean;
+}
+
+export interface FacilityStationInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  id?: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  name: string;
+  area: FacilityStationArea;
+  isActive: boolean;
+}
+
+export interface FacilityStationLayout {
+  /**
+     * @minimum 0
+     * @maximum 9007199254740991
+     */
+  revision: number;
+  /** @maxItems 50 */
+  stations: FacilityStation[];
+}
+
+export interface FacilityStationLayoutUpdate {
+  /**
+     * @minimum 0
+     * @maximum 9007199254740991
+     */
+  expectedRevision: number;
+  /**
+     * @minItems 1
+     * @maxItems 50
+     */
+  stations: FacilityStationInput[];
+}
+
+export interface FacilityStationLayoutConflict {
+  error: string;
+  current: FacilityStationLayout;
+}
+
 export type RunStatus = typeof RunStatus[keyof typeof RunStatus];
 
 

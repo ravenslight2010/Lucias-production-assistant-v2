@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/reac
 import {
   Activity, ArrowLeft, ArrowRight, Check, ChevronRight, CircleAlert,
   ClipboardList, Factory, Gauge, LoaderCircle, LogOut, Pause, Play,
-  Plus, RefreshCw, ShieldCheck, Square, Users, WifiOff,
+  MapPinned, Plus, RefreshCw, ShieldCheck, Square, Users, WifiOff,
 } from 'lucide-react';
 import {
   getGetDashboardSummaryQueryKey,
@@ -30,6 +30,7 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import FacilityMembersPage from '@/components/facility-members-page';
+import StationLineupPage from '@/components/station-lineup-page';
 import NotFound from '@/pages/not-found';
 
 const queryClient = new QueryClient({
@@ -112,6 +113,7 @@ function SiteShell({ children, facilityName }: { children: ReactNode; facilityNa
   const links = [
     { href: '/', label: 'Overview', icon: Gauge },
     { href: '/runs', label: 'Production runs', icon: ClipboardList },
+    { href: '/stations', label: 'Stations', icon: MapPinned },
   ];
   if (facilityContext.data?.role === 'owner') {
     links.push({ href: '/team', label: 'Team members', icon: Users });
@@ -808,6 +810,7 @@ function RouterContent() {
           <Route path="/sign-up/*?" component={SignUpPage} />
           <Route path="/runs" component={() => <Protected><RunsPage /></Protected>} />
           <Route path="/runs/:runId" component={() => <Protected><RunDetailPage /></Protected>} />
+          <Route path="/stations" component={() => <Protected><SiteShell><StationLineupPage /></SiteShell></Protected>} />
           <Route path="/team" component={() => <Protected><FacilityTeamRoute /></Protected>} />
           <Route component={NotFound} />
         </Switch>

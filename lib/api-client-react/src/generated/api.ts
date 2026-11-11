@@ -31,6 +31,9 @@ import type {
   FacilityMemberInviteResult,
   FacilityMemberList,
   FacilityMemberUpdate,
+  FacilityStationLayout,
+  FacilityStationLayoutConflict,
+  FacilityStationLayoutUpdate,
   ForbiddenResponse,
   HealthStatus,
   InvalidTransition,
@@ -867,6 +870,172 @@ export const useCancelFacilityInvitation = <TError = ErrorType<UnauthorizedRespo
         TContext
       > => {
       return useMutation(getCancelFacilityInvitationMutationOptions(options));
+    }
+
+export const getGetFacilityStationsUrl = () => {
+
+
+
+
+  return `/api/facility/stations`
+}
+
+/**
+ * @summary Get the facility's production station lineup
+ */
+export const getFacilityStations = async ( options?: Parameters<typeof customFetch>[1]): Promise<FacilityStationLayout> => {
+
+  return customFetch<FacilityStationLayout>(getGetFacilityStationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFacilityStationsQueryKey = () => {
+    return [
+    `/api/facility/stations`
+    ] as const;
+    }
+
+
+export const getGetFacilityStationsQueryOptions = <TData = Awaited<ReturnType<typeof getFacilityStations>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFacilityStations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFacilityStationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFacilityStations>>> = ({ signal }) => getFacilityStations({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFacilityStations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFacilityStationsQueryResult = NonNullable<Awaited<ReturnType<typeof getFacilityStations>>>
+export type GetFacilityStationsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Get the facility's production station lineup
+ */
+
+export function useGetFacilityStations<TData = Awaited<ReturnType<typeof getFacilityStations>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFacilityStations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFacilityStationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateFacilityStationsUrl = () => {
+
+
+
+
+  return `/api/facility/stations`
+}
+
+/**
+ * Owners and managers can rename, reorder, archive, or add stations. Existing station identities must be retained. A stale revision returns the current lineup.
+ * @summary Update the facility's production station lineup
+ */
+export const updateFacilityStations = async (facilityStationLayoutUpdate: FacilityStationLayoutUpdate, options?: Parameters<typeof customFetch>[1]): Promise<FacilityStationLayout> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<FacilityStationLayout>(getUpdateFacilityStationsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(facilityStationLayoutUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateFacilityStationsMutationKey = () => ['updateFacilityStations'] as const;
+
+export const getUpdateFacilityStationsMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | FacilityStationLayoutConflict>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFacilityStations>>, TError,UpdateFacilityStationsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateFacilityStations>>, TError,UpdateFacilityStationsMutationVariables, TContext> => {
+
+const mutationKey = getUpdateFacilityStationsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateFacilityStations>>, UpdateFacilityStationsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateFacilityStations(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateFacilityStationsMutationResult = NonNullable<Awaited<ReturnType<typeof updateFacilityStations>>>
+    export type UpdateFacilityStationsMutationBody = BodyType<FacilityStationLayoutUpdate>
+    export type UpdateFacilityStationsMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | FacilityStationLayoutConflict>
+    export type UpdateFacilityStationsMutationVariables = {data: BodyType<FacilityStationLayoutUpdate>}
+
+    /**
+ * @summary Update the facility's production station lineup
+ */
+export const useUpdateFacilityStations = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | FacilityStationLayoutConflict>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFacilityStations>>, TError,UpdateFacilityStationsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateFacilityStations>>,
+        TError,
+        UpdateFacilityStationsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateFacilityStationsMutationOptions(options));
     }
 
 export const getListRunsUrl = (params?: ListRunsParams,) => {

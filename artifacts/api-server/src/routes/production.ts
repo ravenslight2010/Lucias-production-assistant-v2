@@ -12,6 +12,7 @@ import {
   CreateRunBody,
   CreateRunResponse,
   GetDashboardSummaryResponse,
+  GetFacilityStationsResponse,
   GetFacilityContextResponse,
   GetRunParams,
   GetRunResponse,
@@ -21,6 +22,8 @@ import {
   ListRunsQueryParams,
   ListRunsResponse,
   RemoveFacilityMemberParams,
+  UpdateFacilityStationsBody,
+  UpdateFacilityStationsResponse,
   UpdateFacilityMemberBody,
   UpdateFacilityMemberParams,
   UpdateFacilityMemberResponse,
@@ -30,6 +33,7 @@ import {
   facilityInvitationsTable,
   facilitiesTable,
   facilityMembersTable,
+  facilityStationLayoutsTable,
   productionRunsTable,
 } from "@workspace/db";
 import { getActorId, requireAuth } from "../middlewares/auth";
@@ -48,6 +52,11 @@ import {
 import { executeRunCommand } from "../lib/run-command-service";
 import { createPlannedRun } from "../lib/run-create-service";
 import { toContractRun } from "../lib/run-contract";
+import {
+  DEFAULT_FACILITY_STATIONS,
+  FacilityStationLayoutError,
+  normalizeFacilityStations,
+} from "../lib/facility-stations";
 import {
   assertRunPermission,
   getFacilityMembership,
@@ -112,6 +121,40 @@ async function ownerAccessOrRespond(req: Request, res: Response) {
     return null;
   }
   return access;
+}
+
+async function stationManagerAccessOrRespond(req: Request, res: Response) {
+  const access = await membershipOrRespond(req, res);
+  if (!access) return null;
+  if (
+    access.membership.role !== "owner" &&
+    access.membership.role !== "manager"
+  ) {
+    res.status(403).json({ error: "Only owners and managers can edit stations." });
+    return null;
+  }
+  return access;
+}
+
+async function ensureFacilityStationLayout(facilityId: string) {
+  await db
+    .insert(facilityStationLayoutsTable)
+    .values({
+      facilityId,
+      revision: 0,
+      stations: DEFAULT_FACILITY_STATIONS,
+    })
+    .onConflictDoNothing();
+
+  const [layout] = await db
+    .select()
+    .from(facilityStationLayoutsTable)
+    .where(eq(facilityStationLayoutsTable.facilityId, facilityId))
+    .limit(1);
+  if (!layout) {
+    throw new Error("Facility station layout could not be initialized.");
+  }
+  return layout;
 }
 
 function hasPostgresCode(error: unknown, code: string) {
@@ -666,6 +709,109 @@ router.delete(
       .delete(facilityMembersTable)
       .where(eq(facilityMembersTable.id, target.id));
     res.sendStatus(204);
+  },
+);
+
+router.get(
+  "/facility/stations",
+  requireV2Session,
+  async (req, res): Promise<void> => {
+    const access = await membershipOrRespond(req, res);
+    if (!access) return;
+    const layout = await ensureFacilityStationLayout(
+      access.membership.facilityId,
+    );
+    res.json(
+      GetFacilityStationsResponse.parse({
+        revision: layout.revision,
+        stations: layout.stations,
+      }),
+    );
+  },
+);
+
+router.put(
+  "/facility/stations",
+  requireV2Session,
+  requireV2Csrf,
+  mutationRateLimit,
+  async (req, res): Promise<void> => {
+    const parsed = UpdateFacilityStationsBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Check the station names and lineup." });
+      return;
+    }
+    const access = await stationManagerAccessOrRespond(req, res);
+    if (!access) return;
+
+    const facilityId = access.membership.facilityId;
+    await ensureFacilityStationLayout(facilityId);
+    const result = await db.transaction(async (tx) => {
+      const [current] = await tx
+        .select()
+        .from(facilityStationLayoutsTable)
+        .where(eq(facilityStationLayoutsTable.facilityId, facilityId))
+        .for("update")
+        .limit(1);
+      if (!current) {
+        return { type: "missing" as const };
+      }
+      if (current.revision !== parsed.data.expectedRevision) {
+        return { type: "conflict" as const, layout: current };
+      }
+
+      let stations;
+      try {
+        stations = normalizeFacilityStations(
+          current.stations,
+          parsed.data.stations,
+        );
+      } catch (error) {
+        if (error instanceof FacilityStationLayoutError) {
+          return { type: "invalid" as const, message: error.message };
+        }
+        throw error;
+      }
+
+      const [updated] = await tx
+        .update(facilityStationLayoutsTable)
+        .set({
+          stations,
+          revision: current.revision + 1,
+          updatedAt: new Date(),
+        })
+        .where(eq(facilityStationLayoutsTable.facilityId, facilityId))
+        .returning();
+      if (!updated) {
+        return { type: "missing" as const };
+      }
+      return { type: "updated" as const, layout: updated };
+    });
+
+    if (result.type === "missing") {
+      res.status(404).json({ error: "Facility station lineup not found." });
+      return;
+    }
+    if (result.type === "invalid") {
+      res.status(400).json({ error: result.message });
+      return;
+    }
+    if (result.type === "conflict") {
+      res.status(409).json({
+        error: "This lineup changed on another device. Refresh and try again.",
+        current: GetFacilityStationsResponse.parse({
+          revision: result.layout.revision,
+          stations: result.layout.stations,
+        }),
+      });
+      return;
+    }
+    res.json(
+      UpdateFacilityStationsResponse.parse({
+        revision: result.layout.revision,
+        stations: result.layout.stations,
+      }),
+    );
   },
 );
 

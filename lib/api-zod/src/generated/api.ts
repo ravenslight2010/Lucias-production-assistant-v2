@@ -180,6 +180,82 @@ export const CancelFacilityInvitationResponse = zod.void()
 
 
 /**
+ * @summary Get the facility's production station lineup
+ */
+export const getFacilityStationsResponseRevisionMin = 0;
+export const getFacilityStationsResponseRevisionMax = 9007199254740991;
+
+export const getFacilityStationsResponseStationsItemIdMax = 80;
+
+export const getFacilityStationsResponseStationsItemNameMax = 80;
+
+export const getFacilityStationsResponseStationsMax = 50;
+
+
+
+export const GetFacilityStationsResponse = zod.object({
+  "revision": zod.number().int().min(getFacilityStationsResponseRevisionMin).max(getFacilityStationsResponseRevisionMax),
+  "stations": zod.array(zod.object({
+  "id": zod.string().min(1).max(getFacilityStationsResponseStationsItemIdMax),
+  "name": zod.string().min(1).max(getFacilityStationsResponseStationsItemNameMax),
+  "area": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']),
+  "isActive": zod.boolean()
+})).max(getFacilityStationsResponseStationsMax)
+})
+
+
+/**
+ * Owners and managers can rename, reorder, archive, or add stations. Existing station identities must be retained. A stale revision returns the current lineup.
+ * @summary Update the facility's production station lineup
+ */
+export const UpdateFacilityStationsHeader = zod.object({
+  "X-CSRF-Token": zod.string()
+})
+
+export const updateFacilityStationsBodyExpectedRevisionMin = 0;
+export const updateFacilityStationsBodyExpectedRevisionMax = 9007199254740991;
+
+export const updateFacilityStationsBodyStationsItemIdMax = 80;
+
+export const updateFacilityStationsBodyStationsItemNameMax = 80;
+
+export const updateFacilityStationsBodyStationsMax = 50;
+
+
+
+export const UpdateFacilityStationsBody = zod.object({
+  "expectedRevision": zod.number().int().min(updateFacilityStationsBodyExpectedRevisionMin).max(updateFacilityStationsBodyExpectedRevisionMax),
+  "stations": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateFacilityStationsBodyStationsItemIdMax).optional(),
+  "name": zod.string().min(1).max(updateFacilityStationsBodyStationsItemNameMax),
+  "area": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']),
+  "isActive": zod.boolean()
+})).min(1).max(updateFacilityStationsBodyStationsMax)
+})
+
+export const updateFacilityStationsResponseRevisionMin = 0;
+export const updateFacilityStationsResponseRevisionMax = 9007199254740991;
+
+export const updateFacilityStationsResponseStationsItemIdMax = 80;
+
+export const updateFacilityStationsResponseStationsItemNameMax = 80;
+
+export const updateFacilityStationsResponseStationsMax = 50;
+
+
+
+export const UpdateFacilityStationsResponse = zod.object({
+  "revision": zod.number().int().min(updateFacilityStationsResponseRevisionMin).max(updateFacilityStationsResponseRevisionMax),
+  "stations": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateFacilityStationsResponseStationsItemIdMax),
+  "name": zod.string().min(1).max(updateFacilityStationsResponseStationsItemNameMax),
+  "area": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']),
+  "isActive": zod.boolean()
+})).max(updateFacilityStationsResponseStationsMax)
+})
+
+
+/**
  * @summary List runs for the authenticated facility
  */
 export const listRunsQueryLimitDefault = 50;

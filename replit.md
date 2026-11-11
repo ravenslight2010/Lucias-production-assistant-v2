@@ -41,7 +41,7 @@ A secure production operations app for facility teams to create and control runs
 
 ## Product
 
-The current slice supports facility setup, draft run creation, run listing, and start/pause/resume/complete controls. Dashboard, run list, and run detail refresh periodically while online; offline views are read-only. Production stations, imports, automatic tracking, and inventory workflows are not implemented yet.
+The current slice supports facility setup, draft run creation, run listing, and start/pause/resume/complete controls. Facility members can view the V1-map station lineup; owners and managers can edit it with revision checks. Dashboard, run list, and run detail refresh periodically while online; offline views are read-only. Station-level production operations, imports and synchronization, automatic tracking, and inventory workflows are not implemented yet.
 
 ## User preferences
 

@@ -14,6 +14,8 @@ tags:
     description: Facility setup and context
   - name: facility-members
     description: Facility membership and invitations
+  - name: facility-stations
+    description: Facility production station lineup
   - name: runs
     description: Facility-scoped production run control
   - name: dashboard
@@ -245,6 +247,60 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /facility/stations:
+    get:
+      operationId: getFacilityStations
+      tags: [facility-stations]
+      summary: Get the facility's production station lineup
+      security:
+        - v2Session: []
+      responses:
+        "200":
+          description: Ordered station lineup for the authenticated facility
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FacilityStationLayout"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    put:
+      operationId: updateFacilityStations
+      tags: [facility-stations]
+      summary: Update the facility's production station lineup
+      description: Owners and managers can rename, reorder, archive, or add stations. Existing station identities must be retained. A stale revision returns the current lineup.
+      security:
+        - v2Session: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FacilityStationLayoutUpdate"
+      responses:
+        "200":
+          description: Updated station lineup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FacilityStationLayout"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: The lineup changed on another device
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FacilityStationLayoutConflict"
   /v2/runs:
     get:
       operationId: listRuns
@@ -458,6 +514,81 @@ components:
         error:
           type: string
       required: [error]
+    FacilityStationArea:
+      type: string
+      enum: [dough_sauce_prep, production_line, freezing_packaging, warehouse]
+    FacilityStation:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 80
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        area:
+          $ref: "#/components/schemas/FacilityStationArea"
+        isActive:
+          type: boolean
+      required: [id, name, area, isActive]
+    FacilityStationInput:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 80
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        area:
+          $ref: "#/components/schemas/FacilityStationArea"
+        isActive:
+          type: boolean
+      required: [name, area, isActive]
+    FacilityStationLayout:
+      type: object
+      additionalProperties: false
+      properties:
+        revision:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        stations:
+          type: array
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/FacilityStation"
+      required: [revision, stations]
+    FacilityStationLayoutUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        expectedRevision:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        stations:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/FacilityStationInput"
+      required: [expectedRevision, stations]
+    FacilityStationLayoutConflict:
+      type: object
+      additionalProperties: false
+      properties:
+        error:
+          type: string
+        current:
+          $ref: "#/components/schemas/FacilityStationLayout"
+      required: [error, current]
     RunStatus:
       type: string
       enum: [planned, running, paused, completed]

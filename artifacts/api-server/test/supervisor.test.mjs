@@ -345,6 +345,20 @@ test("shutdown after a spawn error clears pending retry and exits on close", () 
   assert.equal(children.length, 2);
 });
 
+test("shutdown before start exits once without spawning services or leaving a timeout", () => {
+  const { supervisor, children, timers, exits } = createHarness();
+
+  supervisor.stop("SIGTERM");
+  supervisor.stop("SIGTERM");
+
+  assert.equal(children.length, 0);
+  assert.deepEqual(exits, [0]);
+  assert.equal(timers.length, 1);
+  assert.equal(timers[0].delayMs, 12_000);
+  assert.equal(timers[0].cleared, true);
+  assert.equal(timers.filter((timer) => !timer.cleared).length, 0);
+});
+
 test("graceful shutdown signals both children and prevents a replacement worker", () => {
   const { supervisor, children, timers, exits } = createHarness();
   supervisor.start();

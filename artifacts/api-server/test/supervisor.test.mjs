@@ -429,14 +429,15 @@ test("API spawn errors log the operating-system reason without environment data"
   assert.equal("env" in logs.error[0][0], false);
 });
 
-test("a synchronous launcher failure retries without blocking the other service", () => {
+
+test("repeated synchronous launcher failures keep each service's backoff isolated", () => {
   const launchAttempts = [];
   let apiLaunches = 0;
-  const { supervisor, children, timers, logs } = createHarness({
+  const { supervisor, children, timers } = createHarness({
     launcher(command, args, options, defaultLauncher) {
       const service = options.env.DB_APPLICATION_NAME;
       launchAttempts.push(service);
-      if (service === "lucia-v2-api" && apiLaunches++ === 0) {
+      if (service === "lucia-v2-api" && apiLaunches++ < 2) {
         throw Object.assign(new Error("process limit reached"), {
           code: "EAGAIN",
         });
@@ -450,30 +451,37 @@ test("a synchronous launcher failure retries without blocking the other service"
   assert.deepEqual(launchAttempts, ["lucia-v2-api", "lucia-v2-worker"]);
   assert.equal(children.length, 1);
   assert.equal(children[0].options.env.DB_APPLICATION_NAME, "lucia-v2-worker");
-  assert.deepEqual(logs.error, [
-    [
-      {
-        service: "api",
-        errorCode: "EAGAIN",
-        errorMessage: "process limit reached",
-      },
-      "Supervised process could not start",
-    ],
-  ]);
   assert.equal(timers.length, 1);
   assert.equal(timers[0].delayMs, 1_000);
 
-  timers[0].callback();
+  const firstWorker = children[0];
+  firstWorker.emit("close", 1, "SIGKILL");
+  assert.equal(timers.length, 2);
+  assert.equal(timers[1].delayMs, 1_000);
 
+  timers[0].callback();
+  assert.equal(timers.length, 3);
+  assert.equal(timers[2].delayMs, 2_000);
+  assert.equal(timers[1].cleared, false);
+
+  timers[1].callback();
+  assert.equal(children.length, 2);
+  const secondWorker = children[1];
+  secondWorker.emit("close", 1, "SIGKILL");
+  assert.equal(timers.length, 4);
+  assert.equal(timers[3].delayMs, 2_000);
+
+  timers[2].callback();
   assert.deepEqual(launchAttempts, [
     "lucia-v2-api",
     "lucia-v2-worker",
     "lucia-v2-api",
+    "lucia-v2-worker",
+    "lucia-v2-api",
   ]);
-  assert.equal(children.length, 2);
-  assert.equal(children[1].options.env.DB_APPLICATION_NAME, "lucia-v2-api");
-  assert.equal(children[0].closed, false);
-  assert.equal(children[1].closed, false);
+  assert.equal(children.length, 3);
+  assert.equal(children[2].options.env.DB_APPLICATION_NAME, "lucia-v2-api");
+  assert.equal(children[2].closed, false);
 });
 
 test("simultaneous synchronous launcher failures retry independently", () => {

@@ -6,6 +6,7 @@ import {
   V2_SESSION_COOKIE_NAME,
   buildV2SessionCookieOptions,
   buildV2SessionClearCookieOptions,
+  buildLegacyV2SessionClearCookieOptions,
 } from "./v2-session-cookie";
 
 const SESSION_TTL_SECONDS = 8 * 60 * 60;
@@ -108,17 +109,27 @@ export function setV2SessionCookie(
   token: string,
   maxAgeSeconds: number,
 ) {
+  const secure = process.env.NODE_ENV === "production";
+  res.clearCookie(
+    V2_SESSION_COOKIE_NAME,
+    buildLegacyV2SessionClearCookieOptions(secure),
+  );
   res.cookie(
     V2_SESSION_COOKIE_NAME,
     token,
-    buildV2SessionCookieOptions(maxAgeSeconds, process.env.NODE_ENV === "production"),
+    buildV2SessionCookieOptions(maxAgeSeconds, secure),
   );
 }
 
 export function clearV2SessionCookie(res: Response) {
+  const secure = process.env.NODE_ENV === "production";
   res.clearCookie(
     V2_SESSION_COOKIE_NAME,
-    buildV2SessionClearCookieOptions(process.env.NODE_ENV === "production"),
+    buildV2SessionClearCookieOptions(secure),
+  );
+  res.clearCookie(
+    V2_SESSION_COOKIE_NAME,
+    buildLegacyV2SessionClearCookieOptions(secure),
   );
 }
 

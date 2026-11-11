@@ -1256,110 +1256,135 @@ test("run command rolls back all history when the receipt write fails", async ()
   }
 });
 
-test("deleting a run clears its lifecycle history and pending notifications", async () => {
+test("deleting a run clears only its lifecycle history and pending notifications", async () => {
   const [facility] = await db
     .insert(facilitiesTable)
     .values({ name: "Run history deletion facility" })
     .returning();
   const actorUserId = `run-history-deletion-user-${randomUUID()}`;
-  const created = await createPlannedRun({
+  const deletedRun = await createPlannedRun({
     facilityId: facility.id,
     actorUserId,
     requestId: randomUUID(),
-    setupSnapshot: { label: "Run with history", targetCases: 10 },
+    setupSnapshot: { label: "Run to delete", targetCases: 10 },
   });
-  assert.equal(created.outcome, "created");
-
-  const started = await executeRunCommand({
+  const preservedRun = await createPlannedRun({
     facilityId: facility.id,
     actorUserId,
-    runId: created.run.id,
-    command: {
-      commandId: `start-${randomUUID()}`,
-      commandType: "start",
-      expectedRevision: 0,
-    },
+    requestId: randomUUID(),
+    setupSnapshot: { label: "Run to preserve", targetCases: 12 },
   });
-  assert.equal(started.outcome, "accepted");
+  assert.equal(deletedRun.outcome, "created");
+  assert.equal(preservedRun.outcome, "created");
 
-  const paused = await executeRunCommand({
-    facilityId: facility.id,
-    actorUserId,
-    runId: created.run.id,
-    command: {
-      commandId: `pause-${randomUUID()}`,
-      commandType: "pause",
-      expectedRevision: 1,
-    },
-  });
-  assert.equal(paused.outcome, "accepted");
+  for (const run of [deletedRun.run, preservedRun.run]) {
+    const started = await executeRunCommand({
+      facilityId: facility.id,
+      actorUserId,
+      runId: run.id,
+      command: {
+        commandId: `start-${randomUUID()}`,
+        commandType: "start",
+        expectedRevision: 0,
+      },
+    });
+    assert.equal(started.outcome, "accepted");
 
-  const eventsBefore = await db
-    .select()
-    .from(runEventsTable)
-    .where(eq(runEventsTable.runId, created.run.id));
-  const receiptsBefore = await db
-    .select()
-    .from(runCommandReceiptsTable)
-    .where(eq(runCommandReceiptsTable.runId, created.run.id));
-  const outboxBefore = await db
-    .select()
-    .from(runOutboxTable)
-    .where(eq(runOutboxTable.runId, created.run.id));
+    const paused = await executeRunCommand({
+      facilityId: facility.id,
+      actorUserId,
+      runId: run.id,
+      command: {
+        commandId: `pause-${randomUUID()}`,
+        commandType: "pause",
+        expectedRevision: 1,
+      },
+    });
+    assert.equal(paused.outcome, "accepted");
+  }
+
+  const getRunHistory = async (runId: string) => {
+    const [events, receipts, outbox] = await Promise.all([
+      db.select().from(runEventsTable).where(eq(runEventsTable.runId, runId)),
+      db
+        .select()
+        .from(runCommandReceiptsTable)
+        .where(eq(runCommandReceiptsTable.runId, runId)),
+      db.select().from(runOutboxTable).where(eq(runOutboxTable.runId, runId)),
+    ]);
+    return { events, receipts, outbox };
+  };
+  const deletedHistoryBefore = await getRunHistory(deletedRun.run.id);
+  const preservedHistoryBefore = await getRunHistory(preservedRun.run.id);
 
   assert.deepEqual(
-    eventsBefore.map((event) => event.action),
+    deletedHistoryBefore.events.map((event) => event.action),
     ["start", "pause"],
-    "the run should have lifecycle history before deletion",
+    "the run selected for deletion should have lifecycle history",
   );
   assert.equal(
-    receiptsBefore.length,
+    deletedHistoryBefore.receipts.length,
     2,
-    "each lifecycle command should have a receipt",
+    "the run selected for deletion should have both command receipts",
   );
   assert.equal(
-    outboxBefore.length,
+    deletedHistoryBefore.outbox.length,
     2,
-    "each lifecycle command should have an outbox record",
+    "the run selected for deletion should have both notifications",
   );
   assert.ok(
-    outboxBefore.every((notification) => notification.deliveredAt === null),
-    "the run should have pending notifications before deletion",
+    deletedHistoryBefore.outbox.every(
+      (notification) => notification.deliveredAt === null,
+    ),
+    "the run selected for deletion should have pending notifications",
+  );
+  assert.deepEqual(
+    preservedHistoryBefore.events.map((event) => event.action),
+    ["start", "pause"],
+    "the other run should also have lifecycle history",
+  );
+  assert.equal(
+    preservedHistoryBefore.receipts.length,
+    2,
+    "the other run should have both command receipts",
+  );
+  assert.equal(
+    preservedHistoryBefore.outbox.length,
+    2,
+    "the other run should have both notifications",
+  );
+  assert.ok(
+    preservedHistoryBefore.outbox.every(
+      (notification) => notification.deliveredAt === null,
+    ),
+    "the other run should have pending notifications before deletion",
   );
 
   await db
     .delete(productionRunsTable)
-    .where(eq(productionRunsTable.id, created.run.id));
+    .where(eq(productionRunsTable.id, deletedRun.run.id));
 
-  const [deletedEvents, deletedReceipts, deletedOutbox] = await Promise.all([
-    db
-      .select()
-      .from(runEventsTable)
-      .where(eq(runEventsTable.runId, created.run.id)),
-    db
-      .select()
-      .from(runCommandReceiptsTable)
-      .where(eq(runCommandReceiptsTable.runId, created.run.id)),
-    db
-      .select()
-      .from(runOutboxTable)
-      .where(eq(runOutboxTable.runId, created.run.id)),
-  ]);
+  const deletedHistoryAfter = await getRunHistory(deletedRun.run.id);
 
   assert.deepEqual(
-    deletedEvents,
+    deletedHistoryAfter.events,
     [],
     "deleting the run should remove its lifecycle history",
   );
   assert.deepEqual(
-    deletedReceipts,
+    deletedHistoryAfter.receipts,
     [],
     "deleting the run should remove its command receipts",
   );
   assert.deepEqual(
-    deletedOutbox,
+    deletedHistoryAfter.outbox,
     [],
     "deleting the run should remove pending notifications",
+  );
+  assert.deepEqual(
+    await getRunHistory(preservedRun.run.id),
+    preservedHistoryBefore,
+    "deleting one run should preserve the other run's linked history",
   );
 });
 

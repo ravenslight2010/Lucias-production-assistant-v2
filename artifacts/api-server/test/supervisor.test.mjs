@@ -17,6 +17,7 @@ function createHarness() {
   const children = [];
   const timers = [];
   const exits = [];
+  let currentTime = 100;
   const supervisor = createSupervisor({
     spawnProcess(_command, args, options) {
       const child = new EventEmitter();
@@ -51,10 +52,18 @@ function createHarness() {
     clearTimer(timer) {
       timer.cleared = true;
     },
-    now: () => 100,
+    now: () => currentTime,
   });
 
-  return { supervisor, children, timers, exits };
+  return {
+    supervisor,
+    children,
+    timers,
+    exits,
+    setNow(value) {
+      currentTime = value;
+    },
+  };
 }
 
 test("worker termination restarts one worker without duplicating the API", () => {
@@ -89,6 +98,50 @@ test("worker termination restarts one worker without duplicating the API", () =>
   restartedWorker.emit("close", 0, "SIGTERM");
   api.emit("close", 0, "SIGTERM");
   assert.equal(children.length, 3);
+});
+
+test("worker restart delay increases exponentially and caps at 30 seconds", () => {
+  const { supervisor, children, timers } = createHarness();
+  supervisor.start();
+
+  let worker = children[1];
+  const expectedDelays = [
+    1_000,
+    2_000,
+    4_000,
+    8_000,
+    16_000,
+    30_000,
+    30_000,
+  ];
+
+  for (const expectedDelay of expectedDelays) {
+    worker.emit("close", 1, "SIGKILL");
+    const restartTimer = timers.at(-1);
+    assert.equal(restartTimer.delayMs, expectedDelay);
+    restartTimer.callback();
+    worker = children.at(-1);
+  }
+});
+
+test("worker stable for 60 seconds resets the restart delay", () => {
+  const { supervisor, children, timers, setNow } = createHarness();
+  supervisor.start();
+
+  let worker = children[1];
+  worker.emit("close", 1, "SIGKILL");
+  assert.equal(timers.at(-1).delayMs, 1_000);
+  timers.at(-1).callback();
+
+  worker = children.at(-1);
+  worker.emit("close", 1, "SIGKILL");
+  assert.equal(timers.at(-1).delayMs, 2_000);
+  timers.at(-1).callback();
+
+  worker = children.at(-1);
+  setNow(60_100);
+  worker.emit("close", 1, "SIGKILL");
+  assert.equal(timers.at(-1).delayMs, 1_000);
 });
 
 test("graceful shutdown signals both children and prevents a replacement worker", () => {

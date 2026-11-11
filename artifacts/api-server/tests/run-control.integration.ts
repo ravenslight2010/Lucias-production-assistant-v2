@@ -9,6 +9,7 @@ import {
   pool,
   productionRunsTable,
   runCommandReceiptsTable,
+  runCreateReceiptsTable,
   runEventsTable,
   runOutboxTable,
 } from "@workspace/db";
@@ -317,6 +318,51 @@ test("independent signed-in sessions share canonical revisions and safe retries"
       createdAt: "2024-02-01T08:10:01.000Z",
     },
     "the pre-upgrade command receipt fields should remain unchanged",
+  );
+
+  const [legacyCreateReceipt] = await db
+    .select()
+    .from(runCreateReceiptsTable)
+    .where(
+      eq(runCreateReceiptsTable.id, "70000000-0000-4000-8000-000000000001"),
+    )
+    .limit(1);
+  assert.ok(
+    legacyCreateReceipt,
+    "the pre-upgrade run-creation retry receipt should remain present",
+  );
+  assert.deepEqual(
+    {
+      facilityId: legacyCreateReceipt.facilityId,
+      actorUserId: legacyCreateReceipt.actorUserId,
+      requestId: legacyCreateReceipt.requestId,
+      requestHash: legacyCreateReceipt.requestHash,
+      runId: legacyCreateReceipt.runId,
+      createdAt: legacyCreateReceipt.createdAt.toISOString(),
+    },
+    {
+      facilityId: "10000000-0000-4000-8000-000000000001",
+      actorUserId: "legacy-owner",
+      requestId: "60000000-0000-4000-8000-000000000001",
+      requestHash:
+        "bdb6e37d45b375fa4d9a9215a7352b1fd4b60d4ac35824f0c4db2833f1797355",
+      runId: "20000000-0000-4000-8000-000000000001",
+      createdAt: "2024-01-31T07:00:00.000Z",
+    },
+    "the pre-upgrade run-creation receipt fields should remain unchanged",
+  );
+  const replayedLegacyCreate = await createPlannedRun({
+    facilityId: legacyCreateReceipt.facilityId,
+    actorUserId: legacyCreateReceipt.actorUserId,
+    requestId: legacyCreateReceipt.requestId,
+    setupSnapshot: { label: "Legacy V2 run label", targetCases: 1 },
+  });
+  assert.equal(replayedLegacyCreate.outcome, "created");
+  assert.equal(replayedLegacyCreate.replayed, true);
+  assert.equal(
+    replayedLegacyCreate.run.id,
+    "20000000-0000-4000-8000-000000000001",
+    "an identical create retry should resolve to the original run after upgrade",
   );
 
   const [legacyOutboxEvent] = await db

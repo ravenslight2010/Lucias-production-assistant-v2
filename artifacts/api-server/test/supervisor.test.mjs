@@ -191,6 +191,78 @@ test("worker availability is reported through restart and recovery", () => {
   );
 });
 
+test("clean API exit schedules one API replacement and leaves the worker running", () => {
+  const { supervisor, children, timers } = createHarness();
+  supervisor.start();
+
+  const [api, worker] = children;
+  api.emit("close", 0, null);
+
+  assert.equal(timers.length, 1);
+  assert.equal(timers[0].delayMs, 1_000);
+  supervisor.start();
+  assert.equal(children.length, 2);
+
+  timers[0].callback();
+
+  assert.equal(children.length, 3);
+  assert.equal(children[2].options.env.DB_APPLICATION_NAME, "lucia-v2-api");
+  assert.equal(children.filter((child) => !child.closed).length, 2);
+  assert.equal(worker.closed, false);
+  assert.equal(
+    children.filter(
+      (child) =>
+        child.options.env.DB_APPLICATION_NAME === "lucia-v2-api" &&
+        !child.closed,
+    ).length,
+    1,
+  );
+  assert.equal(
+    children.filter(
+      (child) =>
+        child.options.env.DB_APPLICATION_NAME === "lucia-v2-worker" &&
+        !child.closed,
+    ).length,
+    1,
+  );
+});
+
+test("clean worker exit schedules one worker replacement and leaves the API running", () => {
+  const { supervisor, children, timers } = createHarness();
+  supervisor.start();
+
+  const [api, worker] = children;
+  worker.emit("close", 0, null);
+
+  assert.equal(timers.length, 1);
+  assert.equal(timers[0].delayMs, 1_000);
+  supervisor.start();
+  assert.equal(children.length, 2);
+
+  timers[0].callback();
+
+  assert.equal(children.length, 3);
+  assert.equal(children[2].options.env.DB_APPLICATION_NAME, "lucia-v2-worker");
+  assert.equal(children.filter((child) => !child.closed).length, 2);
+  assert.equal(api.closed, false);
+  assert.equal(
+    children.filter(
+      (child) =>
+        child.options.env.DB_APPLICATION_NAME === "lucia-v2-api" &&
+        !child.closed,
+    ).length,
+    1,
+  );
+  assert.equal(
+    children.filter(
+      (child) =>
+        child.options.env.DB_APPLICATION_NAME === "lucia-v2-worker" &&
+        !child.closed,
+    ).length,
+    1,
+  );
+});
+
 test("worker restart delay increases exponentially and caps at 30 seconds", () => {
   const { supervisor, children, timers } = createHarness();
   supervisor.start();

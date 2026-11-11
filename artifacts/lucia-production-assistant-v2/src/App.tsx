@@ -254,7 +254,7 @@ function Dashboard() {
     return <SiteShell><DataError message={getErrorMessage(facilityQuery.error, 'Could not load facility access.')} onRetry={() => void facilityQuery.refetch()} /></SiteShell>;
   }
   if (facilityContext && !facilityContext.facility) {
-    return <SiteShell><FacilitySetup online={online} /></SiteShell>;
+    return <FacilitySetup online={online} />;
   }
   if (!facilityContext?.facility) return <LoadingPage title="Preparing your workspace" />;
   return <FacilityDashboard facilityName={facilityContext.facility.name} />;
@@ -564,7 +564,7 @@ function FacilityTeamRoute() {
     return <SiteShell><DataError message={getErrorMessage(context.error, 'Could not load facility access.')} onRetry={() => void context.refetch()} /></SiteShell>;
   }
   if (context.data && !context.data.facility) {
-    return <SiteShell><FacilitySetup online={online} /></SiteShell>;
+    return <FacilitySetup online={online} />;
   }
   if (!context.data?.facility) return <LoadingPage title="Preparing your workspace" />;
   if (context.data.role !== 'owner') {
@@ -636,7 +636,7 @@ function FacilityGate({ children }: { children: ReactNode }) {
   if (!context.data && context.isError) {
     return <SiteShell><DataError message={getErrorMessage(context.error, 'Could not load facility access.')} onRetry={() => void context.refetch()} /></SiteShell>;
   }
-  if (context.data && !context.data.facility) return <SiteShell><FacilitySetup online={online} /></SiteShell>;
+  if (context.data && !context.data.facility) return <FacilitySetup online={online} />;
   if (!context.data?.facility) return <LoadingPage title="Preparing your workspace" />;
   return <>{children}</>;
 }

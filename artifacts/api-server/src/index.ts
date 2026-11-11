@@ -1,6 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { pool } from "@workspace/db";
+import { configuredPoolMax, pool } from "@workspace/db";
 
 const rawPort = process.env["PORT"];
 
@@ -22,7 +22,7 @@ const server = app.listen(port, (err) => {
     process.exit(1);
   }
 
-  logger.info({ port }, "Server listening");
+  logger.info({ port, dbPoolMax: configuredPoolMax }, "API server listening");
 });
 
 let shuttingDown = false;

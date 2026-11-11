@@ -187,6 +187,7 @@ export function createSupervisor(
   }
 
   function start(): void {
+    if (stopping) return;
     for (const service of supervisedServices) startService(service);
   }
 

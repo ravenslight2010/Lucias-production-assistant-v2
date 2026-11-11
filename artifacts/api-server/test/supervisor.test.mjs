@@ -390,7 +390,10 @@ test("shutdown before start exits once without spawning services or leaving a ti
   const { supervisor, children, timers, exits } = createHarness();
 
   supervisor.stop("SIGTERM");
+  supervisor.start();
+  supervisor.start();
   supervisor.stop("SIGTERM");
+  supervisor.start();
 
   assert.equal(children.length, 0);
   assert.deepEqual(exits, [0]);

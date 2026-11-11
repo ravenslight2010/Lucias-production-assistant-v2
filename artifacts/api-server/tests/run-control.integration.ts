@@ -1057,6 +1057,113 @@ test("run command rolls back all history when the receipt write fails", async ()
   }
 });
 
+test("deleting a run clears its lifecycle history and pending notifications", async () => {
+  const [facility] = await db
+    .insert(facilitiesTable)
+    .values({ name: "Run history deletion facility" })
+    .returning();
+  const actorUserId = `run-history-deletion-user-${randomUUID()}`;
+  const created = await createPlannedRun({
+    facilityId: facility.id,
+    actorUserId,
+    requestId: randomUUID(),
+    setupSnapshot: { label: "Run with history", targetCases: 10 },
+  });
+  assert.equal(created.outcome, "created");
+
+  const started = await executeRunCommand({
+    facilityId: facility.id,
+    actorUserId,
+    runId: created.run.id,
+    command: {
+      commandId: `start-${randomUUID()}`,
+      commandType: "start",
+      expectedRevision: 0,
+    },
+  });
+  assert.equal(started.outcome, "accepted");
+
+  const paused = await executeRunCommand({
+    facilityId: facility.id,
+    actorUserId,
+    runId: created.run.id,
+    command: {
+      commandId: `pause-${randomUUID()}`,
+      commandType: "pause",
+      expectedRevision: 1,
+    },
+  });
+  assert.equal(paused.outcome, "accepted");
+
+  const eventsBefore = await db
+    .select()
+    .from(runEventsTable)
+    .where(eq(runEventsTable.runId, created.run.id));
+  const receiptsBefore = await db
+    .select()
+    .from(runCommandReceiptsTable)
+    .where(eq(runCommandReceiptsTable.runId, created.run.id));
+  const outboxBefore = await db
+    .select()
+    .from(runOutboxTable)
+    .where(eq(runOutboxTable.runId, created.run.id));
+
+  assert.deepEqual(
+    eventsBefore.map((event) => event.action),
+    ["start", "pause"],
+    "the run should have lifecycle history before deletion",
+  );
+  assert.equal(
+    receiptsBefore.length,
+    2,
+    "each lifecycle command should have a receipt",
+  );
+  assert.equal(
+    outboxBefore.length,
+    2,
+    "each lifecycle command should have an outbox record",
+  );
+  assert.ok(
+    outboxBefore.every((notification) => notification.deliveredAt === null),
+    "the run should have pending notifications before deletion",
+  );
+
+  await db
+    .delete(productionRunsTable)
+    .where(eq(productionRunsTable.id, created.run.id));
+
+  const [deletedEvents, deletedReceipts, deletedOutbox] = await Promise.all([
+    db
+      .select()
+      .from(runEventsTable)
+      .where(eq(runEventsTable.runId, created.run.id)),
+    db
+      .select()
+      .from(runCommandReceiptsTable)
+      .where(eq(runCommandReceiptsTable.runId, created.run.id)),
+    db
+      .select()
+      .from(runOutboxTable)
+      .where(eq(runOutboxTable.runId, created.run.id)),
+  ]);
+
+  assert.deepEqual(
+    deletedEvents,
+    [],
+    "deleting the run should remove its lifecycle history",
+  );
+  assert.deepEqual(
+    deletedReceipts,
+    [],
+    "deleting the run should remove its command receipts",
+  );
+  assert.deepEqual(
+    deletedOutbox,
+    [],
+    "deleting the run should remove pending notifications",
+  );
+});
+
 test("deleting a run removes its create receipt and allows a retry to recreate it", async () => {
   const [facility] = await db
     .insert(facilitiesTable)

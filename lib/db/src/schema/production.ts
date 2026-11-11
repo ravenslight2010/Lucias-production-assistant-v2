@@ -1,5 +1,7 @@
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import {
+  check,
   index,
   integer,
   jsonb,
@@ -134,6 +136,10 @@ export const runEventsTable = pgTable(
       .defaultNow(),
   },
   (table) => [
+    check(
+      "run_events_action_nonblank_chk",
+      sql`${table.action} ~ '[^[:space:]]'`,
+    ),
     index("run_events_facility_run_revision_idx").on(
       table.facilityId,
       table.runId,
@@ -161,6 +167,10 @@ export const runCommandReceiptsTable = pgTable(
       .defaultNow(),
   },
   (table) => [
+    check(
+      "run_command_receipts_idempotency_key_nonblank_chk",
+      sql`${table.idempotencyKey} ~ '[^[:space:]]'`,
+    ),
     uniqueIndex("run_command_receipts_actor_key_uq").on(
       table.facilityId,
       table.actorUserId,

@@ -62,6 +62,15 @@ export function createSupervisor(
   const restartCounts = new Map<ServiceSpec["name"], number>();
   let stopping = false;
   let shutdownTimer: Timer | undefined;
+  let shutdownExitCode: number | undefined;
+
+  function finishShutdown(code: number, beforeExit?: () => void): void {
+    if (shutdownExitCode !== undefined) return;
+    shutdownExitCode = code;
+    if (shutdownTimer) clearTimer(shutdownTimer);
+    beforeExit?.();
+    exit(code);
+  }
 
   function startService(service: ServiceSpec): void {
     if (
@@ -112,8 +121,7 @@ export function createSupervisor(
       }
       if (stopping) {
         if (children.size === 0) {
-          if (shutdownTimer) clearTimer(shutdownTimer);
-          exit(0);
+          finishShutdown(0);
         }
         return;
       }
@@ -158,16 +166,16 @@ export function createSupervisor(
     restartTimers.clear();
 
     shutdownTimer = setTimer(() => {
-      logger.error({ signal }, "Supervised shutdown timed out");
-      for (const child of children.values()) child.kill("SIGKILL");
-      exit(1);
+      finishShutdown(1, () => {
+        logger.error({ signal }, "Supervised shutdown timed out");
+        for (const child of children.values()) child.kill("SIGKILL");
+      });
     }, 12_000);
     shutdownTimer.unref?.();
 
     for (const child of children.values()) child.kill("SIGTERM");
     if (children.size === 0) {
-      if (shutdownTimer) clearTimer(shutdownTimer);
-      exit(0);
+      finishShutdown(0);
     }
   }
 

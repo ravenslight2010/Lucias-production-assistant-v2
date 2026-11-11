@@ -325,6 +325,24 @@ test("shutdown force-kills children that remain open after the timeout", () => {
   assert.deepEqual(exits, [1]);
 });
 
+test("late child closes cannot turn a timed-out shutdown into success", () => {
+  const { supervisor, children, timers, exits } = createHarness();
+  supervisor.start();
+
+  const [api, worker] = children;
+  supervisor.stop("SIGTERM");
+  const shutdownTimer = timers.find((timer) => timer.delayMs === 12_000);
+  assert.ok(shutdownTimer);
+
+  shutdownTimer.callback();
+  assert.deepEqual(exits, [1]);
+
+  worker.emit("close", null, "SIGKILL");
+  api.emit("close", null, "SIGKILL");
+
+  assert.deepEqual(exits, [1]);
+});
+
 test("pool maxima match the documented connection budget", async () => {
   const evidence = await readFile(
     new URL("../../../docs/v2-reserved-vm-pilot-evidence.md", import.meta.url),

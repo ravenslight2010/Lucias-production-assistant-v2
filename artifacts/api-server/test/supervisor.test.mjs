@@ -561,6 +561,76 @@ test("successive spawn errors retain only each attempt's diagnostics", () => {
   );
 });
 
+test("API and worker spawn errors without standard details get safe diagnostics", () => {
+  for (const [service, childIndex] of [
+    ["api", 0],
+    ["worker", 1],
+  ]) {
+    const { supervisor, children, logs } = createHarness();
+    supervisor.start();
+    children[childIndex].emit("error", {});
+
+    assert.deepEqual(logs.error, [
+      [
+        {
+          service,
+          errorCode: "spawn_failed",
+          errorMessage: "No additional error details were provided",
+        },
+        "Supervised process could not start",
+      ],
+    ]);
+    assert.deepEqual(Object.keys(logs.error[0][0]).sort(), [
+      "errorCode",
+      "errorMessage",
+      "service",
+    ]);
+    assert.equal("env" in logs.error[0][0], false);
+  }
+});
+
+test("synchronous API and worker launch errors without details get safe diagnostics", () => {
+  const { supervisor, logs } = createHarness({
+    launcher(_command, _args, _options, defaultLauncher) {
+      throw {};
+    },
+  });
+  supervisor.start();
+
+  assert.deepEqual(
+    logs.error.map(([details, message]) => [details, message]),
+    [
+      [
+        {
+          service: "api",
+          errorCode: "spawn_failed",
+          errorMessage: "No additional error details were provided",
+        },
+        "Supervised process could not start",
+      ],
+      [
+        {
+          service: "worker",
+          errorCode: "spawn_failed",
+          errorMessage: "No additional error details were provided",
+        },
+        "Supervised process could not start",
+      ],
+    ],
+  );
+  assert.ok(logs.error.every(([details]) => !("env" in details)));
+});
+
+test("startup error messages are capped before logging", () => {
+  const { supervisor, children, logs } = createHarness();
+  supervisor.start();
+  children[0].emit("error", new Error("x".repeat(800)));
+
+  assert.equal(logs.error[0][0].errorMessage.length, 500);
+  assert.equal(logs.error[0][0].errorMessage, "x".repeat(500));
+});
+
+
 test("repeated synchronous launcher failures keep each service's backoff isolated", () => {
   const launchAttempts = [];
   let apiLaunches = 0;

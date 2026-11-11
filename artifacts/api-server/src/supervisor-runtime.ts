@@ -45,6 +45,45 @@ const defaultDependencies: SupervisorDependencies = {
   now: () => Date.now(),
 };
 
+const STARTUP_ERROR_MESSAGE_FALLBACK = "No additional error details were provided";
+const MAX_STARTUP_ERROR_CODE_LENGTH = 100;
+const MAX_STARTUP_ERROR_MESSAGE_LENGTH = 500;
+
+function getStartupErrorDetails(error: unknown): {
+  errorCode: string;
+  errorMessage: string;
+} {
+  const errorCode =
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof error.code === "string" &&
+    error.code.length > 0
+      ? error.code.slice(0, MAX_STARTUP_ERROR_CODE_LENGTH)
+      : "spawn_failed";
+  const providedMessage =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : typeof error === "object" &&
+            error !== null &&
+            "message" in error &&
+            typeof error.message === "string"
+          ? error.message
+          : "";
+  const errorMessage = (
+    providedMessage.trim()
+      ? providedMessage
+      : STARTUP_ERROR_MESSAGE_FALLBACK
+  ).slice(0, MAX_STARTUP_ERROR_MESSAGE_LENGTH);
+
+  return {
+    errorCode,
+    errorMessage,
+  };
+}
+
 export function createSupervisor(
   dependencies: Partial<SupervisorDependencies> = {},
 ) {
@@ -153,17 +192,8 @@ export function createSupervisor(
       if (service.name === "worker") {
         setWorkerAvailability("restarting");
       }
-      const errorCode =
-        typeof error === "object" &&
-        error !== null &&
-        "code" in error &&
-        typeof error.code === "string"
-          ? error.code
-          : "spawn_failed";
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
       logger.error(
-        { service: service.name, errorCode, errorMessage },
+        { service: service.name, ...getStartupErrorDetails(error) },
         "Supervised process could not start",
       );
       scheduleRestart(service, null, null, 0, "launch failure");
@@ -185,17 +215,8 @@ export function createSupervisor(
       if (service.name === "worker") {
         setWorkerAvailability("restarting");
       }
-      const errorCode =
-        typeof error === "object" &&
-        error !== null &&
-        "code" in error &&
-        typeof error.code === "string"
-          ? error.code
-          : "spawn_failed";
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
       logger.error(
-        { service: service.name, errorCode, errorMessage },
+        { service: service.name, ...getStartupErrorDetails(error) },
         "Supervised process could not start",
       );
     });

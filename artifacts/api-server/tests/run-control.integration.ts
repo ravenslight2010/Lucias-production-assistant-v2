@@ -16,6 +16,10 @@ import {
   issueV2Session,
   verifyV2SessionToken,
 } from "../src/lib/v2-session";
+import {
+  assertRunPermission,
+  getFacilityMembership,
+} from "../src/lib/run-permissions";
 
 after(async () => {
   await pool.end();
@@ -47,6 +51,85 @@ test("independent signed-in sessions share canonical revisions and safe retries"
   const verifiedB = verifyV2SessionToken(sessionB.token, actorB, clerkSessionB);
   assert.equal(verifiedA?.actorId, actorA);
   assert.equal(verifiedB?.actorId, actorB);
+  assert.equal(
+    verifiedB && "role" in verifiedB,
+    false,
+    "signed-in session claims must not cache a facility role",
+  );
+
+  const ownerMembership = await getFacilityMembership(actorA);
+  assert.ok(ownerMembership);
+  for (const action of ["create", "start", "pause", "resume", "complete"] as const) {
+    assert.doesNotThrow(() => assertRunPermission(ownerMembership.role, action));
+  }
+
+  const operatorMembership = await getFacilityMembership(actorB);
+  assert.ok(operatorMembership);
+  assert.equal(operatorMembership?.role, "operator");
+  assert.throws(
+    () => assertRunPermission(operatorMembership.role, "create"),
+    (error: unknown) =>
+      Boolean(
+        error &&
+          typeof error === "object" &&
+          "statusCode" in error &&
+          error.statusCode === 403,
+      ),
+    "operators cannot create runs",
+  );
+  for (const action of ["start", "pause", "resume"] as const) {
+    assert.doesNotThrow(() =>
+      assertRunPermission(operatorMembership.role, action),
+    );
+  }
+  assert.throws(
+    () => assertRunPermission(operatorMembership.role, "complete"),
+    (error: unknown) =>
+      Boolean(
+        error &&
+          typeof error === "object" &&
+          "statusCode" in error &&
+          error.statusCode === 403,
+      ),
+    "operators cannot complete runs",
+  );
+
+  await db
+    .update(facilityMembersTable)
+    .set({ role: "manager" })
+    .where(eq(facilityMembersTable.userId, actorB));
+  const promotedMembership = await getFacilityMembership(actorB);
+  assert.ok(promotedMembership);
+  assert.equal(promotedMembership?.role, "manager");
+  assert.equal(
+    verifyV2SessionToken(sessionB.token, actorB, clerkSessionB)?.actorId,
+    actorB,
+  );
+  assert.doesNotThrow(() =>
+    assertRunPermission(promotedMembership.role, "create"),
+  );
+  assert.doesNotThrow(() =>
+    assertRunPermission(promotedMembership.role, "complete"),
+  );
+
+  await db
+    .update(facilityMembersTable)
+    .set({ role: "operator" })
+    .where(eq(facilityMembersTable.userId, actorB));
+  const demotedMembership = await getFacilityMembership(actorB);
+  assert.ok(demotedMembership);
+  assert.equal(demotedMembership?.role, "operator");
+  assert.throws(
+    () => assertRunPermission(demotedMembership.role, "complete"),
+    (error: unknown) =>
+      Boolean(
+        error &&
+          typeof error === "object" &&
+          "statusCode" in error &&
+          error.statusCode === 403,
+      ),
+    "the same session loses manager permissions after the database role changes",
+  );
 
   const [upgradedLegacyRun] = await db
     .select()

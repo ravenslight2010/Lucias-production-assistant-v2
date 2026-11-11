@@ -32,6 +32,10 @@ import { executeRunCommand } from "../lib/run-command-service";
 import { createPlannedRun } from "../lib/run-create-service";
 import { toContractRun } from "../lib/run-contract";
 import {
+  assertRunPermission,
+  getFacilityMembership,
+} from "../lib/run-permissions";
+import {
   clearV2SessionCookie,
   currentClerkIdentity,
   issueV2Session,
@@ -43,24 +47,6 @@ import {
 const router: IRouter = Router();
 
 router.use(requireAuth);
-
-async function getFacilityMembership(userId: string) {
-  const [membership] = await db
-    .select({
-      facilityId: facilitiesTable.id,
-      facilityName: facilitiesTable.name,
-      facilityCreatedAt: facilitiesTable.createdAt,
-      role: facilityMembersTable.role,
-    })
-    .from(facilityMembersTable)
-    .innerJoin(
-      facilitiesTable,
-      eq(facilityMembersTable.facilityId, facilitiesTable.id),
-    )
-    .where(eq(facilityMembersTable.userId, userId))
-    .limit(1);
-  return membership ?? null;
-}
 
 function facilityShape(
   membership: NonNullable<Awaited<ReturnType<typeof getFacilityMembership>>>,
@@ -222,6 +208,7 @@ router.post(
     }
     const access = await membershipOrRespond(req, res);
     if (!access) return;
+    assertRunPermission(access.membership.role, "create");
 
     const result = await createPlannedRun({
       facilityId: access.membership.facilityId,
@@ -276,6 +263,7 @@ router.post(
     }
     const access = await membershipOrRespond(req, res);
     if (!access) return;
+    assertRunPermission(access.membership.role, command.data.commandType);
 
     const result = await executeRunCommand({
       facilityId: access.membership.facilityId,

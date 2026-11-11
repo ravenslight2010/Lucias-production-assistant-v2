@@ -109,6 +109,7 @@ function analyzeCapture(observations) {
         started: false,
         shutdown: false,
         connectionsOpen: null,
+        lastEventSequence: 0,
       };
       instances.set(fields.instanceId, instance);
 
@@ -119,6 +120,23 @@ function analyzeCapture(observations) {
           eventIndex: index,
         });
       }
+    }
+
+    if (!Number.isSafeInteger(fields.eventSequence) || fields.eventSequence < 1) {
+      issues.push({
+        code: "invalid_event_sequence",
+        instanceId: fields.instanceId,
+        eventIndex: index,
+      });
+    } else {
+      if (fields.eventSequence !== instance.lastEventSequence + 1) {
+        issues.push({
+          code: "event_sequence_gap",
+          instanceId: fields.instanceId,
+          eventIndex: index,
+        });
+      }
+      instance.lastEventSequence = fields.eventSequence;
     }
 
     if (instance.service !== fields.service) {
@@ -249,6 +267,10 @@ test("pool metrics track physical connection peaks without logging credentials",
   assert.deepEqual(
     observations.map(({ fields }) => fields.peakConnectionsOpen),
     [0, 1, 2, 2, 2],
+  );
+  assert.deepEqual(
+    observations.map(({ fields }) => fields.eventSequence),
+    [1, 2, 3, 4, 5],
   );
   assert.ok(observations.every(({ fields }) => fields.metric === "v2_db_pool"));
   assert.ok(
@@ -402,17 +424,27 @@ function addObservation(
   connectionsOpen,
   second,
 ) {
+  let sequenceByInstance = observationSequences.get(observations);
+  if (!sequenceByInstance) {
+    sequenceByInstance = new Map();
+    observationSequences.set(observations, sequenceByInstance);
+  }
+  const eventSequence = (sequenceByInstance.get(instanceId) ?? 0) + 1;
+  sequenceByInstance.set(instanceId, eventSequence);
   observations.push({
     fields: {
       metric: "v2_db_pool",
       observedAt: `2026-11-11T03:00:${String(second).padStart(2, "0")}.000Z`,
       instanceId,
+      eventSequence,
       service,
       event,
       connectionsOpen,
     },
   });
 }
+
+const observationSequences = new WeakMap();
 
 function addLifecycle(
   observations,
@@ -477,6 +509,11 @@ test("flags partial captures with missing lifecycle and connection records", () 
   addObservation(observations, "api-gap", "api", "remove", 1, 4);
   addObservation(observations, "api-gap", "api", "remove", 0, 5);
   addObservation(observations, "api-gap", "api", "shutdown", 0, 6);
+  const droppedConnectIndex = observations.findIndex(
+    ({ fields }) =>
+      fields.instanceId === "api-gap" && fields.event === "connect",
+  );
+  observations.splice(droppedConnectIndex, 1);
 
   const capture = analyzeCapture(observations);
 
@@ -485,8 +522,8 @@ test("flags partial captures with missing lifecycle and connection records", () 
     new Set(capture.issues.map(({ code }) => code)),
     new Set([
       "missing_startup",
-      "connect_count_mismatch",
       "remove_count_mismatch",
+      "event_sequence_gap",
       "missing_shutdown",
       "shutdown_with_open_connections",
     ]),

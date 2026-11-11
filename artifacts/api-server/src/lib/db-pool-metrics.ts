@@ -26,15 +26,18 @@ export function attachDbPoolMetrics({
   now = () => new Date(),
 }: PoolMetricsOptions) {
   let peakConnectionsOpen = 0;
+  let eventSequence = 0;
 
   function observe(event: "startup" | "connect" | "remove" | "shutdown") {
     const connectionsOpen = pool.totalCount;
     peakConnectionsOpen = Math.max(peakConnectionsOpen, connectionsOpen);
+    eventSequence += 1;
     logger.info(
       {
         metric: "v2_db_pool",
         observedAt: now().toISOString(),
         instanceId,
+        eventSequence,
         service,
         event,
         connectionsOpen,

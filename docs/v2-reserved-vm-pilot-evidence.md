@@ -1,11 +1,11 @@
 # V2 Reserved VM pilot evidence
 
-**Status: incomplete.** Local process and database checks passed. The latest
-published update includes V2 API and worker pool instrumentation, and both
-services recovered after brief startup health-check failures. Startup events
-showed a per-process peak of one connection and no waiting requests, but did
-not measure an instrumented replacement overlap. Aggregate VM uptime metrics
-cannot prove a full compute restart or old/new instance overlap.
+**Status: incomplete.** Local process and database checks passed. The separate
+no-schema-change publish used the confirmed 1 CPU / 4 GiB VM, recovered after
+brief startup health-check failures, and showed outgoing/incoming API and
+worker process lifetimes overlapping for about 12 seconds. Pool event gaps
+prevent a reliable overlap peak from being reported. Aggregate VM uptime
+metrics cannot prove a full compute restart or VM-level overlap.
 
 ## Boundary and data
 
@@ -117,16 +117,44 @@ confirmed 1 vCPU and 4 GiB RAM.
 - Monitoring covered a low-volume window and showed no persistent API or
   database failure after startup. It was not a load test.
 
+### Separate no-schema-change publish
+
+A read-only SRE investigation identified the next publish build as created at
+2026-11-11 16:43:43 UTC and successful at 16:46:35 UTC. It used 1 vCPU and
+4 GiB RAM.
+
+- Startup health checks briefly failed from 16:46:04–16:46:15 UTC. The API
+  started at 16:46:15 UTC, the worker database check passed at 16:46:16 UTC,
+  and `/api/healthz` returned 200 at 16:46:42 UTC.
+- Outgoing API and worker processes logged zero-connection shutdowns at
+  16:46:27.651 and 16:46:27.643 UTC. Incoming API and worker startup events
+  occurred about 12 seconds earlier, confirming instrumented process overlap.
+- The pool-event capture is incomplete: outgoing API and both incoming
+  processes have `remove` events without a preceding `connect` event. Incoming
+  local peak fields report one, but the missing transitions make the summed
+  overlap subtotal unreliable. Do not report it as a measured peak.
+- Pool instrumentation did not yet include a per-process event sequence, so
+  this capture cannot distinguish an omitted log event from a source gap.
+- The process IDs in these logs are not VM identifiers. No user-triggered full
+  compute restart is evidenced.
+- Post-start monitoring showed no persistent API or database failure. It was
+  not a load test.
+
 ## V2 application pool instrumentation
 
 The API and worker emit structured `v2_db_pool` observations at process
 startup, on each physical pool connection creation or removal, and at
 shutdown. Each observation contains a UTC timestamp, an ephemeral process
-instance ID, the V2 service name, current open/idle/waiting counts, the
-process-local open-connection peak, and the configured pool maximum. It does
-not include a database host, URL, user, SQL, or V1 identifier. The event-based
-records avoid periodic sampling gaps and allow the open connection count to be
-reconstructed for each instrumented process.
+instance ID, a monotonically increasing per-process `eventSequence`, the V2
+service name, current open/idle/waiting counts, the process-local open-connection
+peak, and the configured pool maximum. It does not include a database host, URL,
+user, SQL, or V1 identifier. The event-based records avoid periodic sampling
+gaps and allow the open connection count to be reconstructed for each
+instrumented process when the sequence and lifecycle checks pass.
+
+The development source now emits `eventSequence`; the current published build
+from 16:43 UTC predates this field. Publish the source change before using
+sequence checks in another production capture.
 
 ### Check capture completeness before reporting a peak
 
@@ -137,10 +165,12 @@ record must increase that instance's open count by exactly one, and each
 `remove` record must decrease it by exactly one. A first observed event other
 than `startup`, a nonzero startup count, a missing shutdown at the end of the
 capture, a connection-count mismatch, a shutdown with connections still open,
-or any event after shutdown makes the capture incomplete. An empty capture is
-incomplete as well. In particular, missing `connect` or `remove` observations
-are surfaced when the recorded counts do not make the expected one-connection
-transition.
+or any event after shutdown makes the capture incomplete. Each instance's
+`eventSequence` must start at 1 with `startup` and increase by exactly one for
+every subsequent event; a gap or duplicate indicates a missing or repeated log
+record. An empty capture is incomplete as well. In particular, missing
+`connect` or `remove` observations are surfaced by count mismatches or sequence
+gaps.
 
 If any check fails, label the reconstructed value a **partial observed
 subtotal**, not a measured peak; it is not a reliable bound on the true peak.
@@ -218,11 +248,11 @@ Observed 2026-11-11 15:58 UTC before the next V2 publish:
 
 ## Remaining gates
 
-- Publish one separate no-schema-change update with the instrumentation already
-  live, then verify API and worker recovery and capture any overlap events.
-- Exercise a separate full compute restart and verify API and worker recovery.
-- Compare any measured replacement peak with the 356-connection planning
-  ceiling; do not substitute aggregate uptime or process-local peaks for it.
+- Publish the event-sequenced pool instrumentation, then verify startup and
+  shutdown logs contain no sequence or connection-count gaps.
+- Exercise the approved full compute restart and verify API and worker recovery.
+- Report a replacement peak only from a complete capture; compare it with the
+  356-connection planning ceiling.
 
 Do not treat the V2 pilot as passed until the remaining live-deployment checks
 are completed in an authorized V2 deployment environment.

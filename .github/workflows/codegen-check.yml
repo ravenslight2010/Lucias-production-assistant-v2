@@ -1,0 +1,57 @@
+# Fail if OpenAPI → Orval generated clients drift from committed files.
+name: Codegen check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "lib/api-spec/**"
+      - "lib/api-client-react/**"
+      - "lib/api-zod/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/codegen-check.yml"
+  pull_request:
+    paths:
+      - "lib/api-spec/**"
+      - "lib/api-client-react/**"
+      - "lib/api-zod/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/codegen-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codegen-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  orval-drift:
+    name: Orval generated clients match OpenAPI
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Regenerate API client and Zod schemas
+        run: pnpm --filter @workspace/api-spec run codegen
+      - name: Fail if generated sources changed
+        run: |
+          if ! git diff --quiet -- lib/api-client-react/src/generated lib/api-zod/src/generated; then
+            echo "Generated API client/Zod sources are out of date." >&2
+            echo "Run: pnpm --filter @workspace/api-spec run codegen" >&2
+            git --no-pager diff --stat -- lib/api-client-react/src/generated lib/api-zod/src/generated
+            exit 1
+          fi
+          echo "Generated clients match OpenAPI."

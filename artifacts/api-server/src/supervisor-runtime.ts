@@ -88,6 +88,40 @@ export function createSupervisor(
     exit(code);
   }
 
+  function scheduleRestart(
+    service: ServiceSpec,
+    code: number | null,
+    signal: NodeJS.Signals | null,
+    uptimeMs: number,
+    reason: "exit" | "launch failure",
+  ): void {
+    const attempts = (restartCounts.get(service.name) ?? 0) + 1;
+    restartCounts.set(service.name, attempts);
+    const delayMs = Math.min(
+      1_000 * 2 ** Math.min(attempts - 1, 5),
+      30_000,
+    );
+    logger.warn(
+      {
+        service: service.name,
+        code,
+        signal,
+        uptimeMs,
+        attempts,
+        restartDelayMs: delayMs,
+      },
+      reason === "exit"
+        ? "Supervised process exited; scheduling restart"
+        : "Supervised process launch failed; scheduling restart",
+    );
+
+    const timer = setTimer(() => {
+      restartTimers.delete(service.name);
+      startService(service);
+    }, delayMs);
+    restartTimers.set(service.name, timer);
+  }
+
   function startService(service: ServiceSpec): void {
     if (
       stopping ||
@@ -97,21 +131,43 @@ export function createSupervisor(
       return;
     }
 
-    const child = spawnProcess(
-      process.execPath,
-      ["--enable-source-maps", service.entry],
-      {
-        env: {
-          ...process.env,
-          DB_APPLICATION_NAME: `lucia-v2-${service.name}`,
-          DB_POOL_MAX: String(service.dbPoolMax),
+    let child: ChildProcess;
+    try {
+      child = spawnProcess(
+        process.execPath,
+        ["--enable-source-maps", service.entry],
+        {
+          env: {
+            ...process.env,
+            DB_APPLICATION_NAME: `lucia-v2-${service.name}`,
+            DB_POOL_MAX: String(service.dbPoolMax),
+          },
+          stdio:
+            service.name === "api"
+              ? ["inherit", "inherit", "inherit", "ipc"]
+              : "inherit",
         },
-        stdio:
-          service.name === "api"
-            ? ["inherit", "inherit", "inherit", "ipc"]
-            : "inherit",
-      },
-    );
+      );
+    } catch (error) {
+      if (service.name === "worker") {
+        setWorkerAvailability("restarting");
+      }
+      const errorCode =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        typeof error.code === "string"
+          ? error.code
+          : "spawn_failed";
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      logger.error(
+        { service: service.name, errorCode, errorMessage },
+        "Supervised process could not start",
+      );
+      scheduleRestart(service, null, null, 0, "launch failure");
+      return;
+    }
     children.set(service.name, child);
     if (service.name === "api") {
       publishWorkerAvailability();
@@ -160,29 +216,7 @@ export function createSupervisor(
       }
 
       if (uptimeMs >= 60_000) restartCounts.set(service.name, 0);
-      const attempts = (restartCounts.get(service.name) ?? 0) + 1;
-      restartCounts.set(service.name, attempts);
-      const delayMs = Math.min(
-        1_000 * 2 ** Math.min(attempts - 1, 5),
-        30_000,
-      );
-      logger.warn(
-        {
-          service: service.name,
-          code,
-          signal,
-          uptimeMs,
-          attempts,
-          restartDelayMs: delayMs,
-        },
-        "Supervised process exited; scheduling restart",
-      );
-
-      const timer = setTimer(() => {
-        restartTimers.delete(service.name);
-        startService(service);
-      }, delayMs);
-      restartTimers.set(service.name, timer);
+      scheduleRestart(service, code, signal, uptimeMs, "exit");
     });
   }
 

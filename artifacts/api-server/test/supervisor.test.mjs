@@ -7,7 +7,7 @@ import {
   supervisedServices,
 } from "../dist/supervisor-runtime.mjs";
 
-function createHarness() {
+function createHarness({ launcher } = {}) {
   const children = [];
   const timers = [];
   const exits = [];
@@ -19,27 +19,32 @@ function createHarness() {
       (...args) => entries.push(args),
     ]),
   );
+  const defaultLauncher = (_command, args, options) => {
+    const child = new EventEmitter();
+    const emit = child.emit.bind(child);
+    child.emit = (event, ...args) => {
+      if (event === "close") child.closed = true;
+      return emit(event, ...args);
+    };
+    child.closed = false;
+    child.connected = true;
+    child.args = args;
+    child.options = options;
+    child.signals = [];
+    child.messages = [];
+    child.send = (message) => child.messages.push(message);
+    child.kill = (signal) => {
+      child.signals.push(signal);
+      return true;
+    };
+    children.push(child);
+    return child;
+  };
   const supervisor = createSupervisor({
-    spawnProcess(_command, args, options) {
-      const child = new EventEmitter();
-      const emit = child.emit.bind(child);
-      child.emit = (event, ...args) => {
-        if (event === "close") child.closed = true;
-        return emit(event, ...args);
-      };
-      child.closed = false;
-      child.connected = true;
-      child.args = args;
-      child.options = options;
-      child.signals = [];
-      child.messages = [];
-      child.send = (message) => child.messages.push(message);
-      child.kill = (signal) => {
-        child.signals.push(signal);
-        return true;
-      };
-      children.push(child);
-      return child;
+    spawnProcess(command, args, options) {
+      return launcher
+        ? launcher(command, args, options, defaultLauncher)
+        : defaultLauncher(command, args, options);
     },
     logger,
     exit: (code) => exits.push(code),
@@ -303,6 +308,53 @@ test("spawn errors are logged and retried after the child closes", () => {
   assert.deepEqual(api.signals, ["SIGTERM"]);
   assert.deepEqual(children[2].signals, ["SIGTERM"]);
   assert.deepEqual(worker.signals, []);
+});
+
+test("a synchronous launcher failure retries without blocking the other service", () => {
+  const launchAttempts = [];
+  let apiLaunches = 0;
+  const { supervisor, children, timers, logs } = createHarness({
+    launcher(command, args, options, defaultLauncher) {
+      const service = options.env.DB_APPLICATION_NAME;
+      launchAttempts.push(service);
+      if (service === "lucia-v2-api" && apiLaunches++ === 0) {
+        throw Object.assign(new Error("process limit reached"), {
+          code: "EAGAIN",
+        });
+      }
+      return defaultLauncher(command, args, options);
+    },
+  });
+
+  supervisor.start();
+
+  assert.deepEqual(launchAttempts, ["lucia-v2-api", "lucia-v2-worker"]);
+  assert.equal(children.length, 1);
+  assert.equal(children[0].options.env.DB_APPLICATION_NAME, "lucia-v2-worker");
+  assert.deepEqual(logs.error, [
+    [
+      {
+        service: "api",
+        errorCode: "EAGAIN",
+        errorMessage: "process limit reached",
+      },
+      "Supervised process could not start",
+    ],
+  ]);
+  assert.equal(timers.length, 1);
+  assert.equal(timers[0].delayMs, 1_000);
+
+  timers[0].callback();
+
+  assert.deepEqual(launchAttempts, [
+    "lucia-v2-api",
+    "lucia-v2-worker",
+    "lucia-v2-api",
+  ]);
+  assert.equal(children.length, 2);
+  assert.equal(children[1].options.env.DB_APPLICATION_NAME, "lucia-v2-api");
+  assert.equal(children[0].closed, false);
+  assert.equal(children[1].closed, false);
 });
 
 test("API and worker spawn failures retry independently", () => {

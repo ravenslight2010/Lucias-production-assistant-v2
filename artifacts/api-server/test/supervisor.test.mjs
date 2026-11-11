@@ -829,6 +829,32 @@ test("shutdown logs and force-kills only children still open after the timeout",
   assert.deepEqual(exits, [1]);
 });
 
+test("shutdown timeout log includes every active service", () => {
+  const { supervisor, children, timers, exits, logs } = createHarness();
+  supervisor.start();
+
+  const [api, worker] = children;
+  supervisor.stop("SIGTERM");
+
+  assert.equal(api.closed, false);
+  assert.equal(worker.closed, false);
+
+  const shutdownTimer = timers.find((timer) => timer.delayMs === 12_000);
+  assert.ok(shutdownTimer);
+  shutdownTimer.callback();
+
+  assert.deepEqual(api.signals, ["SIGTERM", "SIGKILL"]);
+  assert.deepEqual(worker.signals, ["SIGTERM", "SIGKILL"]);
+  assert.deepEqual(
+    logs.error.find(([, message]) => message === "Supervised shutdown timed out"),
+    [
+      { signal: "SIGTERM", services: ["api", "worker"] },
+      "Supervised shutdown timed out",
+    ],
+  );
+  assert.deepEqual(exits, [1]);
+});
+
 test("repeated shutdown requests keep the original timeout and signal", () => {
   const { supervisor, children, timers, exits } = createHarness();
   supervisor.start();

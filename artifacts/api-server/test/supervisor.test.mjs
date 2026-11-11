@@ -105,6 +105,19 @@ test("repeated startup does not duplicate active or scheduled services", () => {
   assert.equal(api.closed, false);
 });
 
+test("API child receives its configured database identity and pool maximum", () => {
+  const { supervisor, children } = createHarness();
+  const apiService = supervisedServices.find((service) => service.name === "api");
+  assert.ok(apiService, "missing api service configuration");
+
+  supervisor.start();
+
+  const api = children.find((child) => child.args.includes(apiService.entry));
+  assert.ok(api, "missing API child process");
+  assert.equal(api.options.env.DB_APPLICATION_NAME, "lucia-v2-api");
+  assert.equal(api.options.env.DB_POOL_MAX, String(apiService.dbPoolMax));
+});
+
 test("worker termination restarts one worker without duplicating the API", () => {
   const { supervisor, children, timers } = createHarness();
   supervisor.start();

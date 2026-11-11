@@ -1,2 +1,3 @@
 - [PostgreSQL integration test runners](api-integration-test-runner.md) — nested Node test processes need a clean test context and bundle output near the package providing external modules.
 - [Temporary ESM integration bundles](temporary-esm-integration-bundles.md) — externalized packages resolve from the emitted bundle path, not the test runner's working directory.
+- [Drizzle push safeguards](drizzle-push-safeguards.md) — keep confirmation enabled because schema pushes can treat independently maintained indexes and constraints as drift.

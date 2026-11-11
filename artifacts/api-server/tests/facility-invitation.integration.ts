@@ -447,6 +447,66 @@ test("cancellation winning the invitation lock prevents facility access", async 
   assert.equal(await db.$count(facilityInvitationsTable), 0);
 });
 
+test("a cancelled invitation cannot be accepted while a later valid invitation still can", async () => {
+  const cancelledUserId = "cancelled-invitee";
+  const cancelledInvitationId = await createInvitation(
+    "cancelled-invitee@example.com",
+    "operator",
+    new Date(Date.now() + 60_000),
+    "clerk-cancelled-invite",
+  );
+  emailAddressesByUser.set(cancelledUserId, [
+    {
+      emailAddress: "cancelled-invitee@example.com",
+      verification: { status: "verified" },
+    },
+  ]);
+
+  const cancellation = await cancelPendingFacilityInvitation(
+    facilityId,
+    cancelledInvitationId,
+    {
+      database: db,
+      revokeInvitation: async () => {},
+    },
+  );
+  const cancelledAcceptance = await acceptPendingFacilityInvitation(
+    cancelledUserId,
+    invitationAcceptanceDependencies,
+  );
+
+  assert.equal(cancellation, "cancelled");
+  assert.equal(cancelledAcceptance, null);
+  assert.equal(await getFacilityMembership(cancelledUserId), null);
+  assert.equal(await db.$count(facilityMembersTable), 0);
+  assert.equal(await db.$count(facilityInvitationsTable), 0);
+
+  const laterUserId = "later-valid-invitee";
+  await createInvitation(
+    "later-invitee@example.com",
+    "manager",
+    new Date(Date.now() + 60_000),
+    "clerk-later-valid-invite",
+  );
+  emailAddressesByUser.set(laterUserId, [
+    {
+      emailAddress: "later-invitee@example.com",
+      verification: { status: "verified" },
+    },
+  ]);
+
+  const laterAcceptance = await acceptPendingFacilityInvitation(
+    laterUserId,
+    invitationAcceptanceDependencies,
+  );
+
+  assert.equal(laterAcceptance?.facilityId, facilityId);
+  assert.equal(laterAcceptance?.role, "manager");
+  assert.equal(await getFacilityMembership(cancelledUserId), null);
+  assert.equal(await db.$count(facilityMembersTable), 1);
+  assert.equal(await db.$count(facilityInvitationsTable), 0);
+});
+
 test("acceptance winning the invitation lock makes cancellation report not found", async () => {
   const userId = "accept-wins-user";
   const invitationId = await createInvitation(

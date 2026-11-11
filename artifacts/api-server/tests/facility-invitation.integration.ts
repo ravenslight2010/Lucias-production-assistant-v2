@@ -353,6 +353,57 @@ test("repeated acceptance does not duplicate membership or change its role", asy
   assert.equal(await db.$count(facilityInvitationsTable), 1);
 });
 
+test("simultaneous acceptance creates one membership with the stored role", async () => {
+  const userId = "simultaneous-claim-user";
+  await createInvitation("simultaneous@example.com", "operator");
+  emailAddressesByUser.set(userId, [
+    {
+      emailAddress: "simultaneous@example.com",
+      verification: { status: "verified" },
+    },
+  ]);
+
+  const invitationLocked = deferred();
+  const finishFirstAcceptance = deferred();
+  const firstAcceptance = acceptPendingFacilityInvitation(userId, {
+    ...invitationAcceptanceDependencies,
+    afterInvitationLocked: async () => {
+      invitationLocked.resolve();
+      await finishFirstAcceptance.promise;
+    },
+  });
+
+  await invitationLocked.promise;
+  const secondAcceptance = acceptPendingFacilityInvitation(
+    userId,
+    invitationAcceptanceDependencies,
+  );
+
+  let lockWaitError: unknown;
+  try {
+    await waitForInvitationLockWait();
+    assert.equal(await db.$count(facilityMembersTable), 0);
+    assert.equal(await db.$count(facilityInvitationsTable), 1);
+  } catch (error) {
+    lockWaitError = error;
+  } finally {
+    finishFirstAcceptance.resolve();
+  }
+
+  const [firstMembership, secondMembership] = await Promise.all([
+    firstAcceptance,
+    secondAcceptance,
+  ]);
+  if (lockWaitError) throw lockWaitError;
+
+  assert.equal(firstMembership?.facilityId, facilityId);
+  assert.equal(firstMembership?.role, "operator");
+  assert.equal(secondMembership?.facilityId, facilityId);
+  assert.equal(secondMembership?.role, "operator");
+  assert.equal(await db.$count(facilityMembersTable), 1);
+  assert.equal(await db.$count(facilityInvitationsTable), 0);
+});
+
 test("cancellation winning the invitation lock prevents facility access", async () => {
   const userId = "cancel-wins-user";
   const invitationId = await createInvitation(

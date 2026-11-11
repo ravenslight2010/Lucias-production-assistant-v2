@@ -1,11 +1,10 @@
 # V2 Reserved VM pilot evidence
 
-**Status: incomplete.** The current published build uses the confirmed 1 CPU /
-4 GiB VM, and the API and worker recovered after brief startup health-check
-failures. The latest publish replaced the VM, but it was not a separate
-user-triggered compute restart. Event-sequenced pool logs are now live; one
-incoming API sequence gap means no reliable overlap peak can be reported from
-that publish. A separate compute restart remains.
+**Status: incomplete.** The latest published build replaced the VM and the API
+and worker recovered after brief startup health-check failures. However, that
+build is configured for 0.5 vCPU / 2 GiB, not the user's confirmed target of
+1 vCPU / 4 GiB. Pool-event capture also has sequence and lifecycle gaps, so no
+reliable overlap peak can be reported.
 
 ## Boundary and data
 
@@ -176,6 +175,33 @@ instrumented process when the sequence and lifecycle checks pass.
 The 17:01 UTC published build emits `eventSequence`. Use sequence checks in the
 next production capture; the API gap above must not be treated as complete.
 
+### Republish after restart guidance
+
+A read-only SRE investigation identified the latest successful build as
+`05415e3e-30c5-4304-b839-f1aa2e1229ab`, created at 2026-11-11 19:31:57 UTC and
+successful at 19:34:41 UTC. Its published machine configuration is
+**0.5 vCPU / 2 GiB** (`e2-small`), which does not match the user's stated
+1 vCPU / 4 GiB target.
+
+- Build logs show a new VM being created from 19:33:06–19:33:26 UTC. The
+  incoming API and worker processes started around 19:34:20 UTC; the prior API
+  and worker shut down at 19:34:32 UTC. This publish replaced the running VM.
+- Worker database check passed at 19:34:21 UTC. `/api/healthz` returned HTTP
+  200 at 19:34:21 and 19:34:49 UTC. Startup checks had returned HTTP 500
+  through 19:34:19 UTC while the service was starting.
+- The outgoing worker stream was contiguous, sequences 1–598, and ended with a
+  zero-open, zero-waiting shutdown. The outgoing API stream has sequence 2
+  missing and an unmatched remove event.
+- The incoming worker stream was contiguous through sequence 44 in the query
+  window, but was still running and had no shutdown event. The incoming API
+  stream begins at sequence 2 (missing startup sequence 1) and has no shutdown.
+- The paged log queries were fully read, but the missing API events make the
+  pool capture incomplete. Do not report a measured restart-window peak or
+  compare a partial subtotal to the 356-connection planning ceiling.
+- This user-triggered republish replaced the deployed VM; it is not evidence of
+  an in-place compute restart. The next attempt must first use the requested
+  1 vCPU / 4 GiB setting and then repeat the pool-event completeness checks.
+
 ### Check capture completeness before reporting a peak
 
 Treat a capture as complete only when every observed `instanceId` has one
@@ -268,10 +294,9 @@ Observed 2026-11-11 15:58 UTC before the next V2 publish:
 
 ## Remaining gates
 
-- Exercise the approved full compute restart on the current event-sequenced
-  build and verify API and worker recovery.
-- Check the restart-window event sequences and connection counts. Report a
-  replacement peak only from a complete capture; compare it with the
+- Set the published VM to the confirmed 1 vCPU / 4 GiB target and republish.
+- Check the resulting restart-window event sequences and connection counts.
+  Report a replacement peak only from a complete capture; compare it with the
   356-connection planning ceiling.
 
 Do not treat the V2 pilot as passed until the remaining live-deployment checks

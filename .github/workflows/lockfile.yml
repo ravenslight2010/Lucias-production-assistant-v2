@@ -1,0 +1,44 @@
+# Catch accidental package-lock/yarn.lock and ensure pnpm-lock stays the only install graph.
+name: Lockfile
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  pnpm-only:
+    name: pnpm-lock is the only lockfile
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Reject npm/yarn lockfiles
+        run: |
+          set -euo pipefail
+          bad=0
+          for f in package-lock.json yarn.lock npm-shrinkwrap.json; do
+            if [ -f "$f" ]; then
+              echo "Unexpected lockfile present: $f" >&2
+              bad=1
+            fi
+          done
+          if [ ! -f pnpm-lock.yaml ]; then
+            echo "Missing pnpm-lock.yaml" >&2
+            bad=1
+          fi
+          exit "$bad"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+      - name: Frozen install (lockfile integrity)
+        run: pnpm install --frozen-lockfile

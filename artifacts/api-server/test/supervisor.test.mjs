@@ -517,6 +517,49 @@ test("API spawn errors log the operating-system reason without environment data"
   assert.equal("env" in logs.error[0][0], false);
 });
 
+test("successive spawn errors retain only each attempt's diagnostics", () => {
+  const { supervisor, children, timers, logs } = createHarness();
+  supervisor.start();
+
+  let worker = children[1];
+  const failures = [
+    { code: "ENOENT", message: "worker entry not found" },
+    { code: "EACCES", message: "worker entry is not executable" },
+  ];
+
+  for (const [index, failure] of failures.entries()) {
+    worker.emit(
+      "error",
+      Object.assign(new Error(failure.message), { code: failure.code }),
+    );
+    worker.emit("close", -2, null);
+
+    const retryTimer = timers.at(-1);
+    assert.equal(retryTimer.delayMs, 1_000 * 2 ** index);
+    retryTimer.callback();
+    worker = children.at(-1);
+  }
+
+  assert.deepEqual(
+    logs.error.map(([fields, message]) => {
+      assert.deepEqual(Object.keys(fields).sort(), [
+        "errorCode",
+        "errorMessage",
+        "service",
+      ]);
+      assert.equal("env" in fields, false);
+      return [fields, message];
+    }),
+    failures.map((failure) => [
+      {
+        service: "worker",
+        errorCode: failure.code,
+        errorMessage: failure.message,
+      },
+      "Supervised process could not start",
+    ]),
+  );
+});
 
 test("repeated synchronous launcher failures keep each service's backoff isolated", () => {
   const launchAttempts = [];

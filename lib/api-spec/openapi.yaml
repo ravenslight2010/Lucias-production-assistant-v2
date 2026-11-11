@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: facilities
     description: Facility setup and context
+  - name: facility-members
+    description: Facility membership and invitations
   - name: runs
     description: Facility-scoped production run control
   - name: dashboard
@@ -104,6 +106,113 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "409":
           $ref: "#/components/responses/Conflict"
+  /facility/members:
+    get:
+      operationId: listFacilityMembers
+      tags: [facility-members]
+      summary: List facility members for an owner
+      security:
+        - v2Session: []
+      responses:
+        "200":
+          description: Facility members
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FacilityMemberList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: inviteFacilityMember
+      tags: [facility-members]
+      summary: Add or invite a facility member
+      description: Existing accounts are added immediately; new accounts receive a Clerk invitation with the selected facility role.
+      security:
+        - v2Session: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FacilityMemberInput"
+      responses:
+        "201":
+          description: Member added or invitation sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FacilityMemberInviteResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /facility/members/{memberId}:
+    patch:
+      operationId: updateFacilityMember
+      tags: [facility-members]
+      summary: Change a facility member role
+      security:
+        - v2Session: []
+      parameters:
+        - in: path
+          name: memberId
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FacilityMemberUpdate"
+      responses:
+        "200":
+          description: Updated member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FacilityMember"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: removeFacilityMember
+      tags: [facility-members]
+      summary: Remove a facility member
+      security:
+        - v2Session: []
+      parameters:
+        - in: path
+          name: memberId
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: Member removed
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /v2/runs:
     get:
       operationId: listRuns
@@ -340,6 +449,83 @@ components:
           minLength: 1
           maxLength: 120
       required: [name]
+    FacilityAssignableRole:
+      type: string
+      enum: [manager, operator]
+    FacilityMemberRole:
+      type: string
+      enum: [owner, manager, operator]
+    FacilityMember:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: [string, "null"]
+        role:
+          $ref: "#/components/schemas/FacilityMemberRole"
+      required: [id, email, role]
+    FacilityMemberList:
+      type: object
+      properties:
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/FacilityMember"
+        pendingInvitations:
+          type: array
+          items:
+            $ref: "#/components/schemas/FacilityInvitation"
+      required: [members, pendingInvitations]
+    FacilityInvitation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/FacilityAssignableRole"
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+      required: [id, email, role, createdAt, expiresAt]
+    FacilityMemberInput:
+      type: object
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 320
+        role:
+          $ref: "#/components/schemas/FacilityAssignableRole"
+      required: [email, role]
+    FacilityMemberUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        role:
+          $ref: "#/components/schemas/FacilityAssignableRole"
+      required: [role]
+    FacilityMemberInviteResult:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/FacilityAssignableRole"
+        status:
+          type: string
+          enum: [added, invited]
+      required: [email, role, status]
     V2Session:
       type: object
       properties:

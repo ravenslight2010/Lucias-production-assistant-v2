@@ -51,6 +51,67 @@ export interface FacilityInput {
   name: string;
 }
 
+export type FacilityAssignableRole = typeof FacilityAssignableRole[keyof typeof FacilityAssignableRole];
+
+
+export const FacilityAssignableRole = {
+  manager: 'manager',
+  operator: 'operator',
+} as const;
+
+export type FacilityMemberRole = typeof FacilityMemberRole[keyof typeof FacilityMemberRole];
+
+
+export const FacilityMemberRole = {
+  owner: 'owner',
+  manager: 'manager',
+  operator: 'operator',
+} as const;
+
+export interface FacilityMember {
+  id: string;
+  /** @nullable */
+  email: string | null;
+  role: FacilityMemberRole;
+}
+
+export interface FacilityInvitation {
+  id: string;
+  email: string;
+  role: FacilityAssignableRole;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface FacilityMemberList {
+  members: FacilityMember[];
+  pendingInvitations: FacilityInvitation[];
+}
+
+export interface FacilityMemberInput {
+  /** @maxLength 320 */
+  email: string;
+  role: FacilityAssignableRole;
+}
+
+export interface FacilityMemberUpdate {
+  role: FacilityAssignableRole;
+}
+
+export type FacilityMemberInviteResultStatus = typeof FacilityMemberInviteResultStatus[keyof typeof FacilityMemberInviteResultStatus];
+
+
+export const FacilityMemberInviteResultStatus = {
+  added: 'added',
+  invited: 'invited',
+} as const;
+
+export interface FacilityMemberInviteResult {
+  email: string;
+  role: FacilityAssignableRole;
+  status: FacilityMemberInviteResultStatus;
+}
+
 export interface V2Session {
   csrfToken: string;
 }

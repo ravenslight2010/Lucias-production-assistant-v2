@@ -54,6 +54,28 @@ export const facilityMembersTable = pgTable(
   ],
 );
 
+export const facilityInvitationsTable = pgTable(
+  "facility_invitations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    facilityId: uuid("facility_id")
+      .notNull()
+      .references(() => facilitiesTable.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    role: facilityRoleEnum("role").notNull(),
+    invitedBy: text("invited_by").notNull(),
+    clerkInvitationId: text("clerk_invitation_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("facility_invitations_email_uq").on(table.email),
+    index("facility_invitations_facility_id_idx").on(table.facilityId),
+  ],
+);
+
 export const productionRunsTable = pgTable(
   "production_runs",
   {

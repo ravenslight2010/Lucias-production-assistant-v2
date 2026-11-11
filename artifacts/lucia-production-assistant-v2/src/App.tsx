@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/reac
 import {
   Activity, ArrowLeft, ArrowRight, Check, ChevronRight, CircleAlert,
   ClipboardList, Factory, Gauge, LoaderCircle, LogOut, Pause, Play,
-  Plus, RefreshCw, ShieldCheck, Square, WifiOff,
+  Plus, RefreshCw, ShieldCheck, Square, Users, WifiOff,
 } from 'lucide-react';
 import {
   getGetDashboardSummaryQueryKey,
@@ -29,6 +29,7 @@ import { Link, Redirect, Route, Switch, Router as WouterRouter, useLocation, use
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import FacilityMembersPage from '@/components/facility-members-page';
 import NotFound from '@/pages/not-found';
 
 const queryClient = new QueryClient({
@@ -112,6 +113,9 @@ function SiteShell({ children, facilityName }: { children: ReactNode; facilityNa
     { href: '/', label: 'Overview', icon: Gauge },
     { href: '/runs', label: 'Production runs', icon: ClipboardList },
   ];
+  if (facilityContext.data?.role === 'owner') {
+    links.push({ href: '/team', label: 'Team members', icon: Users });
+  }
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -527,6 +531,41 @@ function RunDetailPage() {
   );
 }
 
+function FacilityTeamRoute() {
+  const online = useConnection();
+  const context = useGetFacilityContext({
+    query: { queryKey: getGetFacilityContextQueryKey(), retry: false },
+    request: { credentials: 'include' },
+  });
+  if (context.isLoading) return <LoadingPage title="Checking facility access" />;
+  if (!context.data && context.isError) {
+    return <SiteShell><DataError message={getErrorMessage(context.error, 'Could not load facility access.')} onRetry={() => void context.refetch()} /></SiteShell>;
+  }
+  if (context.data && !context.data.facility) {
+    return <SiteShell><FacilitySetup online={online} /></SiteShell>;
+  }
+  if (!context.data?.facility) return <LoadingPage title="Preparing your workspace" />;
+  if (context.data.role !== 'owner') {
+    return (
+      <SiteShell facilityName={context.data.facility.name}>
+        <main className="workspace">
+          <section className="panel empty-state" role="status" data-testid="status-team-owner-only">
+            <div className="empty-mark"><ShieldCheck size={21} /></div>
+            <h1>Owner access required</h1>
+            <p>Only facility owners can manage team members and roles.</p>
+            <Link href="/" className="button button-secondary">Return to overview</Link>
+          </section>
+        </main>
+      </SiteShell>
+    );
+  }
+  return (
+    <SiteShell facilityName={context.data.facility.name}>
+      <FacilityMembersPage />
+    </SiteShell>
+  );
+}
+
 function Property({ label, value }: { label: string; value: ReactNode }) {
   return <div className="property-row"><span>{label}</span><span>{value}</span></div>;
 }
@@ -741,6 +780,7 @@ function RouterContent() {
           <Route path="/sign-up/*?" component={SignUpPage} />
           <Route path="/runs" component={() => <Protected><RunsPage /></Protected>} />
           <Route path="/runs/:runId" component={() => <Protected><RunDetailPage /></Protected>} />
+          <Route path="/team" component={() => <Protected><FacilityTeamRoute /></Protected>} />
           <Route component={NotFound} />
         </Switch>
       </ErrorBoundary>

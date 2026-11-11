@@ -1,5 +1,6 @@
-import { and, count, desc, eq, inArray } from "drizzle-orm";
+import { and, count, desc, eq, gt, inArray, lte } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
+import { clerkClient } from "@clerk/express";
 import {
   ApplyRunCommandBody,
   ApplyRunCommandParams,
@@ -13,11 +14,19 @@ import {
   GetFacilityContextResponse,
   GetRunParams,
   GetRunResponse,
+  InviteFacilityMemberBody,
+  InviteFacilityMemberResponse,
+  ListFacilityMembersResponse,
   ListRunsQueryParams,
   ListRunsResponse,
+  RemoveFacilityMemberParams,
+  UpdateFacilityMemberBody,
+  UpdateFacilityMemberParams,
+  UpdateFacilityMemberResponse,
 } from "@workspace/api-zod";
 import {
   db,
+  facilityInvitationsTable,
   facilitiesTable,
   facilityMembersTable,
   productionRunsTable,
@@ -28,6 +37,7 @@ import {
   mutationRateLimit,
 } from "../middlewares/requestGuards";
 import { HttpError } from "../lib/http-error";
+import { acceptPendingFacilityInvitation } from "../lib/facility-invitation-service";
 import { executeRunCommand } from "../lib/run-command-service";
 import { createPlannedRun } from "../lib/run-create-service";
 import { toContractRun } from "../lib/run-contract";
@@ -76,7 +86,9 @@ async function membershipOrRespond(
 ) {
   const actorId = actorOrRespond(req, res);
   if (!actorId) return null;
-  const membership = await getFacilityMembership(actorId);
+  const membership =
+    (await getFacilityMembership(actorId)) ??
+    (await acceptPendingFacilityInvitation(actorId));
   if (!membership) {
     res.status(403).json({ error: "Set up a facility before continuing." });
     return null;
@@ -84,10 +96,42 @@ async function membershipOrRespond(
   return { actorId, membership };
 }
 
+async function ownerAccessOrRespond(req: Request, res: Response) {
+  const access = await membershipOrRespond(req, res);
+  if (!access) return null;
+  if (access.membership.role !== "owner") {
+    res.status(403).json({ error: "Only facility owners can manage members." });
+    return null;
+  }
+  return access;
+}
+
+function hasPostgresCode(error: unknown, code: string) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === code
+  );
+}
+
+function userEmail(user: {
+  primaryEmailAddress?: { emailAddress: string } | null;
+  emailAddresses: Array<{ emailAddress: string }>;
+}) {
+  return (
+    user.primaryEmailAddress?.emailAddress ??
+    user.emailAddresses[0]?.emailAddress ??
+    null
+  );
+}
+
 router.get("/facility/context", async (req, res): Promise<void> => {
   const actorId = actorOrRespond(req, res);
   if (!actorId) return;
-  const membership = await getFacilityMembership(actorId);
+  const membership =
+    (await getFacilityMembership(actorId)) ??
+    (await acceptPendingFacilityInvitation(actorId));
   const response = membership
     ? facilityShape(membership)
     : { facility: null, role: null };
@@ -170,6 +214,335 @@ router.post(
       }
       throw error;
     }
+  },
+);
+
+router.get(
+  "/facility/members",
+  requireV2Session,
+  async (req, res): Promise<void> => {
+    const access = await ownerAccessOrRespond(req, res);
+    if (!access) return;
+    const now = new Date();
+
+    await db
+      .delete(facilityInvitationsTable)
+      .where(
+        and(
+          eq(facilityInvitationsTable.facilityId, access.membership.facilityId),
+          lte(facilityInvitationsTable.expiresAt, now),
+        ),
+      );
+
+    const [members, pendingInvitations] = await Promise.all([
+      db
+        .select()
+        .from(facilityMembersTable)
+        .where(eq(facilityMembersTable.facilityId, access.membership.facilityId)),
+      db
+        .select({
+          id: facilityInvitationsTable.id,
+          email: facilityInvitationsTable.email,
+          role: facilityInvitationsTable.role,
+          createdAt: facilityInvitationsTable.createdAt,
+          expiresAt: facilityInvitationsTable.expiresAt,
+        })
+        .from(facilityInvitationsTable)
+        .where(
+          and(
+            eq(facilityInvitationsTable.facilityId, access.membership.facilityId),
+            gt(facilityInvitationsTable.expiresAt, now),
+          ),
+        ),
+    ]);
+
+    const userIds = members.map((member) => member.userId);
+    const users = (
+      await Promise.all(
+        Array.from({ length: Math.ceil(userIds.length / 100) }, (_, index) =>
+          clerkClient.users.getUserList({
+            userId: userIds.slice(index * 100, (index + 1) * 100),
+            limit: 100,
+          }),
+        ),
+      )
+    ).flatMap((page) => page.data);
+    const emailByUserId = new Map(
+      users.map((user) => [user.id, userEmail(user)]),
+    );
+
+    res.json(
+      ListFacilityMembersResponse.parse({
+        members: members.map((member) => ({
+          id: member.id,
+          email: emailByUserId.get(member.userId) ?? null,
+          role: member.role,
+        })),
+        pendingInvitations,
+      }),
+    );
+  },
+);
+
+router.post(
+  "/facility/members",
+  requireV2Session,
+  requireV2Csrf,
+  mutationRateLimit,
+  async (req, res): Promise<void> => {
+    const access = await ownerAccessOrRespond(req, res);
+    if (!access) return;
+    const parsed = InviteFacilityMemberBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Enter a valid email and choose a manager or operator role." });
+      return;
+    }
+
+    const email = parsed.data.email.trim().toLowerCase();
+    const existingUsers = await clerkClient.users.getUserList({
+      emailAddress: [email],
+      limit: 1,
+    });
+    const existingUser = existingUsers.data.find((user) =>
+      user.emailAddresses.some(
+        (address) => address.emailAddress.trim().toLowerCase() === email,
+      ),
+    );
+
+    if (existingUser) {
+      const verifiedEmail = existingUser.emailAddresses.some(
+        (address) =>
+          address.emailAddress.trim().toLowerCase() === email &&
+          address.verification?.status === "verified",
+      );
+      if (!verifiedEmail) {
+        res.status(409).json({
+          error: "That account must verify this email before it can be added.",
+        });
+        return;
+      }
+      const [existingMembership] = await db
+        .select({ id: facilityMembersTable.id })
+        .from(facilityMembersTable)
+        .where(eq(facilityMembersTable.userId, existingUser.id))
+        .limit(1);
+      if (existingMembership) {
+        res.status(409).json({ error: "That account already belongs to a facility." });
+        return;
+      }
+      try {
+        await db.insert(facilityMembersTable).values({
+          facilityId: access.membership.facilityId,
+          userId: existingUser.id,
+          role: parsed.data.role,
+        });
+      } catch (error) {
+        if (hasPostgresCode(error, "23505")) {
+          res.status(409).json({ error: "That account already belongs to a facility." });
+          return;
+        }
+        throw error;
+      }
+
+      res.status(201).json(
+        InviteFacilityMemberResponse.parse({
+          email,
+          role: parsed.data.role,
+          status: "added",
+        }),
+      );
+      return;
+    }
+
+    const now = new Date();
+    await db
+      .delete(facilityInvitationsTable)
+      .where(
+        and(
+          eq(facilityInvitationsTable.email, email),
+          lte(facilityInvitationsTable.expiresAt, now),
+        ),
+      );
+    const [existingInvitation] = await db
+      .select({ id: facilityInvitationsTable.id })
+      .from(facilityInvitationsTable)
+      .where(eq(facilityInvitationsTable.email, email))
+      .limit(1);
+    if (existingInvitation) {
+      res.status(409).json({ error: "An invitation for that email is already pending." });
+      return;
+    }
+
+    const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    let pendingInvitation: { id: string };
+    try {
+      const [inserted] = await db
+        .insert(facilityInvitationsTable)
+        .values({
+          facilityId: access.membership.facilityId,
+          email,
+          role: parsed.data.role,
+          invitedBy: access.actorId,
+          expiresAt,
+        })
+        .returning({ id: facilityInvitationsTable.id });
+      pendingInvitation = inserted;
+    } catch (error) {
+      if (hasPostgresCode(error, "23505")) {
+        res.status(409).json({ error: "An invitation for that email is already pending." });
+        return;
+      }
+      throw error;
+    }
+
+    const origin = req.get("origin");
+    if (!origin) {
+      await db
+        .delete(facilityInvitationsTable)
+        .where(eq(facilityInvitationsTable.id, pendingInvitation.id));
+      res.status(403).json({ error: "Request origin could not be verified." });
+      return;
+    }
+    let clerkInvitation: Awaited<
+      ReturnType<typeof clerkClient.invitations.createInvitation>
+    >;
+    try {
+      clerkInvitation = await clerkClient.invitations.createInvitation({
+        emailAddress: email,
+        expiresInDays: 30,
+        ignoreExisting: true,
+        redirectUrl: new URL("/sign-up", origin).toString(),
+      });
+    } catch (error) {
+      await db
+        .delete(facilityInvitationsTable)
+        .where(eq(facilityInvitationsTable.id, pendingInvitation.id));
+      const status =
+        typeof error === "object" &&
+        error !== null &&
+        "status" in error &&
+        typeof error.status === "number"
+          ? error.status
+          : undefined;
+      req.log.warn({ status }, "Clerk invitation could not be created");
+      res
+        .status(status && status < 500 ? 409 : 502)
+        .json({ error: "The email invitation could not be sent. Please try again." });
+      return;
+    }
+    try {
+      await db
+        .update(facilityInvitationsTable)
+        .set({ clerkInvitationId: clerkInvitation.id })
+        .where(eq(facilityInvitationsTable.id, pendingInvitation.id));
+    } catch {
+      req.log.warn(
+        { invitationRecordId: pendingInvitation.id },
+        "Invitation tracking could not be updated after Clerk accepted the invitation",
+      );
+    }
+
+    res.status(201).json(
+      InviteFacilityMemberResponse.parse({
+        email,
+        role: parsed.data.role,
+        status: "invited",
+      }),
+    );
+  },
+);
+
+router.patch(
+  "/facility/members/:memberId",
+  requireV2Session,
+  requireV2Csrf,
+  mutationRateLimit,
+  async (req, res): Promise<void> => {
+    const access = await ownerAccessOrRespond(req, res);
+    if (!access) return;
+    const params = UpdateFacilityMemberParams.safeParse(req.params);
+    const body = UpdateFacilityMemberBody.safeParse(req.body);
+    if (!params.success || !body.success) {
+      res.status(400).json({ error: "Choose a manager or operator role." });
+      return;
+    }
+
+    const [target] = await db
+      .select({ id: facilityMembersTable.id, role: facilityMembersTable.role })
+      .from(facilityMembersTable)
+      .where(
+        and(
+          eq(facilityMembersTable.id, params.data.memberId),
+          eq(facilityMembersTable.facilityId, access.membership.facilityId),
+        ),
+      )
+      .limit(1);
+    if (!target) {
+      res.status(404).json({ error: "Facility member not found." });
+      return;
+    }
+    if (target.role === "owner") {
+      res.status(403).json({ error: "Owner roles cannot be changed here." });
+      return;
+    }
+
+    const [updated] = await db
+      .update(facilityMembersTable)
+      .set({ role: body.data.role })
+      .where(eq(facilityMembersTable.id, target.id))
+      .returning({ id: facilityMembersTable.id });
+    if (!updated) {
+      res.status(404).json({ error: "Facility member not found." });
+      return;
+    }
+
+    res.json(
+      UpdateFacilityMemberResponse.parse({
+        id: updated.id,
+        email: null,
+        role: body.data.role,
+      }),
+    );
+  },
+);
+
+router.delete(
+  "/facility/members/:memberId",
+  requireV2Session,
+  requireV2Csrf,
+  mutationRateLimit,
+  async (req, res): Promise<void> => {
+    const access = await ownerAccessOrRespond(req, res);
+    if (!access) return;
+    const params = RemoveFacilityMemberParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: "Invalid facility member." });
+      return;
+    }
+
+    const [target] = await db
+      .select({ id: facilityMembersTable.id, role: facilityMembersTable.role })
+      .from(facilityMembersTable)
+      .where(
+        and(
+          eq(facilityMembersTable.id, params.data.memberId),
+          eq(facilityMembersTable.facilityId, access.membership.facilityId),
+        ),
+      )
+      .limit(1);
+    if (!target) {
+      res.status(404).json({ error: "Facility member not found." });
+      return;
+    }
+    if (target.role === "owner") {
+      res.status(403).json({ error: "Owners cannot be removed from the facility." });
+      return;
+    }
+
+    await db
+      .delete(facilityMembersTable)
+      .where(eq(facilityMembersTable.id, target.id));
+    res.sendStatus(204);
   },
 );
 

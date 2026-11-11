@@ -75,6 +75,91 @@ export const CreateFacilityResponse = zod.object({
 
 
 /**
+ * @summary List facility members for an owner
+ */
+export const ListFacilityMembersResponse = zod.object({
+  "members": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().nullable(),
+  "role": zod.enum(['owner', 'manager', 'operator'])
+})),
+  "pendingInvitations": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
+  "role": zod.enum(['manager', 'operator']),
+  "createdAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * Existing accounts are added immediately; new accounts receive a Clerk invitation with the selected facility role.
+ * @summary Add or invite a facility member
+ */
+export const InviteFacilityMemberHeader = zod.object({
+  "X-CSRF-Token": zod.string()
+})
+
+export const inviteFacilityMemberBodyEmailMax = 320;
+
+
+
+export const InviteFacilityMemberBody = zod.object({
+  "email": zod.string().email().max(inviteFacilityMemberBodyEmailMax),
+  "role": zod.enum(['manager', 'operator'])
+})
+
+export const InviteFacilityMemberResponse = zod.object({
+  "email": zod.string().email(),
+  "role": zod.enum(['manager', 'operator']),
+  "status": zod.enum(['added', 'invited'])
+})
+
+
+/**
+ * @summary Change a facility member role
+ */
+export const updateFacilityMemberPathMemberIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
+export const UpdateFacilityMemberParams = zod.object({
+  "memberId": zod.coerce.string().regex(updateFacilityMemberPathMemberIdRegExp)
+})
+
+export const UpdateFacilityMemberHeader = zod.object({
+  "X-CSRF-Token": zod.string()
+})
+
+export const UpdateFacilityMemberBody = zod.object({
+  "role": zod.enum(['manager', 'operator'])
+})
+
+export const UpdateFacilityMemberResponse = zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().nullable(),
+  "role": zod.enum(['owner', 'manager', 'operator'])
+})
+
+
+/**
+ * @summary Remove a facility member
+ */
+export const removeFacilityMemberPathMemberIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
+export const RemoveFacilityMemberParams = zod.object({
+  "memberId": zod.coerce.string().regex(removeFacilityMemberPathMemberIdRegExp)
+})
+
+export const RemoveFacilityMemberHeader = zod.object({
+  "X-CSRF-Token": zod.string()
+})
+
+export const RemoveFacilityMemberResponse = zod.void()
+
+
+/**
  * @summary List runs for the authenticated facility
  */
 export const listRunsQueryLimitDefault = 50;

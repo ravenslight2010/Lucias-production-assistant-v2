@@ -25,6 +25,11 @@ import type {
   DashboardSummary,
   FacilityContext,
   FacilityInput,
+  FacilityMember,
+  FacilityMemberInput,
+  FacilityMemberInviteResult,
+  FacilityMemberList,
+  FacilityMemberUpdate,
   ForbiddenResponse,
   HealthStatus,
   InvalidTransition,
@@ -458,6 +463,335 @@ export const useCreateFacility = <TError = ErrorType<BadRequestResponse | Unauth
         TContext
       > => {
       return useMutation(getCreateFacilityMutationOptions(options));
+    }
+
+export const getListFacilityMembersUrl = () => {
+
+
+
+
+  return `/api/facility/members`
+}
+
+/**
+ * @summary List facility members for an owner
+ */
+export const listFacilityMembers = async ( options?: Parameters<typeof customFetch>[1]): Promise<FacilityMemberList> => {
+
+  return customFetch<FacilityMemberList>(getListFacilityMembersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFacilityMembersQueryKey = () => {
+    return [
+    `/api/facility/members`
+    ] as const;
+    }
+
+
+export const getListFacilityMembersQueryOptions = <TData = Awaited<ReturnType<typeof listFacilityMembers>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFacilityMembers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFacilityMembersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFacilityMembers>>> = ({ signal }) => listFacilityMembers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFacilityMembers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListFacilityMembersQueryResult = NonNullable<Awaited<ReturnType<typeof listFacilityMembers>>>
+export type ListFacilityMembersQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary List facility members for an owner
+ */
+
+export function useListFacilityMembers<TData = Awaited<ReturnType<typeof listFacilityMembers>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFacilityMembers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListFacilityMembersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getInviteFacilityMemberUrl = () => {
+
+
+
+
+  return `/api/facility/members`
+}
+
+/**
+ * Existing accounts are added immediately; new accounts receive a Clerk invitation with the selected facility role.
+ * @summary Add or invite a facility member
+ */
+export const inviteFacilityMember = async (facilityMemberInput: FacilityMemberInput, options?: Parameters<typeof customFetch>[1]): Promise<FacilityMemberInviteResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<FacilityMemberInviteResult>(getInviteFacilityMemberUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(facilityMemberInput)
+  }
+);}
+
+
+
+
+
+export const getInviteFacilityMemberMutationKey = () => ['inviteFacilityMember'] as const;
+
+export const getInviteFacilityMemberMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof inviteFacilityMember>>, TError,InviteFacilityMemberMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof inviteFacilityMember>>, TError,InviteFacilityMemberMutationVariables, TContext> => {
+
+const mutationKey = getInviteFacilityMemberMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof inviteFacilityMember>>, InviteFacilityMemberMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  inviteFacilityMember(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type InviteFacilityMemberMutationResult = NonNullable<Awaited<ReturnType<typeof inviteFacilityMember>>>
+    export type InviteFacilityMemberMutationBody = BodyType<FacilityMemberInput>
+    export type InviteFacilityMemberMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>
+    export type InviteFacilityMemberMutationVariables = {data: BodyType<FacilityMemberInput>}
+
+    /**
+ * @summary Add or invite a facility member
+ */
+export const useInviteFacilityMember = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof inviteFacilityMember>>, TError,InviteFacilityMemberMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof inviteFacilityMember>>,
+        TError,
+        InviteFacilityMemberMutationVariables,
+        TContext
+      > => {
+      return useMutation(getInviteFacilityMemberMutationOptions(options));
+    }
+
+export const getUpdateFacilityMemberUrl = (memberId: string,) => {
+
+
+
+
+  return `/api/facility/members/${memberId}`
+}
+
+/**
+ * @summary Change a facility member role
+ */
+export const updateFacilityMember = async (memberId: string,
+    facilityMemberUpdate: FacilityMemberUpdate, options?: Parameters<typeof customFetch>[1]): Promise<FacilityMember> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<FacilityMember>(getUpdateFacilityMemberUrl(memberId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(facilityMemberUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateFacilityMemberMutationKey = () => ['updateFacilityMember'] as const;
+
+export const getUpdateFacilityMemberMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFacilityMember>>, TError,UpdateFacilityMemberMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateFacilityMember>>, TError,UpdateFacilityMemberMutationVariables, TContext> => {
+
+const mutationKey = getUpdateFacilityMemberMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateFacilityMember>>, UpdateFacilityMemberMutationVariables> = (props) => {
+          const {memberId,data} = props ?? {};
+
+          return  updateFacilityMember(memberId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateFacilityMemberMutationResult = NonNullable<Awaited<ReturnType<typeof updateFacilityMember>>>
+    export type UpdateFacilityMemberMutationBody = BodyType<FacilityMemberUpdate>
+    export type UpdateFacilityMemberMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+    export type UpdateFacilityMemberMutationVariables = {memberId: string;data: BodyType<FacilityMemberUpdate>}
+
+    /**
+ * @summary Change a facility member role
+ */
+export const useUpdateFacilityMember = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFacilityMember>>, TError,UpdateFacilityMemberMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateFacilityMember>>,
+        TError,
+        UpdateFacilityMemberMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateFacilityMemberMutationOptions(options));
+    }
+
+export const getRemoveFacilityMemberUrl = (memberId: string,) => {
+
+
+
+
+  return `/api/facility/members/${memberId}`
+}
+
+/**
+ * @summary Remove a facility member
+ */
+export const removeFacilityMember = async (memberId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getRemoveFacilityMemberUrl(memberId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveFacilityMemberMutationKey = () => ['removeFacilityMember'] as const;
+
+export const getRemoveFacilityMemberMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeFacilityMember>>, TError,RemoveFacilityMemberMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeFacilityMember>>, TError,RemoveFacilityMemberMutationVariables, TContext> => {
+
+const mutationKey = getRemoveFacilityMemberMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeFacilityMember>>, RemoveFacilityMemberMutationVariables> = (props) => {
+          const {memberId} = props ?? {};
+
+          return  removeFacilityMember(memberId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveFacilityMemberMutationResult = NonNullable<Awaited<ReturnType<typeof removeFacilityMember>>>
+
+    export type RemoveFacilityMemberMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+    export type RemoveFacilityMemberMutationVariables = {memberId: string}
+
+    /**
+ * @summary Remove a facility member
+ */
+export const useRemoveFacilityMember = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeFacilityMember>>, TError,RemoveFacilityMemberMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removeFacilityMember>>,
+        TError,
+        RemoveFacilityMemberMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRemoveFacilityMemberMutationOptions(options));
     }
 
 export const getListRunsUrl = (params?: ListRunsParams,) => {

@@ -4,3 +4,4 @@
 - [Publish check-constraint formatting](publish-check-constraint-formatting.md) — Avoid top-level CASE checks; the Publish diff can duplicate CHECK wrappers, so verify generated DDL before retrying.
 - [Enum additions in Publish](enum-addition-publish-staging.md) — Keep new PostgreSQL enum labels out of same-transaction defaults; use explicit app values or a later Publish.
 - [VM replacement overlap evidence](vm-replacement-overlap-evidence.md) — Aggregate uptime resets do not prove a full restart or old/new overlap without instance-scoped evidence.
+- [Station timer behavior](station-timer-behavior.md) — Every station follows the production line timer for start, pause, resume, and end.

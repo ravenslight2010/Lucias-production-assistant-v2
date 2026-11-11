@@ -14,7 +14,12 @@ export type FacilityStationForRun = {
 export type RunStationProgressStatus =
   | "not_started"
   | "in_progress"
+  | "paused"
   | "completed";
+export type StoredRunStationProgressStatus = Exclude<
+  RunStationProgressStatus,
+  "paused"
+>;
 
 export type RunStationProgressItem = {
   stationId: string;
@@ -34,7 +39,19 @@ export type RunStationProgressList = {
 export function buildRunStationProgressRows(
   runId: string,
   stations: FacilityStationForRun[],
+  snapshot: {
+    status?: StoredRunStationProgressStatus;
+    revision?: number;
+    updatedAt?: Date | null;
+    updatedBy?: string | null;
+  } = {},
 ) {
+  const {
+    status = "not_started",
+    revision = 0,
+    updatedAt = null,
+    updatedBy = null,
+  } = snapshot;
   return stations
     .filter((station) => station.isActive)
     .map((station, stationOrder) => ({
@@ -43,26 +60,34 @@ export function buildRunStationProgressRows(
       stationName: station.name,
       stationArea: station.area,
       stationOrder,
-      status: "not_started" as const,
-      revision: 0,
-      updatedAt: null,
-      updatedBy: null,
+      status,
+      revision,
+      updatedAt,
+      updatedBy,
     }));
 }
 
-export function planStationProgressUpdate(
-  current: { revision: number; status: string },
-  expectedRevision: number,
-  nextStatus: RunStationProgressStatus,
-):
-  | { type: "conflict" }
-  | { type: "unchanged" }
-  | { type: "updated"; status: RunStationProgressStatus; revision: number } {
-  if (current.revision !== expectedRevision) return { type: "conflict" };
-  if (current.status === nextStatus) return { type: "unchanged" };
-  return {
-    type: "updated",
-    status: nextStatus,
-    revision: current.revision + 1,
-  };
+export function stationStatusForRun(
+  runStatus: string,
+): RunStationProgressStatus {
+  switch (runStatus) {
+    case "running":
+      return "in_progress";
+    case "paused":
+      return "paused";
+    case "completed":
+      return "completed";
+    default:
+      return "not_started";
+  }
+}
+
+export function storedStationStatusForRun(
+  runStatus: string,
+): StoredRunStationProgressStatus {
+  return runStatus === "completed"
+    ? "completed"
+    : runStatus === "running" || runStatus === "paused"
+      ? "in_progress"
+      : "not_started";
 }

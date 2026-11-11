@@ -132,6 +132,7 @@ export type RunStationProgressStatus = typeof RunStationProgressStatus[keyof typ
 export const RunStationProgressStatus = {
   not_started: 'not_started',
   in_progress: 'in_progress',
+  paused: 'paused',
   completed: 'completed',
 } as const;
 
@@ -329,20 +330,6 @@ export interface RunCommandRequest {
      * @maximum 9007199254740991
      */
   expectedRevision: number;
-}
-
-export interface RunStationProgressUpdate {
-  /**
-     * @minimum 0
-     * @maximum 9007199254740991
-     */
-  expectedRevision: number;
-  status: RunStationProgressStatus;
-}
-
-export interface RunStationProgressConflict {
-  error: string;
-  current: RunStationProgressList;
 }
 
 export interface RunList {

@@ -12,5 +12,6 @@ export type RunStationProgressStatus = typeof RunStationProgressStatus[keyof typ
 export const RunStationProgressStatus = {
   not_started: 'not_started',
   in_progress: 'in_progress',
+  paused: 'paused',
   completed: 'completed',
 } as const;

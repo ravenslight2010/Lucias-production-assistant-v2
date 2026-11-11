@@ -9,11 +9,14 @@ import {
   runOutboxTable,
   runStationProgressTable,
 } from "@workspace/db";
+import {
+  buildRunStationProgressRows,
+  storedStationStatusForRun,
+} from "./run-station-progress-logic";
 import { HttpError } from "./http-error";
 import { transitionRun, type RunAction } from "./run-lifecycle";
 import { toContractRun } from "./run-contract";
 import { DEFAULT_FACILITY_STATIONS } from "./facility-stations";
-import { buildRunStationProgressRows } from "./run-station-progress-logic";
 
 export interface RunCommand {
   commandId: string;
@@ -131,22 +134,43 @@ export async function executeRunCommand(input: {
 
     if (!updated) throw new HttpError(404, "Run not found.");
 
-    if (command.commandType === "start") {
+    const [stationSnapshot] = await tx
+      .select({ stationId: runStationProgressTable.stationId })
+      .from(runStationProgressTable)
+      .where(eq(runStationProgressTable.runId, runId))
+      .limit(1);
+    if (!stationSnapshot) {
       const [layout] = await tx
         .select({ stations: facilityStationLayoutsTable.stations })
         .from(facilityStationLayoutsTable)
         .where(eq(facilityStationLayoutsTable.facilityId, facilityId))
         .limit(1);
-      const stationSnapshot = buildRunStationProgressRows(
+      const stationRows = buildRunStationProgressRows(
         runId,
         layout?.stations ?? DEFAULT_FACILITY_STATIONS,
+        {
+          status: storedStationStatusForRun(updated.status),
+          revision: updated.revision,
+          updatedAt: now,
+          updatedBy: actorUserId,
+        },
       );
-      if (stationSnapshot.length > 0) {
+      if (stationRows.length > 0) {
         await tx
           .insert(runStationProgressTable)
-          .values(stationSnapshot)
+          .values(stationRows)
           .onConflictDoNothing();
       }
+    } else {
+      await tx
+        .update(runStationProgressTable)
+        .set({
+          status: storedStationStatusForRun(updated.status),
+          revision: updated.revision,
+          updatedAt: now,
+          updatedBy: actorUserId,
+        })
+        .where(eq(runStationProgressTable.runId, runId));
     }
 
     const result = {

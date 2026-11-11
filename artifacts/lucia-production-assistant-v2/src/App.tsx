@@ -491,6 +491,7 @@ function RunDetailPage() {
       onSuccess: (result) => {
         commandKeys.current.delete(commandScope);
         client.setQueryData(getGetRunQueryKey(run.id), { run: result.run });
+        void client.invalidateQueries({ queryKey: getGetRunStationProgressQueryKey(run.id) });
         void client.invalidateQueries({ queryKey: getListRunsQueryKey() });
         void client.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
         setConflict(result.replayed
@@ -502,7 +503,7 @@ function RunDetailPage() {
           commandKeys.current.delete(commandScope);
           setConflict('This run changed on another device. Your command was not applied. The latest state is being refreshed; review it before trying again.');
           void client.invalidateQueries({ queryKey: getGetRunQueryKey(run.id) });
-        void client.invalidateQueries({ queryKey: getGetRunStationProgressQueryKey(run.id) });
+          void client.invalidateQueries({ queryKey: getGetRunStationProgressQueryKey(run.id) });
           void client.invalidateQueries({ queryKey: getListRunsQueryKey() });
         }
       },
@@ -551,7 +552,7 @@ function RunDetailPage() {
           </div>
           <RunStationProgressSection
             runId={run.id}
-            runStatus={run.status}
+            run={run}
             online={online}
           />
           {command.isPending && <div className="notice" role="status"><LoaderCircle size={15} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />Sending the revision-checked command. Wait for confirmation before leaving this page.</div>}

@@ -1,6 +1,14 @@
 import { eq, sql } from "drizzle-orm";
 import { configuredPoolMax, db, facilitiesTable, pool } from "@workspace/db";
 import { logger } from "./lib/logger";
+import { attachDbPoolMetrics } from "./lib/db-pool-metrics";
+
+const poolMetrics = attachDbPoolMetrics({
+  pool,
+  service: "worker",
+  configuredPoolMax,
+  logger,
+});
 
 const intervalMs = Number(process.env.WORKER_HEARTBEAT_MS ?? "30000");
 if (!Number.isSafeInteger(intervalMs) || intervalMs < 10_000 || intervalMs > 300_000) {
@@ -64,6 +72,7 @@ async function stop(signal: string): Promise<void> {
   logger.info({ signal }, "Worker shutting down");
   try {
     await pool.end();
+    poolMetrics.observeShutdown();
     process.exit(0);
   } catch {
     logger.error({ signal }, "Worker database pool shutdown failed");
@@ -87,6 +96,7 @@ async function runHeartbeat(): Promise<void> {
     try {
       await pool.end();
     } finally {
+      poolMetrics.observeShutdown();
       process.exit(1);
     }
   }

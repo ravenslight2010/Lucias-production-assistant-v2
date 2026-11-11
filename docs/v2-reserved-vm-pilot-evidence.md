@@ -2,8 +2,10 @@
 
 **Status: incomplete.** Local process and database checks passed. A live VM
 deployment startup and API health response have now been observed, and the
-production synthetic-marker query returned zero rows. The full restart and
-measured production connection peak remain unverified.
+production synthetic-marker query returned zero rows. V2 API and worker pool
+instrumentation now records sanitized connection lifecycle counts. It has not
+yet been deployed for a measured restart overlap, so the production connection
+peak remains unverified.
 
 ## Boundary and data
 
@@ -98,14 +100,37 @@ database, or credentials were accessed.
   not establish a separate full compute restart, a harmless update independent
   of that publish, or the database connection peak during overlap.
 
+## V2 application pool instrumentation
+
+The API and worker emit structured `v2_db_pool` observations at process
+startup, on each physical pool connection creation or removal, and at
+shutdown. Each observation contains a UTC timestamp, an ephemeral process
+instance ID, the V2 service name, current open/idle/waiting counts, the
+process-local open-connection peak, and the configured pool maximum. It does
+not include a database host, URL, user, SQL, or V1 identifier. The event-based
+records avoid periodic sampling gaps and allow the open connection count to be
+reconstructed for each instrumented process.
+
+To capture the production replacement peak, first deploy this instrumentation
+to the authorized V2 deployment, then perform a separate V2 compute restart
+or publish/restart overlap while both the outgoing and incoming V2 processes
+are instrumented. The initial deployment cannot measure the outgoing
+uninstrumented process. From the resulting `v2_db_pool` logs, order observations
+by `observedAt`, track the latest `connectionsOpen` value for each
+`instanceId`, and sum active V2 API and worker instances at each event to find
+the overlap peak. Record only the UTC capture interval, the summed peak, the
+80% planning ceiling (356), and the resulting headroom or exceedance here.
+Exclude replica `pg_stat_activity` values from this calculation; they do not
+measure primary application connections. Do not access V1.
+
 ## Remaining gates
 
 - Confirm the exact Reserved VM machine configuration in the Publishing UI.
 - Exercise a full compute restart and a separate harmless published update;
   verify API and worker recovery after each.
-- Measure the actual production database connection count during publish or
-  restart overlap and compare it with the documented 80% planning ceiling
-  (the production read replica settings indicate 356 connections).
+- Deploy the pool instrumentation to V2, then capture the actual connection
+  peak during an instrumented V2 replacement overlap and compare it with the
+  356-connection planning ceiling.
 
 Do not treat the V2 pilot as passed until the remaining live-deployment checks
 are completed in an authorized V2 deployment environment.

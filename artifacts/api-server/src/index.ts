@@ -1,6 +1,14 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { configuredPoolMax, pool } from "@workspace/db";
+import { attachDbPoolMetrics } from "./lib/db-pool-metrics";
+
+const poolMetrics = attachDbPoolMetrics({
+  pool,
+  service: "api",
+  configuredPoolMax,
+  logger,
+});
 
 const rawPort = process.env["PORT"];
 
@@ -40,6 +48,7 @@ async function shutdown(signal: string) {
     if (error) logger.error({ err: error, signal }, "HTTP server close failed");
     try {
       await pool.end();
+      poolMetrics.observeShutdown();
       clearTimeout(timeout);
       process.exit(error ? 1 : 0);
     } catch (poolError) {

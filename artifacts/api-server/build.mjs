@@ -20,6 +20,7 @@ async function buildAll() {
       path.resolve(artifactDir, "src/worker.ts"),
       path.resolve(artifactDir, "src/supervisor.ts"),
       path.resolve(artifactDir, "src/supervisor-runtime.ts"),
+      path.resolve(artifactDir, "src/lib/db-pool-metrics.ts"),
     ],
     platform: "node",
     bundle: true,

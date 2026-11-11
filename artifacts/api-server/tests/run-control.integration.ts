@@ -570,3 +570,112 @@ test("independent signed-in sessions share canonical revisions and safe retries"
   assert.equal(paused.run.pauseIntervals.length, 1);
   assert.equal(paused.run.pauseIntervals[0].endedAt, null);
 });
+
+test("run command rolls back all history when the receipt write fails", async () => {
+  const [facility] = await db
+    .insert(facilitiesTable)
+    .values({ name: "Run command rollback facility" })
+    .returning();
+  const actorUserId = `rollback-test-user-${randomUUID()}`;
+  const created = await createPlannedRun({
+    facilityId: facility.id,
+    actorUserId,
+    requestId: randomUUID(),
+    setupSnapshot: { label: "Rollback test run", targetCases: 12 },
+  });
+  assert.equal(created.outcome, "created");
+  const runId = created.run.id;
+  const commandId = "rollback-after-outbox";
+
+  await pool.query(`
+    CREATE FUNCTION fail_test_run_command_receipt() RETURNS trigger
+    LANGUAGE plpgsql AS $$
+    BEGIN
+      IF NEW.idempotency_key = '${commandId}' THEN
+        RAISE EXCEPTION 'intentional failure after run event and outbox writes';
+      END IF;
+      RETURN NEW;
+    END;
+    $$;
+    CREATE TRIGGER fail_test_run_command_receipt
+      BEFORE INSERT ON run_command_receipts
+      FOR EACH ROW EXECUTE FUNCTION fail_test_run_command_receipt();
+  `);
+
+  try {
+    const [runBefore] = await db
+      .select()
+      .from(productionRunsTable)
+      .where(eq(productionRunsTable.id, runId))
+      .limit(1);
+    const eventsBefore = await db
+      .select()
+      .from(runEventsTable)
+      .where(eq(runEventsTable.runId, runId));
+    const receiptsBefore = await db
+      .select()
+      .from(runCommandReceiptsTable)
+      .where(eq(runCommandReceiptsTable.runId, runId));
+    const outboxBefore = await db
+      .select()
+      .from(runOutboxTable)
+      .where(eq(runOutboxTable.runId, runId));
+
+    assert.equal(runBefore.status, "planned");
+    assert.equal(runBefore.revision, 0);
+    assert.deepEqual(eventsBefore, []);
+    assert.deepEqual(receiptsBefore, []);
+    assert.deepEqual(outboxBefore, []);
+
+    await assert.rejects(
+      executeRunCommand({
+        facilityId: facility.id,
+        actorUserId,
+        runId,
+        command: {
+          commandId,
+          commandType: "start",
+          expectedRevision: 0,
+        },
+      }),
+      (error: unknown) =>
+        error instanceof Error &&
+        error.cause instanceof Error &&
+        error.cause.message.includes(
+          "intentional failure after run event and outbox writes",
+        ),
+    );
+
+    const [runAfter] = await db
+      .select()
+      .from(productionRunsTable)
+      .where(eq(productionRunsTable.id, runId))
+      .limit(1);
+    const eventsAfter = await db
+      .select()
+      .from(runEventsTable)
+      .where(eq(runEventsTable.runId, runId));
+    const receiptsAfter = await db
+      .select()
+      .from(runCommandReceiptsTable)
+      .where(eq(runCommandReceiptsTable.runId, runId));
+    const outboxAfter = await db
+      .select()
+      .from(runOutboxTable)
+      .where(eq(runOutboxTable.runId, runId));
+
+    assert.deepEqual(runAfter, runBefore, "the run update should roll back");
+    assert.deepEqual(eventsAfter, eventsBefore, "the event should roll back");
+    assert.deepEqual(
+      receiptsAfter,
+      receiptsBefore,
+      "the command receipt should not be partially recorded",
+    );
+    assert.deepEqual(outboxAfter, outboxBefore, "the outbox write should roll back");
+  } finally {
+    await pool.query(`
+      DROP TRIGGER IF EXISTS fail_test_run_command_receipt ON run_command_receipts;
+      DROP FUNCTION IF EXISTS fail_test_run_command_receipt();
+    `);
+  }
+});

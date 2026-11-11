@@ -8,6 +8,9 @@ import {
   facilityMembersTable,
   pool,
   productionRunsTable,
+  runCommandReceiptsTable,
+  runEventsTable,
+  runOutboxTable,
 } from "@workspace/db";
 import { createPlannedRun } from "../src/lib/run-create-service";
 import { executeRunCommand } from "../src/lib/run-command-service";
@@ -245,6 +248,114 @@ test("independent signed-in sessions share canonical revisions and safe retries"
     );
     assert.deepEqual(run.pauseIntervals, expected.pauseIntervals);
   }
+
+  const [legacyRunEvent] = await db
+    .select()
+    .from(runEventsTable)
+    .where(eq(runEventsTable.id, "30000000-0000-4000-8000-000000000001"))
+    .limit(1);
+  assert.ok(legacyRunEvent, "the pre-upgrade run event should remain present");
+  assert.deepEqual(
+    {
+      id: legacyRunEvent.id,
+      facilityId: legacyRunEvent.facilityId,
+      runId: legacyRunEvent.runId,
+      actorUserId: legacyRunEvent.actorUserId,
+      action: legacyRunEvent.action,
+      fromStatus: legacyRunEvent.fromStatus,
+      toStatus: legacyRunEvent.toStatus,
+      revision: legacyRunEvent.revision,
+      occurredAt: legacyRunEvent.occurredAt.toISOString(),
+    },
+    {
+      id: "30000000-0000-4000-8000-000000000001",
+      facilityId: "10000000-0000-4000-8000-000000000001",
+      runId: legacyLifecycleIds[0],
+      actorUserId: "legacy-operator",
+      action: "start",
+      fromStatus: "draft",
+      toStatus: "running",
+      revision: 7,
+      occurredAt: "2024-02-01T08:10:00.000Z",
+    },
+    "the pre-upgrade run audit fields should remain unchanged",
+  );
+
+  const [legacyCommandReceipt] = await db
+    .select()
+    .from(runCommandReceiptsTable)
+    .where(
+      eq(
+        runCommandReceiptsTable.id,
+        "40000000-0000-4000-8000-000000000001",
+      ),
+    )
+    .limit(1);
+  assert.ok(
+    legacyCommandReceipt,
+    "the pre-upgrade command retry receipt should remain present",
+  );
+  assert.deepEqual(
+    {
+      id: legacyCommandReceipt.id,
+      facilityId: legacyCommandReceipt.facilityId,
+      runId: legacyCommandReceipt.runId,
+      actorUserId: legacyCommandReceipt.actorUserId,
+      idempotencyKey: legacyCommandReceipt.idempotencyKey,
+      requestHash: legacyCommandReceipt.requestHash,
+      result: legacyCommandReceipt.result,
+      createdAt: legacyCommandReceipt.createdAt.toISOString(),
+    },
+    {
+      id: "40000000-0000-4000-8000-000000000001",
+      facilityId: "10000000-0000-4000-8000-000000000001",
+      runId: legacyLifecycleIds[0],
+      actorUserId: "legacy-operator",
+      idempotencyKey: "legacy-start-command",
+      requestHash: "sha256:legacy-request-hash",
+      result: { outcome: "accepted", revision: 7, status: "running" },
+      createdAt: "2024-02-01T08:10:01.000Z",
+    },
+    "the pre-upgrade command receipt fields should remain unchanged",
+  );
+
+  const [legacyOutboxEvent] = await db
+    .select()
+    .from(runOutboxTable)
+    .where(eq(runOutboxTable.id, "50000000-0000-4000-8000-000000000001"))
+    .limit(1);
+  assert.ok(
+    legacyOutboxEvent,
+    "the pre-upgrade queued notification should remain present",
+  );
+  assert.deepEqual(
+    {
+      id: legacyOutboxEvent.id,
+      facilityId: legacyOutboxEvent.facilityId,
+      runId: legacyOutboxEvent.runId,
+      revision: legacyOutboxEvent.revision,
+      event: legacyOutboxEvent.event,
+      createdAt: legacyOutboxEvent.createdAt.toISOString(),
+      deliveredAt: legacyOutboxEvent.deliveredAt?.toISOString() ?? null,
+      attempts: legacyOutboxEvent.attempts,
+    },
+    {
+      id: "50000000-0000-4000-8000-000000000001",
+      facilityId: "10000000-0000-4000-8000-000000000001",
+      runId: legacyLifecycleIds[0],
+      revision: 7,
+      event: {
+        type: "run.updated",
+        runId: legacyLifecycleIds[0],
+        revision: 7,
+        status: "running",
+      },
+      createdAt: "2024-02-01T08:10:02.000Z",
+      deliveredAt: null,
+      attempts: 2,
+    },
+    "the pre-upgrade queued notification fields should remain unchanged",
+  );
 
   const v1Fixture = await pool.query(
     "SELECT id, label, target_cases FROM v1_archive.v1_runs WHERE id = $1",

@@ -1,11 +1,11 @@
 # V2 Reserved VM pilot evidence
 
-**Status: incomplete.** Local process and database checks passed. A live VM
-deployment startup and API health response have now been observed, and the
-production synthetic-marker query returned zero rows. V2 API and worker pool
-instrumentation now records sanitized connection lifecycle counts. It has not
-yet been deployed for a measured restart overlap, so the production connection
-peak remains unverified.
+**Status: incomplete.** Local process and database checks passed. The latest
+published update includes V2 API and worker pool instrumentation, and both
+services recovered after brief startup health-check failures. Startup events
+showed a per-process peak of one connection and no waiting requests, but did
+not measure an instrumented replacement overlap. Aggregate VM uptime metrics
+cannot prove a full compute restart or old/new instance overlap.
 
 ## Boundary and data
 
@@ -66,9 +66,8 @@ Observed 2026-11-11 02:24 UTC from the V2 published deployment. No V1 endpoint,
 database, or credentials were accessed.
 
 - Deployment metadata reported an active deployment, type `vm`, and a
-  successful current build. The configured target in this project is `vm`;
-  the exact machine configuration was not independently inspected in the
-  Publishing UI.
+  successful current build. The user reported a machine configuration of
+  1 CPU and 4 GiB RAM, which the latest build configuration also confirmed.
 - The latest observed build was created at 2026-11-11 02:20:38 UTC and
   succeeded at 02:23:30 UTC. Build logs recorded creation of a new VM.
 - Runtime logs recorded the API listening on port 8080 at 02:23:06 UTC and the
@@ -99,6 +98,24 @@ database, or credentials were accessed.
 - The observed VM creation is evidence of a published VM startup, but it does
   not establish a separate full compute restart, a harmless update independent
   of that publish, or the database connection peak during overlap.
+
+### Latest instrumented update
+
+A read-only SRE investigation identified the latest update build as created at
+2026-11-11 16:26:07 UTC and successful at 16:28:39 UTC. The build configuration
+confirmed 1 vCPU and 4 GiB RAM.
+
+- Startup health checks briefly failed from 16:28:09–16:28:21 UTC. The API was
+  listening and the worker database check succeeded by 16:28:21 UTC; health
+  returned HTTP 200 at 16:28:44 UTC.
+- Pool logs were present for both API and worker instances. Each process
+  recorded a local peak of one open connection, with zero waiting requests.
+  These process-local values do not prove an old/new instance overlap peak.
+- Aggregate `compute_uptime` fell from about 50,759 seconds to 179 seconds
+  around 16:31 UTC. Available telemetry has no instance count or instance ID,
+  so this does not prove a user-triggered full compute restart or overlap.
+- Monitoring covered a low-volume window and showed no persistent API or
+  database failure after startup. It was not a load test.
 
 ## V2 application pool instrumentation
 
@@ -175,8 +192,9 @@ Observed 2026-11-11 15:58 UTC before the next V2 publish:
 - The current V2 source contains the API and worker pool instrumentation.
   API/web typechecks and artifact builds passed; the session-cookie regression
   tests passed 3/3.
-- This workspace has not yet published the current session-cookie fix or
-  redeployed the instrumentation. No restart-overlap measurement has been made.
+- At this preflight time, the current session-cookie fix and instrumentation
+  had not yet been published. The later instrumented update is documented
+  above; no restart-overlap measurement has been made.
 - The user authorized the pilot. The prepared publish action remains
   user-initiated; no production database writes or V1 access occurred in this
   preflight.
@@ -196,15 +214,15 @@ Observed 2026-11-11 15:58 UTC before the next V2 publish:
   no longer sets the status default to `planned` in that transaction. No
   structural data loss or removals are reported. Review the remaining
   compatibility flag in Publish before confirming.
+- The user corrected the Reserved VM size to 1 CPU and 4 GiB RAM.
 
 ## Remaining gates
 
-- Confirm the exact Reserved VM machine configuration in the Publishing UI.
-- Exercise a full compute restart and a separate harmless published update;
-  verify API and worker recovery after each.
-- Deploy the pool instrumentation to V2, then capture the actual connection
-  peak during an instrumented V2 replacement overlap and compare it with the
-  356-connection planning ceiling.
+- Publish one separate no-schema-change update with the instrumentation already
+  live, then verify API and worker recovery and capture any overlap events.
+- Exercise a separate full compute restart and verify API and worker recovery.
+- Compare any measured replacement peak with the 356-connection planning
+  ceiling; do not substitute aggregate uptime or process-local peaks for it.
 
 Do not treat the V2 pilot as passed until the remaining live-deployment checks
 are completed in an authorized V2 deployment environment.

@@ -459,17 +459,18 @@ test("shutdown cancels a pending worker restart and waits for active children", 
   assert.deepEqual(exits, [0]);
 });
 
-test("shutdown force-kills children that remain open after the timeout", () => {
-  const { supervisor, children, timers, exits } = createHarness();
+test("shutdown logs and force-kills only children still open after the timeout", () => {
+  const { supervisor, children, timers, exits, logs } = createHarness();
   supervisor.start();
 
   const [api, worker] = children;
   supervisor.stop("SIGTERM");
+  worker.emit("close", 0, "SIGTERM");
 
   assert.deepEqual(api.signals, ["SIGTERM"]);
   assert.deepEqual(worker.signals, ["SIGTERM"]);
   assert.equal(api.closed, false);
-  assert.equal(worker.closed, false);
+  assert.equal(worker.closed, true);
 
   const shutdownTimer = timers.find((timer) => timer.delayMs === 12_000);
   assert.ok(shutdownTimer);
@@ -478,7 +479,14 @@ test("shutdown force-kills children that remain open after the timeout", () => {
   shutdownTimer.callback();
 
   assert.deepEqual(api.signals, ["SIGTERM", "SIGKILL"]);
-  assert.deepEqual(worker.signals, ["SIGTERM", "SIGKILL"]);
+  assert.deepEqual(worker.signals, ["SIGTERM"]);
+  assert.deepEqual(
+    logs.error.find(([, message]) => message === "Supervised shutdown timed out"),
+    [
+      { signal: "SIGTERM", services: ["api"] },
+      "Supervised shutdown timed out",
+    ],
+  );
   assert.deepEqual(exits, [1]);
 });
 

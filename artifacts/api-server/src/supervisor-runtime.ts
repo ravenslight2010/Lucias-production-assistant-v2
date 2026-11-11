@@ -201,7 +201,10 @@ export function createSupervisor(
 
     shutdownTimer = setTimer(() => {
       finishShutdown(1, () => {
-        logger.error({ signal }, "Supervised shutdown timed out");
+        logger.error(
+          { signal, services: [...children.keys()] },
+          "Supervised shutdown timed out",
+        );
         for (const child of children.values()) child.kill("SIGKILL");
       });
     }, 12_000);

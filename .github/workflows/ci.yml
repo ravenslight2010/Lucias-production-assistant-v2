@@ -74,6 +74,10 @@ jobs:
         with:
           node-version: "24"
           cache: pnpm
+      - name: Install PostgreSQL (initdb for disposable DB tests)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql postgresql-contrib
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: DB pool-config tests

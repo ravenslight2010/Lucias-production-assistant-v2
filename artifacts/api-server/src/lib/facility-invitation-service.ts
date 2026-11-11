@@ -17,6 +17,7 @@ type InvitationAcceptanceDependencies = {
   database: typeof db;
   getEmailAddresses(userId: string): Promise<InvitationEmailAddress[]>;
   getMembership: typeof getFacilityMembership;
+  afterInvitationLocked?(): Promise<void>;
 };
 
 const defaultDependencies: InvitationAcceptanceDependencies = {
@@ -24,6 +25,11 @@ const defaultDependencies: InvitationAcceptanceDependencies = {
   getEmailAddresses: async (userId) =>
     (await clerkClient.users.getUser(userId)).emailAddresses,
   getMembership: getFacilityMembership,
+};
+
+type InvitationCancellationDependencies = {
+  database: typeof db;
+  revokeInvitation(invitationId: string): Promise<void>;
 };
 
 export async function acceptPendingFacilityInvitation(
@@ -57,6 +63,7 @@ export async function acceptPendingFacilityInvitation(
       .limit(1)
       .for("update");
     if (!invitation) return;
+    await dependencies.afterInvitationLocked?.();
 
     const [existingMembership] = await tx
       .select({ id: facilityMembersTable.id })
@@ -94,4 +101,37 @@ export async function acceptPendingFacilityInvitation(
   });
 
   return dependencies.getMembership(userId);
+}
+
+export async function cancelPendingFacilityInvitation(
+  facilityId: string,
+  invitationId: string,
+  dependencies: InvitationCancellationDependencies,
+) {
+  return dependencies.database.transaction(async (tx) => {
+    const [invitation] = await tx
+      .select({
+        id: facilityInvitationsTable.id,
+        clerkInvitationId: facilityInvitationsTable.clerkInvitationId,
+      })
+      .from(facilityInvitationsTable)
+      .where(
+        and(
+          eq(facilityInvitationsTable.id, invitationId),
+          eq(facilityInvitationsTable.facilityId, facilityId),
+          gt(facilityInvitationsTable.expiresAt, new Date()),
+        ),
+      )
+      .limit(1)
+      .for("update");
+
+    if (!invitation) return "not-found" as const;
+    if (!invitation.clerkInvitationId) return "untracked" as const;
+
+    await dependencies.revokeInvitation(invitation.clerkInvitationId);
+    await tx
+      .delete(facilityInvitationsTable)
+      .where(eq(facilityInvitationsTable.id, invitation.id));
+    return "cancelled" as const;
+  });
 }

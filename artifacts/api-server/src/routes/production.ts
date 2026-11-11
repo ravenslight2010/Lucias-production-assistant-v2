@@ -38,7 +38,10 @@ import {
   mutationRateLimit,
 } from "../middlewares/requestGuards";
 import { HttpError } from "../lib/http-error";
-import { acceptPendingFacilityInvitation } from "../lib/facility-invitation-service";
+import {
+  acceptPendingFacilityInvitation,
+  cancelPendingFacilityInvitation,
+} from "../lib/facility-invitation-service";
 import { executeRunCommand } from "../lib/run-command-service";
 import { createPlannedRun } from "../lib/run-create-service";
 import { toContractRun } from "../lib/run-contract";
@@ -487,41 +490,27 @@ router.delete(
       return;
     }
 
-    const result = await db.transaction(async (tx) => {
-      const [invitation] = await tx
-        .select({
-          id: facilityInvitationsTable.id,
-          clerkInvitationId: facilityInvitationsTable.clerkInvitationId,
-        })
-        .from(facilityInvitationsTable)
-        .where(
-          and(
-            eq(facilityInvitationsTable.id, params.data.invitationId),
-            eq(facilityInvitationsTable.facilityId, access.membership.facilityId),
-            gt(facilityInvitationsTable.expiresAt, new Date()),
-          ),
-        )
-        .limit(1)
-        .for("update");
-
-      if (!invitation) return "not-found" as const;
-      if (!invitation.clerkInvitationId) return "untracked" as const;
-
-      try {
-        await revokeClerkInvitation(invitation.clerkInvitationId);
-      } catch {
-        req.log.warn(
-          { invitationId: invitation.id },
-          "Clerk invitation could not be revoked",
-        );
-        throw new HttpError(502, "The invitation could not be cancelled. Please try again.");
-      }
-
-      await tx
-        .delete(facilityInvitationsTable)
-        .where(eq(facilityInvitationsTable.id, invitation.id));
-      return "cancelled" as const;
-    });
+    const result = await cancelPendingFacilityInvitation(
+      access.membership.facilityId,
+      params.data.invitationId,
+      {
+        database: db,
+        revokeInvitation: async (clerkInvitationId) => {
+          try {
+            await revokeClerkInvitation(clerkInvitationId);
+          } catch {
+            req.log.warn(
+              { invitationId: params.data.invitationId },
+              "Clerk invitation could not be revoked",
+            );
+            throw new HttpError(
+              502,
+              "The invitation could not be cancelled. Please try again.",
+            );
+          }
+        },
+      },
+    );
 
     if (result === "not-found") {
       res.status(404).json({ error: "Pending facility invitation not found." });

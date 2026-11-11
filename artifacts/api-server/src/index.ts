@@ -2,6 +2,9 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { configuredPoolMax, pool } from "@workspace/db";
 import { attachDbPoolMetrics } from "./lib/db-pool-metrics";
+import { updateWorkerAvailabilityFromSupervisor } from "./lib/worker-availability";
+
+process.on("message", updateWorkerAvailabilityFromSupervisor);
 
 const poolMetrics = attachDbPoolMetrics({
   pool,

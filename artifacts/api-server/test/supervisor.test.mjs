@@ -28,9 +28,12 @@ function createHarness() {
         return emit(event, ...args);
       };
       child.closed = false;
+      child.connected = true;
       child.args = args;
       child.options = options;
       child.signals = [];
+      child.messages = [];
+      child.send = (message) => child.messages.push(message);
       child.kill = (signal) => {
         child.signals.push(signal);
         return true;
@@ -134,6 +137,40 @@ test("worker termination restarts one worker without duplicating the API", () =>
   restartedWorker.emit("close", 0, "SIGTERM");
   api.emit("close", 0, "SIGTERM");
   assert.equal(children.length, 3);
+});
+
+test("worker availability is reported through restart and recovery", () => {
+  const { supervisor, children, timers } = createHarness();
+  supervisor.start();
+
+  const [api, worker] = children;
+  assert.deepEqual(api.options.stdio, ["inherit", "inherit", "inherit", "ipc"]);
+  assert.deepEqual(api.messages, [
+    { type: "worker-availability", status: "starting" },
+    { type: "worker-availability", status: "available" },
+  ]);
+
+  worker.emit("close", 1, "SIGKILL");
+  assert.deepEqual(api.messages.at(-1), {
+    type: "worker-availability",
+    status: "restarting",
+  });
+  assert.equal(timers.at(-1).delayMs, 1_000);
+
+  timers.at(-1).callback();
+  assert.deepEqual(api.messages.at(-1), {
+    type: "worker-availability",
+    status: "available",
+  });
+  assert.equal(api.messages.length, 4);
+  assert.ok(
+    api.messages.every(
+      (message) =>
+        Object.keys(message).sort().join(",") === "status,type" &&
+        !("pid" in message) &&
+        !("error" in message),
+    ),
+  );
 });
 
 test("worker restart delay increases exponentially and caps at 30 seconds", () => {

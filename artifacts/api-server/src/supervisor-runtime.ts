@@ -60,9 +60,25 @@ export function createSupervisor(
   const children = new Map<ServiceSpec["name"], ChildProcess>();
   const restartTimers = new Map<ServiceSpec["name"], Timer>();
   const restartCounts = new Map<ServiceSpec["name"], number>();
+  let workerAvailability: "starting" | "available" | "restarting" = "starting";
   let stopping = false;
   let shutdownTimer: Timer | undefined;
   let shutdownExitCode: number | undefined;
+
+  function publishWorkerAvailability(): void {
+    const api = children.get("api");
+    if (api?.connected) {
+      api.send({ type: "worker-availability", status: workerAvailability });
+    }
+  }
+
+  function setWorkerAvailability(
+    status: "starting" | "available" | "restarting",
+  ): void {
+    if (workerAvailability === status) return;
+    workerAvailability = status;
+    publishWorkerAvailability();
+  }
 
   function finishShutdown(code: number, beforeExit?: () => void): void {
     if (shutdownExitCode !== undefined) return;
@@ -90,10 +106,18 @@ export function createSupervisor(
           DB_APPLICATION_NAME: `lucia-v2-${service.name}`,
           DB_POOL_MAX: String(service.dbPoolMax),
         },
-        stdio: "inherit",
+        stdio:
+          service.name === "api"
+            ? ["inherit", "inherit", "inherit", "ipc"]
+            : "inherit",
       },
     );
     children.set(service.name, child);
+    if (service.name === "api") {
+      publishWorkerAvailability();
+    } else {
+      setWorkerAvailability("available");
+    }
     const startedAt = now();
     logger.info(
       { service: service.name, dbPoolMax: service.dbPoolMax },
@@ -101,6 +125,9 @@ export function createSupervisor(
     );
 
     child.once("error", (error) => {
+      if (service.name === "worker") {
+        setWorkerAvailability("restarting");
+      }
       const errorCode =
         typeof error === "object" &&
         error !== null &&
@@ -126,6 +153,10 @@ export function createSupervisor(
           finishShutdown(0);
         }
         return;
+      }
+
+      if (service.name === "worker") {
+        setWorkerAvailability("restarting");
       }
 
       if (uptimeMs >= 60_000) restartCounts.set(service.name, 0);

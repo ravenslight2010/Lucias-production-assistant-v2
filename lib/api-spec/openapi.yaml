@@ -437,8 +437,21 @@ components:
       properties:
         status:
           type: string
+          enum: [ok, degraded]
+        api:
+          type: string
+          enum: [ok]
+        database:
+          type: string
+          enum: [ok, degraded]
+        worker:
+          type: string
+          enum: [starting, available, restarting]
       required:
         - status
+        - api
+        - database
+        - worker
     ErrorResponse:
       type: object
       properties:

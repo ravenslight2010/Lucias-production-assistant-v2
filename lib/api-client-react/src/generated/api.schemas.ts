@@ -5,8 +5,43 @@
  * Run-control API for Lucia's Production Assistant V2
  * OpenAPI spec version: 0.1.0
  */
+export type HealthStatusStatus = typeof HealthStatusStatus[keyof typeof HealthStatusStatus];
+
+
+export const HealthStatusStatus = {
+  ok: 'ok',
+  degraded: 'degraded',
+} as const;
+
+export type HealthStatusApi = typeof HealthStatusApi[keyof typeof HealthStatusApi];
+
+
+export const HealthStatusApi = {
+  ok: 'ok',
+} as const;
+
+export type HealthStatusDatabase = typeof HealthStatusDatabase[keyof typeof HealthStatusDatabase];
+
+
+export const HealthStatusDatabase = {
+  ok: 'ok',
+  degraded: 'degraded',
+} as const;
+
+export type HealthStatusWorker = typeof HealthStatusWorker[keyof typeof HealthStatusWorker];
+
+
+export const HealthStatusWorker = {
+  starting: 'starting',
+  available: 'available',
+  restarting: 'restarting',
+} as const;
+
 export interface HealthStatus {
-  status: string;
+  status: HealthStatusStatus;
+  api: HealthStatusApi;
+  database: HealthStatusDatabase;
+  worker: HealthStatusWorker;
 }
 
 export interface ErrorResponse {

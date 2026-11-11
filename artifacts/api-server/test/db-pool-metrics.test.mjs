@@ -1,11 +1,69 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { readFileSync } from "node:fs";
+import { createServer } from "node:net";
+import path from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import {
   attachDbPoolMetrics,
   closeDbPoolAndObserveShutdown,
 } from "../dist/lib/db-pool-metrics.mjs";
+
+const artifactDir = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
+
+async function getUnusedPort() {
+  const server = createServer();
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const { port } = server.address();
+  await new Promise((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
+  });
+  return port;
+}
+
+function runServiceProcess(entrypoint, env, { stopWhenReady } = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [path.join(artifactDir, "dist", entrypoint)], {
+      cwd: artifactDir,
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    let signalSent = false;
+    const timeout = setTimeout(() => {
+      child.kill("SIGKILL");
+      reject(new Error(`${entrypoint} did not stop in time.\n${stdout}\n${stderr}`));
+    }, 15_000);
+
+    child.stdout.setEncoding("utf8").on("data", (chunk) => {
+      stdout += chunk;
+      if (!signalSent && stopWhenReady && stdout.includes(stopWhenReady)) {
+        signalSent = true;
+        child.kill("SIGTERM");
+      }
+    });
+    child.stderr.setEncoding("utf8").on("data", (chunk) => {
+      stderr += chunk;
+    });
+    child.once("error", (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+    child.once("close", (code, signal) => {
+      clearTimeout(timeout);
+      resolve({ code, signal, stdout, stderr });
+    });
+  });
+}
 
 const evidenceDocument = readFileSync(
   new URL("../../../docs/v2-reserved-vm-pilot-evidence.md", import.meta.url),
@@ -292,6 +350,47 @@ test("API and worker record terminal pool observations only after pool close suc
         );
       },
     );
+  }
+});
+
+test("API and worker subprocesses flush the final pool record before exiting", async (t) => {
+  for (const service of ["api", "worker"]) {
+    await t.test(service, { timeout: 20_000 }, async () => {
+      const databasePort = await getUnusedPort();
+      const env = {
+        ...process.env,
+        DATABASE_URL: `postgresql://test:test@127.0.0.1:${databasePort}/test`,
+        NODE_ENV: "development",
+        LOG_LEVEL: "info",
+      };
+      delete env.NODE_TEST_CONTEXT;
+      delete env.PILOT_MARKER_ID;
+
+      let result;
+      if (service === "api") {
+        const apiPort = await getUnusedPort();
+        result = await runServiceProcess("index.mjs", {
+          ...env,
+          PORT: String(apiPort),
+        }, { stopWhenReady: "API server listening" });
+      } else {
+        result = await runServiceProcess("worker.mjs", env);
+      }
+
+      assert.equal(result.signal, null, result.stderr);
+      assert.equal(result.code, service === "api" ? 0 : 1, result.stderr);
+      const plainStdout = result.stdout.replace(/\u001b\[[0-9;]*m/g, "");
+      assert.match(plainStdout, /metric: "v2_db_pool"/);
+      assert.match(plainStdout, new RegExp(`service: "${service}"`));
+      assert.match(plainStdout, /event: "shutdown"/);
+      assert.match(plainStdout, /V2 database pool connection observation/);
+      if (service === "api") {
+        assert.match(plainStdout, /API server listening/);
+        assert.match(plainStdout, /Shutting down API server/);
+      } else {
+        assert.match(plainStdout, /Worker database check failed/);
+      }
+    });
   }
 });
 

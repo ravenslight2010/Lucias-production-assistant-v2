@@ -1,5 +1,5 @@
 import app from "./app";
-import { logger } from "./lib/logger";
+import { exitAfterLogFlush, logger } from "./lib/logger";
 import { configuredPoolMax, pool } from "@workspace/db";
 import {
   attachDbPoolMetrics,
@@ -46,7 +46,7 @@ async function shutdown(signal: string) {
   logger.info({ signal }, "Shutting down API server");
   const timeout = setTimeout(() => {
     logger.error({ signal }, "Graceful shutdown timed out");
-    process.exit(1);
+    exitAfterLogFlush(1);
   }, 10_000);
   timeout.unref();
 
@@ -55,10 +55,10 @@ async function shutdown(signal: string) {
     try {
       await closeDbPoolAndObserveShutdown(pool, poolMetrics);
       clearTimeout(timeout);
-      process.exit(error ? 1 : 0);
+      exitAfterLogFlush(error ? 1 : 0);
     } catch (poolError) {
       logger.error({ err: poolError, signal }, "Database pool close failed");
-      process.exit(1);
+      exitAfterLogFlush(1);
     }
   });
 }

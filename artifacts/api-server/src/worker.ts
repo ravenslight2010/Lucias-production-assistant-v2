@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import { configuredPoolMax, db, facilitiesTable, pool } from "@workspace/db";
-import { logger } from "./lib/logger";
+import { exitAfterLogFlush, logger } from "./lib/logger";
 import {
   attachDbPoolMetrics,
   closeDbPoolAndObserveShutdown,
@@ -84,10 +84,10 @@ async function stop(signal: string): Promise<void> {
   logger.info({ signal }, "Worker shutting down");
   try {
     await closeDbPoolAndObserveShutdown(pool, poolMetrics);
-    process.exit(0);
+    exitAfterLogFlush(0);
   } catch {
     logger.error({ signal }, "Worker database pool shutdown failed");
-    process.exit(1);
+    exitAfterLogFlush(1);
   }
 }
 
@@ -109,7 +109,7 @@ async function runHeartbeat(): Promise<void> {
     } catch {
       logger.error({ errorCode }, "Worker database pool shutdown failed");
     } finally {
-      process.exit(1);
+      exitAfterLogFlush(1);
     }
   }
 

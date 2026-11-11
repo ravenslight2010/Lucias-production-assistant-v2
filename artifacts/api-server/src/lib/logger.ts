@@ -18,3 +18,7 @@ export const logger = pino({
         },
       }),
 });
+
+export function exitAfterLogFlush(exitCode: number): void {
+  logger.flush((error) => process.exit(error ? 1 : exitCode));
+}

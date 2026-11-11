@@ -36,7 +36,7 @@ export const facilityStationLayoutsTable = pgTable(
     ),
     check(
       "facility_station_layout_stations_bounded_chk",
-      sql`CASE WHEN jsonb_typeof(${table.stations}) = 'array' THEN jsonb_array_length(${table.stations}) <= 50 ELSE false END`,
+      sql`jsonb_typeof(${table.stations}) = 'array' AND jsonb_array_length(CASE WHEN jsonb_typeof(${table.stations}) = 'array' THEN ${table.stations} ELSE '[]'::jsonb END) <= 50`,
     ),
   ],
 );

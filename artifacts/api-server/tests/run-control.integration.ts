@@ -185,6 +185,106 @@ test("V2 session middleware rejects changed Clerk identities over HTTP", async (
   }
 });
 
+test("authenticated run creation rejects invalid setup without saving history", async () => {
+  const [facility] = await db
+    .insert(facilitiesTable)
+    .values({ name: "Invalid run setup integration facility" })
+    .returning();
+  const actorId = `invalid-run-setup-owner-${randomUUID()}`;
+  await db
+    .insert(facilityMembersTable)
+    .values({ facilityId: facility.id, userId: actorId, role: "owner" });
+
+  const clerkSessionId = `invalid-setup-session-${randomUUID()}`;
+  const session = issueV2Session(actorId, clerkSessionId);
+  const app = express();
+  app.use(express.json(), cookieParser());
+  app.use((req, _res, next) => {
+    const authHandler = Object.assign(
+      () => ({
+        userId: actorId,
+        sessionId: clerkSessionId,
+        tokenType: "session_token" as const,
+      }),
+      { [Symbol.for("@clerk/express.auth")]: true },
+    );
+    (req as Request & { auth: typeof authHandler }).auth = authHandler;
+    next();
+  });
+  app.use(productionRouter);
+  app.use(
+    (error: unknown, _req: Request, res: Response, _next: NextFunction) => {
+      if (error instanceof HttpError) {
+        res.status(error.statusCode).json({ error: error.message });
+        return;
+      }
+      res.status(500).json({ error: "Request could not be completed." });
+    },
+  );
+
+  const server = createServer(app);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  const origin = `http://127.0.0.1:${address.port}`;
+  const invalidRequests = [
+    {
+      requestId: randomUUID(),
+      setupSnapshot: { label: "", targetCases: 4 },
+    },
+    {
+      requestId: randomUUID(),
+      setupSnapshot: { label: "Invalid case count", targetCases: 0 },
+    },
+    {
+      requestId: randomUUID(),
+      setupSnapshot: {
+        label: "Unsupported case count",
+        targetCases: 2_147_483_648,
+      },
+    },
+  ];
+
+  try {
+    for (const body of invalidRequests) {
+      const response = await fetch(`${origin}/v2/runs`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: `v2_session=${session.token}`,
+          origin,
+          "x-csrf-token": session.csrfToken,
+        },
+        body: JSON.stringify(body),
+      });
+      assert.equal(
+        response.status,
+        400,
+        "invalid run setup must be a client error",
+      );
+    }
+
+    const savedRuns = await db
+      .select()
+      .from(productionRunsTable)
+      .where(eq(productionRunsTable.facilityId, facility.id));
+    const savedReceipts = await db
+      .select()
+      .from(runCreateReceiptsTable)
+      .where(eq(runCreateReceiptsTable.facilityId, facility.id));
+    assert.deepEqual(savedRuns, [], "invalid requests must not create runs");
+    assert.deepEqual(
+      savedReceipts,
+      [],
+      "invalid requests must not create run-creation receipts",
+    );
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
 test("signed HTTP requests enforce current facility roles without rotating the session", async () => {
   const [facility] = await db
     .insert(facilitiesTable)

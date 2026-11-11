@@ -61,6 +61,7 @@ import {
   setV2SessionCookie,
 } from "../lib/v2-session";
 
+const maxTargetCases = 2_147_483_647;
 const router: IRouter = Router();
 
 router.use(requireAuth);
@@ -697,7 +698,11 @@ router.post(
   mutationRateLimit,
   async (req, res): Promise<void> => {
     const parsed = CreateRunBody.safeParse(req.body);
-    if (!parsed.success || !parsed.data.setupSnapshot.label.trim()) {
+    if (
+      !parsed.success ||
+      !parsed.data.setupSnapshot.label.trim() ||
+      parsed.data.setupSnapshot.targetCases > maxTargetCases
+    ) {
       res.status(400).json({ error: "Enter a label and target case count." });
       return;
     }

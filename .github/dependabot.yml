@@ -1,20 +1,41 @@
-# Keep npm workspace deps and GitHub Actions current.
+# Keep npm workspace deps and GitHub Actions current; prefer grouped PRs.
 version: 2
 updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 10
+      day: "monday"
+    open-pull-requests-limit: 15
     versioning-strategy: increase
+    labels:
+      - dependencies
+    commit-message:
+      prefix: "chore(deps)"
     groups:
       production-deps:
         dependency-type: production
+        update-types:
+          - "minor"
+          - "patch"
       development-deps:
         dependency-type: development
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
     open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: "ci(deps)"
+    groups:
+      actions:
+        patterns:
+          - "*"

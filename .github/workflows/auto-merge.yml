@@ -1,0 +1,56 @@
+# Automatically enable squash auto-merge for non-draft PRs from this repo.
+# Branch protection still requires green checks before the merge completes.
+name: Auto-merge
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  enable-auto-merge:
+    name: Enable auto-merge when eligible
+    # Same-repo only (never forks). Skip drafts. Dependabot majors skipped below.
+    if: >
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Dependabot metadata (optional)
+        id: metadata
+        if: github.event.pull_request.user.login == 'dependabot[bot]'
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Skip major Dependabot bumps
+        id: skip
+        if: github.event.pull_request.user.login == 'dependabot[bot]'
+        run: |
+          echo "update_type=${{ steps.metadata.outputs.update-type }}"
+          if [ "${{ steps.metadata.outputs.update-type }}" = "version-update:semver-major" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Skipping major Dependabot bump — needs a human."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Enable squash auto-merge
+        if: steps.skip.outputs.skip != 'true'
+        run: |
+          # Idempotent: succeeds if auto-merge already enabled or merges when already green.
+          gh pr merge --auto --squash "$PR_URL" || {
+            # If already merged or auto-merge already on, do not fail the job.
+            state="$(gh pr view "$PR_URL" --json state,autoMergeRequest --jq '{state,auto:.autoMergeRequest}')"
+            echo "pr_state=$state"
+            echo "$state" | grep -q '"state":"MERGED"' && exit 0
+            echo "$state" | grep -q 'autoMergeRequest' && exit 0
+            exit 1
+          }
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

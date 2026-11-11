@@ -476,6 +476,59 @@ test("a synchronous launcher failure retries without blocking the other service"
   assert.equal(children[1].closed, false);
 });
 
+test("simultaneous synchronous launcher failures retry independently", () => {
+  const launchAttempts = [];
+  const launchCounts = new Map();
+  const { supervisor, children, timers } = createHarness({
+    launcher(command, args, options, defaultLauncher) {
+      const service = options.env.DB_APPLICATION_NAME;
+      launchAttempts.push(service);
+      const launches = launchCounts.get(service) ?? 0;
+      launchCounts.set(service, launches + 1);
+      if (launches === 0) {
+        throw Object.assign(new Error(`${service} launch failed`), {
+          code: "EAGAIN",
+        });
+      }
+      return defaultLauncher(command, args, options);
+    },
+  });
+
+  supervisor.start();
+
+  assert.deepEqual(launchAttempts, ["lucia-v2-api", "lucia-v2-worker"]);
+  assert.equal(children.length, 0);
+  assert.equal(timers.length, 2);
+  const [apiRetry, workerRetry] = timers;
+  assert.equal(apiRetry.delayMs, 1_000);
+  assert.equal(workerRetry.delayMs, 1_000);
+
+  workerRetry.callback();
+  workerRetry.callback();
+  assert.deepEqual(launchAttempts, [
+    "lucia-v2-api",
+    "lucia-v2-worker",
+    "lucia-v2-worker",
+  ]);
+  assert.equal(children.length, 1);
+  assert.equal(children[0].options.env.DB_APPLICATION_NAME, "lucia-v2-worker");
+
+  apiRetry.callback();
+  apiRetry.callback();
+  assert.deepEqual(launchAttempts, [
+    "lucia-v2-api",
+    "lucia-v2-worker",
+    "lucia-v2-worker",
+    "lucia-v2-api",
+  ]);
+  assert.equal(children.length, 2);
+  assert.deepEqual(
+    children.map((child) => child.options.env.DB_APPLICATION_NAME).sort(),
+    ["lucia-v2-api", "lucia-v2-worker"],
+  );
+  assert.equal(children.every((child) => !child.closed), true);
+});
+
 test("API and worker spawn failures retry independently", () => {
   const { supervisor, children, timers } = createHarness();
   supervisor.start();

@@ -38,6 +38,82 @@ after(async () => {
   await pool.end();
 });
 
+test("V2 session middleware rejects changed Clerk identities over HTTP", async () => {
+  const actorId = `http-session-owner-${randomUUID()}`;
+  const clerkSessionId = `http-session-${randomUUID()}`;
+  let currentClerkUserId = actorId;
+  let currentClerkSessionId = clerkSessionId;
+  const v2Session = issueV2Session(actorId, clerkSessionId);
+
+  const app = express();
+  app.use(express.json(), cookieParser());
+  app.use((req, _res, next) => {
+    const authHandler = Object.assign(
+      () => ({
+        userId: currentClerkUserId,
+        sessionId: currentClerkSessionId,
+        tokenType: "session_token" as const,
+      }),
+      { [Symbol.for("@clerk/express.auth")]: true },
+    );
+    (req as Request & { auth: typeof authHandler }).auth = authHandler;
+    next();
+  });
+  app.use(productionRouter);
+  app.use(
+    (error: unknown, _req: Request, res: Response, _next: NextFunction) => {
+      if (error instanceof HttpError) {
+        res.status(error.statusCode).json({ error: error.message });
+        return;
+      }
+      res.status(500).json({ error: "Request could not be completed." });
+    },
+  );
+
+  const server = createServer(app);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  const origin = `http://127.0.0.1:${address.port}`;
+  const send = () =>
+    fetch(`${origin}/v2/session`, {
+      method: "DELETE",
+      headers: {
+        cookie: `v2_session=${v2Session.token}`,
+        origin,
+        "x-csrf-token": v2Session.csrfToken,
+      },
+    });
+
+  try {
+    currentClerkUserId = `${actorId}-different`;
+    assert.equal(
+      (await send()).status,
+      401,
+      "a signed cookie must be rejected for a different Clerk user",
+    );
+
+    currentClerkUserId = actorId;
+    currentClerkSessionId = `${clerkSessionId}-different`;
+    assert.equal(
+      (await send()).status,
+      401,
+      "a signed cookie must be rejected for a different Clerk session",
+    );
+
+    currentClerkSessionId = clerkSessionId;
+    assert.equal(
+      (await send()).status,
+      204,
+      "the matching Clerk identity must reach the protected route",
+    );
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
 test("signed HTTP requests enforce current facility roles without rotating the session", async () => {
   const [facility] = await db
     .insert(facilitiesTable)

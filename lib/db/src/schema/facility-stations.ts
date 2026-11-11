@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { check, integer, jsonb, pgTable, timestamp, uuid } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
-import { facilitiesTable } from "./production";
+import { facilitiesTable } from "./production.ts";
 
 export type FacilityStationArea =
   | "dough_sauce_prep"

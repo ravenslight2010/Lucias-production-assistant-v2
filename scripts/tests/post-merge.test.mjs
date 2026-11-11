@@ -44,6 +44,10 @@ test("accepts an explicitly unchanged schema", () => {
   assert.equal(runSetup("[i] No changes detected").status, 0);
 });
 
+test("accepts the database push script's no-schema-changes result", () => {
+  assert.equal(runSetup("[✓] No schema changes").status, 0);
+});
+
 test("accepts an explicitly applied schema", () => {
   assert.equal(runSetup("[✓] Changes applied").status, 0);
 });

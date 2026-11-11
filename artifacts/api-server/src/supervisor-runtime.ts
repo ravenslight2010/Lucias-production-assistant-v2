@@ -238,6 +238,7 @@ export function createSupervisor(
   function stop(signal: string): void {
     if (stopping) return;
     stopping = true;
+    const shutdownRequestedAt = now();
     logger.info({ signal }, "Process supervisor shutting down");
 
     for (const timer of restartTimers.values()) clearTimer(timer);
@@ -246,7 +247,11 @@ export function createSupervisor(
     shutdownTimer = setTimer(() => {
       finishShutdown(1, () => {
         logger.error(
-          { signal, services: [...children.keys()] },
+          {
+            signal,
+            services: [...children.keys()],
+            shutdownDurationMs: now() - shutdownRequestedAt,
+          },
           "Supervised shutdown timed out",
         );
         for (const child of children.values()) child.kill("SIGKILL");

@@ -799,10 +799,13 @@ test("shutdown cancels a pending worker restart and waits for active children", 
 });
 
 test("shutdown logs and force-kills only children still open after the timeout", () => {
-  const { supervisor, children, timers, exits, logs } = createHarness();
+  const { supervisor, children, timers, exits, logs, setNow } = createHarness();
   supervisor.start();
 
   const [api, worker] = children;
+  const shutdownRequestedAt = 5_000;
+  const deadlineReachedAt = 17_345;
+  setNow(shutdownRequestedAt);
   supervisor.stop("SIGTERM");
   worker.emit("close", 0, "SIGTERM");
 
@@ -815,6 +818,7 @@ test("shutdown logs and force-kills only children still open after the timeout",
   assert.ok(shutdownTimer);
   assert.equal(shutdownTimer.cleared, false);
 
+  setNow(deadlineReachedAt);
   shutdownTimer.callback();
 
   assert.deepEqual(api.signals, ["SIGTERM", "SIGKILL"]);
@@ -822,7 +826,11 @@ test("shutdown logs and force-kills only children still open after the timeout",
   assert.deepEqual(
     logs.error.find(([, message]) => message === "Supervised shutdown timed out"),
     [
-      { signal: "SIGTERM", services: ["api"] },
+      {
+        signal: "SIGTERM",
+        services: ["api"],
+        shutdownDurationMs: deadlineReachedAt - shutdownRequestedAt,
+      },
       "Supervised shutdown timed out",
     ],
   );
@@ -848,11 +856,43 @@ test("shutdown timeout log includes every active service", () => {
   assert.deepEqual(
     logs.error.find(([, message]) => message === "Supervised shutdown timed out"),
     [
-      { signal: "SIGTERM", services: ["api", "worker"] },
+      {
+        signal: "SIGTERM",
+        services: ["api", "worker"],
+        shutdownDurationMs: 0,
+      },
       "Supervised shutdown timed out",
     ],
   );
   assert.deepEqual(exits, [1]);
+});
+
+test("shutdown timeout duration is measured from the shutdown request", () => {
+  const { supervisor, timers, logs, setNow } = createHarness();
+  supervisor.start();
+
+  const shutdownRequestedAt = 5_000;
+  const deadlineReachedAt = 17_345;
+  setNow(shutdownRequestedAt);
+  supervisor.stop("SIGTERM");
+
+  const shutdownTimer = timers.find((timer) => timer.delayMs === 12_000);
+  assert.ok(shutdownTimer);
+
+  setNow(deadlineReachedAt);
+  shutdownTimer.callback();
+
+  assert.deepEqual(
+    logs.error.find(([, message]) => message === "Supervised shutdown timed out"),
+    [
+      {
+        signal: "SIGTERM",
+        services: ["api", "worker"],
+        shutdownDurationMs: deadlineReachedAt - shutdownRequestedAt,
+      },
+      "Supervised shutdown timed out",
+    ],
+  );
 });
 
 test("repeated shutdown requests keep the original timeout and signal", () => {

@@ -401,6 +401,34 @@ test("spawn errors are logged and retried after the child closes", () => {
   assert.deepEqual(worker.signals, []);
 });
 
+test("API spawn errors log the operating-system reason without environment data", () => {
+  const { supervisor, children, logs } = createHarness();
+  supervisor.start();
+
+  const [api] = children;
+  api.emit(
+    "error",
+    Object.assign(new Error("API entry not found"), { code: "ENOENT" }),
+  );
+
+  assert.deepEqual(logs.error, [
+    [
+      {
+        service: "api",
+        errorCode: "ENOENT",
+        errorMessage: "API entry not found",
+      },
+      "Supervised process could not start",
+    ],
+  ]);
+  assert.deepEqual(Object.keys(logs.error[0][0]).sort(), [
+    "errorCode",
+    "errorMessage",
+    "service",
+  ]);
+  assert.equal("env" in logs.error[0][0], false);
+});
+
 test("a synchronous launcher failure retries without blocking the other service", () => {
   const launchAttempts = [];
   let apiLaunches = 0;

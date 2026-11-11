@@ -230,7 +230,11 @@ test("spawn errors are logged and retried after the child closes", () => {
 
   assert.equal(logs.error.length, 1);
   assert.deepEqual(logs.error[0], [
-    { service: "worker", errorCode: "ENOENT" },
+    {
+      service: "worker",
+      errorCode: "ENOENT",
+      errorMessage: "worker entry not found",
+    },
     "Supervised process could not start",
   ]);
   assert.equal(children.length, 2);

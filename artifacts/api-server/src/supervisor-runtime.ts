@@ -108,8 +108,10 @@ export function createSupervisor(
         typeof error.code === "string"
           ? error.code
           : "spawn_failed";
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       logger.error(
-        { service: service.name, errorCode },
+        { service: service.name, errorCode, errorMessage },
         "Supervised process could not start",
       );
     });

@@ -8,6 +8,17 @@
 | `dependency-review.yml` | PR dependency vulnerability/license review |
 | `codeql.yml` | CodeQL JS/TS analysis (push/PR + weekly) |
 | `lockfile.yml` | pnpm-only lockfile + frozen install |
-| `dependabot.yml` | Weekly npm + GitHub Actions updates |
+| `dependabot-auto-merge.yml` | Auto-merge non-major Dependabot PRs when checks pass |
+| `dependabot.yml` | Weekly npm + GitHub Actions updates (grouped) |
 
-Kept smaller than V1. Add browser/e2e, Docker, or release lanes only when those surfaces exist in V2.
+## Repo settings (optimized)
+
+- **Auto-merge** enabled — green PRs can merge without a second click
+- **Delete branch on merge** enabled
+- **`main` protection** — requires Typecheck, Build, Unit and API tests, lockfile check; must be up to date
+- **Dependabot security updates** + vulnerability alerts on
+- **Secret scanning** + push protection on
+- **Private vulnerability reporting** on
+- Admins are **not** blocked by branch protection (can hotfix if needed)
+
+Kept smaller than V1. Add browser/e2e or Docker lanes when those surfaces exist.

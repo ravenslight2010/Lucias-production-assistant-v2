@@ -1267,3 +1267,74 @@ test("deleting a run removes its create receipt and allows a retry to recreate i
   assert.equal(replacementReceipts.length, 1);
   assert.equal(replacementReceipts[0].runId, retry.run.id);
 });
+
+test("run creation retries are isolated by user and facility", async () => {
+  const [firstFacility, secondFacility] = await db
+    .insert(facilitiesTable)
+    .values([
+      { name: "First retry isolation facility" },
+      { name: "Second retry isolation facility" },
+    ])
+    .returning();
+  const firstUserId = `run-create-retry-user-${randomUUID()}`;
+  const secondUserId = `run-create-retry-user-${randomUUID()}`;
+  const requestId = randomUUID();
+  const firstSetup = { label: "First user's run", targetCases: 3 };
+  const secondUserSetup = { label: "Second user's run", targetCases: 5 };
+  const secondFacilitySetup = {
+    label: "Run in second facility",
+    targetCases: 7,
+  };
+
+  const firstRun = await createPlannedRun({
+    facilityId: firstFacility.id,
+    actorUserId: firstUserId,
+    requestId,
+    setupSnapshot: firstSetup,
+  });
+  const secondUserRun = await createPlannedRun({
+    facilityId: firstFacility.id,
+    actorUserId: secondUserId,
+    requestId,
+    setupSnapshot: secondUserSetup,
+  });
+  const secondFacilityRun = await createPlannedRun({
+    facilityId: secondFacility.id,
+    actorUserId: firstUserId,
+    requestId,
+    setupSnapshot: secondFacilitySetup,
+  });
+
+  assert.equal(firstRun.replayed, false);
+  assert.equal(secondUserRun.replayed, false);
+  assert.equal(secondFacilityRun.replayed, false);
+  assert.notEqual(firstRun.run.id, secondUserRun.run.id);
+  assert.notEqual(firstRun.run.id, secondFacilityRun.run.id);
+  assert.notEqual(secondUserRun.run.id, secondFacilityRun.run.id);
+
+  const firstUserRetry = await createPlannedRun({
+    facilityId: firstFacility.id,
+    actorUserId: firstUserId,
+    requestId,
+    setupSnapshot: firstSetup,
+  });
+  const secondUserRetry = await createPlannedRun({
+    facilityId: firstFacility.id,
+    actorUserId: secondUserId,
+    requestId,
+    setupSnapshot: secondUserSetup,
+  });
+  const secondFacilityRetry = await createPlannedRun({
+    facilityId: secondFacility.id,
+    actorUserId: firstUserId,
+    requestId,
+    setupSnapshot: secondFacilitySetup,
+  });
+
+  assert.equal(firstUserRetry.replayed, true);
+  assert.equal(firstUserRetry.run.id, firstRun.run.id);
+  assert.equal(secondUserRetry.replayed, true);
+  assert.equal(secondUserRetry.run.id, secondUserRun.run.id);
+  assert.equal(secondFacilityRetry.replayed, true);
+  assert.equal(secondFacilityRetry.run.id, secondFacilityRun.run.id);
+});

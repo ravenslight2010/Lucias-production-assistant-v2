@@ -1,7 +1,7 @@
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import {
   db,
   facilitiesTable,
@@ -144,6 +144,108 @@ test("independent signed-in sessions share canonical revisions and safe retries"
     1,
     "legacy V2 runs use the smallest valid target because the old schema stored no count",
   );
+
+  const legacyLifecycleIds = [
+    "20000000-0000-4000-8000-000000000002",
+    "20000000-0000-4000-8000-000000000003",
+    "20000000-0000-4000-8000-000000000004",
+  ];
+  const legacyLifecycleRows = await db
+    .select()
+    .from(productionRunsTable)
+    .where(inArray(productionRunsTable.id, legacyLifecycleIds));
+  const legacyLifecycleRuns = new Map(
+    legacyLifecycleRows.map((row) => [row.id, toContractRun(row)]),
+  );
+  const expectedLegacyRuns = [
+    {
+      id: legacyLifecycleIds[0],
+      status: "running",
+      revision: 7,
+      createdAt: "2024-02-01T08:00:00.000Z",
+      updatedAt: "2024-02-02T08:15:00.000Z",
+      startedAt: "2024-02-01T08:10:00.000Z",
+      pausedAt: null,
+      resumedAt: "2024-02-01T09:00:00.000Z",
+      completedAt: null,
+      pauseIntervals: [
+        {
+          startedAt: "2024-02-01T08:30:00.000Z",
+          endedAt: "2024-02-01T09:00:00.000Z",
+        },
+      ],
+    },
+    {
+      id: legacyLifecycleIds[1],
+      status: "paused",
+      revision: 8,
+      createdAt: "2024-03-01T09:00:00.000Z",
+      updatedAt: "2024-03-02T12:00:00.000Z",
+      startedAt: "2024-03-01T09:10:00.000Z",
+      pausedAt: "2024-03-02T12:00:00.000Z",
+      resumedAt: "2024-03-02T11:00:00.000Z",
+      completedAt: null,
+      pauseIntervals: [
+        {
+          startedAt: "2024-03-01T10:30:00.000Z",
+          endedAt: "2024-03-01T11:00:00.000Z",
+        },
+        {
+          startedAt: "2024-03-02T12:00:00.000Z",
+          endedAt: null,
+        },
+      ],
+    },
+    {
+      id: legacyLifecycleIds[2],
+      status: "completed",
+      revision: 10,
+      createdAt: "2024-04-01T07:00:00.000Z",
+      updatedAt: "2024-04-02T14:00:00.000Z",
+      startedAt: "2024-04-01T07:10:00.000Z",
+      pausedAt: null,
+      resumedAt: "2024-04-02T11:30:00.000Z",
+      completedAt: "2024-04-02T14:00:00.000Z",
+      pauseIntervals: [
+        {
+          startedAt: "2024-04-01T08:00:00.000Z",
+          endedAt: "2024-04-01T08:30:00.000Z",
+        },
+        {
+          startedAt: "2024-04-02T10:00:00.000Z",
+          endedAt: "2024-04-02T11:30:00.000Z",
+        },
+      ],
+    },
+  ] as const;
+  for (const expected of expectedLegacyRuns) {
+    const run = legacyLifecycleRuns.get(expected.id);
+    assert.ok(run, `legacy ${expected.status} run should remain present`);
+    assert.equal(run.status, expected.status);
+    assert.equal(run.revision, expected.revision);
+    assert.equal(run.setupSnapshot.targetCases, 1);
+    assert.deepEqual(
+      {
+        createdAt: run.createdAt.toISOString(),
+        updatedAt: run.updatedAt.toISOString(),
+        startedAt: run.startedAt?.toISOString() ?? null,
+        pausedAt: run.pausedAt?.toISOString() ?? null,
+        resumedAt: run.resumedAt?.toISOString() ?? null,
+        completedAt: run.completedAt?.toISOString() ?? null,
+      },
+      {
+        createdAt: expected.createdAt,
+        updatedAt: expected.updatedAt,
+        startedAt: expected.startedAt,
+        pausedAt: expected.pausedAt,
+        resumedAt: expected.resumedAt,
+        completedAt: expected.completedAt,
+      },
+      `${expected.status} run timestamps should remain unchanged`,
+    );
+    assert.deepEqual(run.pauseIntervals, expected.pauseIntervals);
+  }
+
   const v1Fixture = await pool.query(
     "SELECT id, label, target_cases FROM v1_archive.v1_runs WHERE id = $1",
     ["v1-fixture"],

@@ -162,6 +162,31 @@ test("graceful shutdown signals both children and prevents a replacement worker"
   assert.equal(children.length, 2);
 });
 
+test("shutdown cancels a pending worker restart and waits for active children", () => {
+  const { supervisor, children, timers, exits } = createHarness();
+  supervisor.start();
+
+  const [api, worker] = children;
+  worker.emit("close", 1, "SIGKILL");
+  const restartTimer = timers.find((timer) => timer.delayMs === 1_000);
+  assert.ok(restartTimer);
+
+  supervisor.stop("SIGTERM");
+
+  assert.equal(restartTimer.cleared, true);
+  assert.deepEqual(api.signals, ["SIGTERM"]);
+  assert.deepEqual(exits, []);
+
+  restartTimer.callback();
+
+  assert.equal(children.length, 2);
+  assert.deepEqual(exits, []);
+  assert.equal(api.closed, false);
+
+  api.emit("close", 0, "SIGTERM");
+  assert.deepEqual(exits, [0]);
+});
+
 test("shutdown force-kills children that remain open after the timeout", () => {
   const { supervisor, children, timers, exits } = createHarness();
   supervisor.start();

@@ -466,6 +466,33 @@ test("shutdown force-kills children that remain open after the timeout", () => {
   assert.deepEqual(exits, [1]);
 });
 
+test("repeated shutdown requests keep the original timeout and signal", () => {
+  const { supervisor, children, timers, exits } = createHarness();
+  supervisor.start();
+
+  const [api, worker] = children;
+  supervisor.stop("SIGTERM");
+  const shutdownTimer = timers.find((timer) => timer.delayMs === 12_000);
+  assert.ok(shutdownTimer);
+
+  supervisor.stop("SIGINT");
+
+  assert.equal(timers.filter((timer) => timer.delayMs === 12_000).length, 1);
+  assert.equal(shutdownTimer.cleared, false);
+  assert.deepEqual(api.signals, ["SIGTERM"]);
+  assert.deepEqual(worker.signals, ["SIGTERM"]);
+
+  shutdownTimer.callback();
+
+  assert.deepEqual(api.signals, ["SIGTERM", "SIGKILL"]);
+  assert.deepEqual(worker.signals, ["SIGTERM", "SIGKILL"]);
+  assert.deepEqual(exits, [1]);
+  assert.deepEqual(
+    timers.filter((timer) => timer.delayMs === 12_000),
+    [shutdownTimer],
+  );
+});
+
 test("late child closes cannot turn a timed-out shutdown into success", () => {
   const { supervisor, children, timers, exits } = createHarness();
   supervisor.start();

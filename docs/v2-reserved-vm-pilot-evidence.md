@@ -115,11 +115,16 @@ To capture the production replacement peak, first deploy this instrumentation
 to the authorized V2 deployment, then perform a separate V2 compute restart
 or publish/restart overlap while both the outgoing and incoming V2 processes
 are instrumented. The initial deployment cannot measure the outgoing
-uninstrumented process. From the resulting `v2_db_pool` logs, order observations
-by `observedAt`, track the latest `connectionsOpen` value for each
-`instanceId`, and sum active V2 API and worker instances at each event to find
-the overlap peak. Record only the UTC capture interval, the summed peak, the
-80% planning ceiling (356), and the resulting headroom or exceedance here.
+uninstrumented process. From the resulting `v2_db_pool` logs, order
+observations by `observedAt`; retain the original log order when timestamps
+match. Track the latest `connectionsOpen` value for each `instanceId`, and sum
+active V2 API and worker instances at each event to find the overlap peak. A
+`shutdown` observation removes that instance from subsequent totals. Record
+only the UTC capture interval, the summed peak, the 80% planning ceiling (356),
+and the resulting headroom or exceedance here.
+The deterministic fixture in `artifacts/api-server/test/db-pool-metrics.test.mjs`
+reconstructs a 12-connection peak across overlapping API and worker instances;
+it verifies the aggregation behavior and is not a production measurement.
 Exclude replica `pg_stat_activity` values from this calculation; they do not
 measure primary application connections. Do not access V1.
 

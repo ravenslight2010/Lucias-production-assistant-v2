@@ -111,17 +111,44 @@ not include a database host, URL, user, SQL, or V1 identifier. The event-based
 records avoid periodic sampling gaps and allow the open connection count to be
 reconstructed for each instrumented process.
 
+### Check capture completeness before reporting a peak
+
+Treat a capture as complete only when every observed `instanceId` has one
+`startup` record with `connectionsOpen = 0`, followed by its lifecycle records
+and one final `shutdown` record with `connectionsOpen = 0`. Each `connect`
+record must increase that instance's open count by exactly one, and each
+`remove` record must decrease it by exactly one. A first observed event other
+than `startup`, a nonzero startup count, a missing shutdown at the end of the
+capture, a connection-count mismatch, a shutdown with connections still open,
+or any event after shutdown makes the capture incomplete. An empty capture is
+incomplete as well. In particular, missing `connect` or `remove` observations
+are surfaced when the recorded counts do not make the expected one-connection
+transition.
+
+If any check fails, label the reconstructed value a **partial observed
+subtotal**, not a measured peak; it is not a reliable bound on the true peak.
+Do not compare it with the planning ceiling as though it were a complete
+measurement. Extend or recapture the log window so it includes each instance's
+startup through shutdown, and investigate count mismatches before reporting a
+peak. These checks detect lifecycle gaps and count discontinuities, but logs
+whose omitted events happen to leave the counts consistent cannot be proven
+complete from these fields alone. Confirm the logging source retained the
+whole capture interval and reconcile the observed instances with the expected
+API and worker processes; an instance with no captured records cannot be
+identified from the pool observations alone.
+
 To capture the production replacement peak, first deploy this instrumentation
 to the authorized V2 deployment, then perform a separate V2 compute restart
 or publish/restart overlap while both the outgoing and incoming V2 processes
 are instrumented. The initial deployment cannot measure the outgoing
 uninstrumented process. From the resulting `v2_db_pool` logs, order
 observations by `observedAt`; retain the original log order when timestamps
-match. Track the latest `connectionsOpen` value for each `instanceId`, and sum
-active V2 API and worker instances at each event to find the overlap peak. A
+match. First apply the completeness checks above. Only for a complete capture,
+track the latest `connectionsOpen` value for each `instanceId`, and sum active
+V2 API and worker instances at each event to find the overlap peak. A
 `shutdown` observation removes that instance from subsequent totals. Record
-only the UTC capture interval, the summed peak, the 80% planning ceiling (356),
-and the resulting headroom or exceedance here.
+only the UTC capture interval, the measured summed peak, the 80% planning
+ceiling (356), and the resulting headroom or exceedance here.
 
 A service emits its terminal `shutdown` observation only after its database
 pool closes successfully. If `pool.end()` fails during API or worker shutdown
@@ -132,7 +159,8 @@ incomplete and investigate the corresponding shutdown error.
 
 The deterministic fixture in `artifacts/api-server/test/db-pool-metrics.test.mjs`
 reconstructs a 12-connection peak across overlapping API and worker instances;
-it verifies the aggregation behavior and is not a production measurement.
+it verifies both aggregation and lifecycle completeness and is not a
+production measurement.
 Exclude replica `pg_stat_activity` values from this calculation; they do not
 measure primary application connections. Do not access V1.
 

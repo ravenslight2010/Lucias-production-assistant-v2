@@ -180,6 +180,13 @@ Observed 2026-11-11 15:58 UTC before the next V2 publish:
 - The user authorized the pilot. The prepared publish action remains
   user-initiated; no production database writes or V1 access occurred in this
   preflight.
+- After the approved development-only constraint rewrite (2026-11-11 16:11
+  UTC), the development table has one equivalent bounded-array check and its
+  existing row still passes. A strict Drizzle push reports no further changes.
+- The recomputed Publish diff now emits one `CHECK` wrapper for this table, with
+  no structural data loss reported. Its broader compatibility flag remains
+  true, so review any Publish warning before proceeding. Production was queried
+  read-only and still has no `facility_station_layouts` table.
 
 ## Remaining gates
 

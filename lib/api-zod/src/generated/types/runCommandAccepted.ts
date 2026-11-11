@@ -5,9 +5,11 @@
  * Run-control API for Lucia's Production Assistant V2
  * OpenAPI spec version: 0.1.0
  */
-import type { ProductionRun } from './productionRun';
+import type { Run } from './run';
 
-export interface RunCommandResult {
-  run: ProductionRun;
+export interface RunCommandAccepted {
+  outcome: 'accepted';
   replayed: boolean;
+  commandId: string;
+  run: Run;
 }

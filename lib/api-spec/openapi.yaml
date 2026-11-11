@@ -35,6 +35,8 @@ paths:
       operationId: getFacilityContext
       tags: [facilities]
       summary: Get the signed-in user's facility
+      security:
+        - clerkSession: []
       responses:
         "200":
           description: Facility context, or null before setup
@@ -44,11 +46,45 @@ paths:
                 $ref: "#/components/schemas/FacilityContext"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /v2/session:
+    post:
+      operationId: createV2Session
+      tags: [facilities]
+      summary: Create an API session from the current Clerk session
+      description: Issues a separate short-lived V2 cookie bound to the verified Clerk user and session. V1 cookies and credentials are never accepted.
+      security:
+        - clerkSession: []
+      responses:
+        "200":
+          description: V2 session established
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/V2Session"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    delete:
+      operationId: deleteV2Session
+      tags: [facilities]
+      summary: Revoke the current API session
+      security:
+        - v2Session: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: Session cookie cleared
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /facilities:
     post:
       operationId: createFacility
       tags: [facilities]
       summary: Create a facility for the signed-in user
+      security:
+        - v2Session: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
       requestBody:
         required: true
         content:
@@ -68,103 +104,126 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "409":
           $ref: "#/components/responses/Conflict"
-  /runs:
+  /v2/runs:
     get:
       operationId: listRuns
       tags: [runs]
-      summary: List runs in the signed-in user's facility
+      summary: List runs for the authenticated facility
+      security:
+        - v2Session: []
       parameters:
         - in: query
-          name: status
+          name: limit
           required: false
           schema:
-            $ref: "#/components/schemas/RunStatus"
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
       responses:
         "200":
           description: Facility runs
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/ProductionRun"
+                $ref: "#/components/schemas/RunList"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "400":
+          $ref: "#/components/responses/BadRequest"
     post:
       operationId: createRun
       tags: [runs]
-      summary: Create a draft run in the signed-in user's facility
+      summary: Create a planned run
+      description: Reusing requestId with identical setup returns the original run; reusing it with different setup returns 409.
+      security:
+        - v2Session: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/RunInput"
+              $ref: "#/components/schemas/RunCreateInput"
       responses:
         "201":
-          description: Draft run created
+          description: Planned run created
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ProductionRun"
+                $ref: "#/components/schemas/RunCreated"
+        "200":
+          description: Previously created run returned after an idempotent retry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunCreated"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
-  /runs/{runId}:
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /v2/runs/{runId}:
     get:
       operationId: getRun
       tags: [runs]
-      summary: Get a run from the signed-in user's facility
+      summary: Get a run from the authenticated facility
+      security:
+        - v2Session: []
       parameters:
         - in: path
           name: runId
           required: true
           schema:
             type: string
-            format: uuid
+            pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
       responses:
         "200":
           description: Production run
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ProductionRun"
+                $ref: "#/components/schemas/RunEnvelope"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
-  /runs/{runId}/commands:
+  /v2/runs/{runId}/commands:
     post:
-      operationId: issueRunCommand
+      operationId: applyRunCommand
       tags: [runs]
-      summary: Apply a revision-checked run lifecycle command
+      summary: Apply a revision-guarded run lifecycle command
+      security:
+        - v2Session: []
       parameters:
         - in: path
           name: runId
           required: true
           schema:
             type: string
-            format: uuid
+            pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+        - $ref: "#/components/parameters/CsrfToken"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/RunCommandInput"
+                $ref: "#/components/schemas/RunCommandRequest"
       responses:
         "200":
           description: Command applied or replayed
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RunCommandResult"
+                $ref: "#/components/schemas/RunCommandAccepted"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -174,12 +233,20 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/Conflict"
+          description: Stale revision or invalid transition with the current state
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/RunConflict"
+                  - $ref: "#/components/schemas/InvalidTransition"
   /dashboard/summary:
     get:
       operationId: getDashboardSummary
       tags: [dashboard]
       summary: Get the facility's run summary and recent activity
+      security:
+        - v2Session: []
       responses:
         "200":
           description: Facility production overview
@@ -239,7 +306,7 @@ components:
       required: [error]
     RunStatus:
       type: string
-      enum: [draft, running, paused, completed]
+      enum: [planned, running, paused, completed]
     Facility:
       type: object
       properties:
@@ -273,22 +340,47 @@ components:
           minLength: 1
           maxLength: 120
       required: [name]
-    ProductionRun:
+    V2Session:
+      type: object
+      properties:
+        csrfToken:
+          type: string
+      required: [csrfToken]
+    RunSetup:
+      type: object
+      additionalProperties: false
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 120
+        targetCases:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+      required: [label, targetCases]
+    PauseInterval:
+      type: object
+      properties:
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: [string, "null"]
+          format: date-time
+      required: [startedAt, endedAt]
+    Run:
       type: object
       properties:
         id:
           type: string
           format: uuid
-        facilityId:
-          type: string
-          format: uuid
-        name:
-          type: string
         status:
           $ref: "#/components/schemas/RunStatus"
         revision:
           type: integer
-          minimum: 1
+          minimum: 0
+          maximum: 9007199254740991
         createdAt:
           type: string
           format: date-time
@@ -301,49 +393,108 @@ components:
         pausedAt:
           type: [string, "null"]
           format: date-time
+        resumedAt:
+          type: [string, "null"]
+          format: date-time
         completedAt:
           type: [string, "null"]
           format: date-time
+        setupSnapshot:
+          $ref: "#/components/schemas/RunSetup"
+        pauseIntervals:
+          type: array
+          items:
+            $ref: "#/components/schemas/PauseInterval"
       required:
         - id
-        - facilityId
-        - name
         - status
         - revision
         - createdAt
         - updatedAt
         - startedAt
         - pausedAt
+        - resumedAt
         - completedAt
-    RunInput:
+        - setupSnapshot
+        - pauseIntervals
+    RunCreateInput:
       type: object
       properties:
-        name:
+        requestId:
+          type: string
+          format: uuid
+        setupSnapshot:
+          $ref: "#/components/schemas/RunSetup"
+      required: [requestId, setupSnapshot]
+    RunCommandRequest:
+      type: object
+      properties:
+        commandId:
           type: string
           minLength: 1
-          maxLength: 120
-      required: [name]
-    RunCommandInput:
-      type: object
-      properties:
-        action:
+          maxLength: 200
+        commandType:
           type: string
           enum: [start, pause, resume, complete]
         expectedRevision:
           type: integer
-          minimum: 1
-        idempotencyKey:
-          type: string
-          format: uuid
-      required: [action, expectedRevision, idempotencyKey]
-    RunCommandResult:
+          minimum: 0
+          maximum: 9007199254740991
+      required: [commandId, commandType, expectedRevision]
+    RunList:
+      type: object
+      properties:
+        runs:
+          type: array
+          items:
+            $ref: "#/components/schemas/Run"
+      required: [runs]
+    RunEnvelope:
       type: object
       properties:
         run:
-          $ref: "#/components/schemas/ProductionRun"
+          $ref: "#/components/schemas/Run"
+      required: [run]
+    RunCreated:
+      type: object
+      properties:
+        outcome:
+          const: created
         replayed:
           type: boolean
-      required: [run, replayed]
+        run:
+          $ref: "#/components/schemas/Run"
+      required: [outcome, replayed, run]
+    RunCommandAccepted:
+      type: object
+      properties:
+        outcome:
+          const: accepted
+        replayed:
+          type: boolean
+        commandId:
+          type: string
+        run:
+          $ref: "#/components/schemas/Run"
+      required: [outcome, replayed, commandId, run]
+    RunConflict:
+      type: object
+      properties:
+        outcome:
+          const: conflict
+        expectedRevision:
+          type: integer
+        currentRun:
+          $ref: "#/components/schemas/Run"
+      required: [outcome, expectedRevision, currentRun]
+    InvalidTransition:
+      type: object
+      properties:
+        outcome:
+          const: invalid_transition
+        currentStatus:
+          $ref: "#/components/schemas/RunStatus"
+      required: [outcome, currentStatus]
     DashboardSummary:
       type: object
       properties:
@@ -354,18 +505,34 @@ components:
           properties:
             active:
               type: integer
-            draft:
+            planned:
               type: integer
             completed:
               type: integer
-          required: [active, draft, completed]
+          required: [active, planned, completed]
         activeRuns:
           type: array
           items:
-            $ref: "#/components/schemas/ProductionRun"
+            $ref: "#/components/schemas/Run"
         recentRuns:
           type: array
           items:
-            $ref: "#/components/schemas/ProductionRun"
+            $ref: "#/components/schemas/Run"
       required: [facility, counts, activeRuns, recentRuns]
+  parameters:
+    CsrfToken:
+      in: header
+      name: X-CSRF-Token
+      required: true
+      schema:
+        type: string
+  securitySchemes:
+    clerkSession:
+      type: apiKey
+      in: cookie
+      name: __session
+    v2Session:
+      type: apiKey
+      in: cookie
+      name: v2_session
 

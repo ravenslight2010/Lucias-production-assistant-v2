@@ -10,7 +10,7 @@ export type RunStatus = typeof RunStatus[keyof typeof RunStatus];
 
 
 export const RunStatus = {
-  draft: 'draft',
+  planned: 'planned',
   running: 'running',
   paused: 'paused',
   completed: 'completed',

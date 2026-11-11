@@ -7,19 +7,21 @@ import {
   runEventsTable,
   runOutboxTable,
 } from "@workspace/db";
-import {
-  IssueRunCommandResponse,
-  IssueRunCommandBody,
-  type RunCommandInput,
-} from "@workspace/api-zod";
 import { HttpError } from "./http-error";
-import { transitionRun } from "./run-lifecycle";
+import { transitionRun, type RunAction } from "./run-lifecycle";
+import { toContractRun } from "./run-contract";
+
+export interface RunCommand {
+  commandId: string;
+  commandType: RunAction;
+  expectedRevision: number;
+}
 
 export async function executeRunCommand(input: {
   facilityId: string;
   actorUserId: string;
   runId: string;
-  command: RunCommandInput;
+  command: RunCommand;
 }) {
   const { facilityId, actorUserId, runId, command } = input;
   const requestHash = createHash("sha256")
@@ -28,7 +30,7 @@ export async function executeRunCommand(input: {
         facilityId,
         actorUserId,
         runId,
-        action: command.action,
+        commandType: command.commandType,
         expectedRevision: command.expectedRevision,
       }),
     )
@@ -57,36 +59,55 @@ export async function executeRunCommand(input: {
           eq(runCommandReceiptsTable.facilityId, facilityId),
           eq(runCommandReceiptsTable.actorUserId, actorUserId),
           eq(runCommandReceiptsTable.runId, runId),
-          eq(runCommandReceiptsTable.idempotencyKey, command.idempotencyKey),
+          eq(runCommandReceiptsTable.idempotencyKey, command.commandId),
         ),
       )
       .limit(1);
 
     if (receipt) {
       if (receipt.requestHash !== requestHash) {
-        throw new HttpError(
-          409,
-          "This command key was already used for a different request.",
-        );
+        return {
+          outcome: "conflict" as const,
+          expectedRevision: command.expectedRevision,
+          currentRun: toContractRun(current),
+        };
       }
-      const prior = receipt.result as { run?: unknown };
-      return IssueRunCommandResponse.parse({
-        run: prior.run,
+      return {
+        outcome: "accepted" as const,
         replayed: true,
-      });
+        commandId: command.commandId,
+        run: toContractRun(current),
+      };
     }
 
     if (current.revision !== command.expectedRevision) {
-      throw new HttpError(409, "Run changed. Refresh before trying again.");
+      return {
+        outcome: "conflict" as const,
+        expectedRevision: command.expectedRevision,
+        currentRun: toContractRun(current),
+      };
     }
 
     const now = new Date();
     let nextState;
     try {
-      nextState = transitionRun(current, command.action, now);
-    } catch (error) {
-      if (error instanceof Error) throw new HttpError(409, error.message);
-      throw error;
+      nextState = transitionRun(
+        {
+          status: current.status,
+          startedAt: current.startedAt,
+          pausedAt: current.pausedAt,
+          resumedAt: current.resumedAt,
+          completedAt: current.completedAt,
+          pauseIntervals: current.pauseIntervals,
+        },
+        command.commandType,
+        now,
+      );
+    } catch {
+      return {
+        outcome: "invalid_transition" as const,
+        currentStatus: current.status === "draft" ? "planned" : current.status,
+      };
     }
 
     const [updated] = await tx
@@ -106,16 +127,19 @@ export async function executeRunCommand(input: {
 
     if (!updated) throw new HttpError(404, "Run not found.");
 
-    const result = IssueRunCommandResponse.parse({
-      run: updated,
+    const result = {
+      outcome: "accepted" as const,
       replayed: false,
-    });
+      commandId: command.commandId,
+      run: toContractRun(updated),
+    };
     const event = {
       runId,
       facilityId,
       actorUserId,
-      action: command.action,
-      fromStatus: current.status,
+      commandId: command.commandId,
+      commandType: command.commandType,
+      fromStatus: current.status === "draft" ? "planned" : current.status,
       toStatus: updated.status,
       revision: updated.revision,
       occurredAt: now.toISOString(),
@@ -125,8 +149,8 @@ export async function executeRunCommand(input: {
       facilityId,
       runId,
       actorUserId,
-      action: command.action,
-      fromStatus: current.status,
+      action: command.commandType,
+      fromStatus: current.status === "draft" ? "planned" : current.status,
       toStatus: updated.status,
       revision: updated.revision,
       occurredAt: now,
@@ -141,7 +165,7 @@ export async function executeRunCommand(input: {
       facilityId,
       runId,
       actorUserId,
-      idempotencyKey: command.idempotencyKey,
+      idempotencyKey: command.commandId,
       requestHash,
       result,
     });

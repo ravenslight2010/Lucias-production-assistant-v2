@@ -19,6 +19,8 @@ export const facilityRoleEnum = pgEnum("facility_role", [
 ]);
 
 export const runStatusEnum = pgEnum("run_status", [
+  "planned",
+  // Kept temporarily so existing V2 draft rows can be read and normalized.
   "draft",
   "running",
   "paused",
@@ -60,8 +62,9 @@ export const productionRunsTable = pgTable(
       .notNull()
       .references(() => facilitiesTable.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
-    status: runStatusEnum("status").notNull().default("draft"),
-    revision: integer("revision").notNull().default(1),
+    targetCases: integer("target_cases").notNull().default(1),
+    status: runStatusEnum("status").notNull().default("planned"),
+    revision: integer("revision").notNull().default(0),
     createdBy: text("created_by").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -71,7 +74,12 @@ export const productionRunsTable = pgTable(
       .defaultNow(),
     startedAt: timestamp("started_at", { withTimezone: true }),
     pausedAt: timestamp("paused_at", { withTimezone: true }),
+    resumedAt: timestamp("resumed_at", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),
+    pauseIntervals: jsonb("pause_intervals")
+      .$type<Array<{ startedAt: string; endedAt: string | null }>>()
+      .notNull()
+      .default([]),
   },
   (table) => [
     index("production_runs_facility_status_updated_idx").on(
@@ -121,7 +129,7 @@ export const runCommandReceiptsTable = pgTable(
       .notNull()
       .references(() => productionRunsTable.id, { onDelete: "cascade" }),
     actorUserId: text("actor_user_id").notNull(),
-    idempotencyKey: uuid("idempotency_key").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
     requestHash: text("request_hash").notNull(),
     result: jsonb("result").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -138,6 +146,32 @@ export const runCommandReceiptsTable = pgTable(
     index("run_command_receipts_run_created_idx").on(
       table.runId,
       table.createdAt,
+    ),
+  ],
+);
+
+export const runCreateReceiptsTable = pgTable(
+  "run_create_receipts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    facilityId: uuid("facility_id")
+      .notNull()
+      .references(() => facilitiesTable.id, { onDelete: "cascade" }),
+    actorUserId: text("actor_user_id").notNull(),
+    requestId: uuid("request_id").notNull(),
+    requestHash: text("request_hash").notNull(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => productionRunsTable.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("run_create_receipts_actor_request_uq").on(
+      table.facilityId,
+      table.actorUserId,
+      table.requestId,
     ),
   ],
 );
@@ -177,4 +211,5 @@ export type FacilityMember = typeof facilityMembersTable.$inferSelect;
 export type ProductionRun = typeof productionRunsTable.$inferSelect;
 export type RunEvent = typeof runEventsTable.$inferSelect;
 export type RunCommandReceipt = typeof runCommandReceiptsTable.$inferSelect;
+export type RunCreateReceipt = typeof runCreateReceiptsTable.$inferSelect;
 export type RunOutboxEvent = typeof runOutboxTable.$inferSelect;

@@ -5,14 +5,17 @@
  * Run-control API for Lucia's Production Assistant V2
  * OpenAPI spec version: 0.1.0
  */
+import type { PauseInterval } from './pauseInterval';
+import type { RunSetup } from './runSetup';
 import type { RunStatus } from './runStatus';
 
-export interface ProductionRun {
+export interface Run {
   id: string;
-  facilityId: string;
-  name: string;
   status: RunStatus;
-  /** @minimum 1 */
+  /**
+     * @minimum 0
+     * @maximum 9007199254740991
+     */
   revision: number;
   createdAt: Date;
   updatedAt: Date;
@@ -21,5 +24,9 @@ export interface ProductionRun {
   /** @nullable */
   pausedAt: Date | null;
   /** @nullable */
+  resumedAt: Date | null;
+  /** @nullable */
   completedAt: Date | null;
+  setupSnapshot: RunSetup;
+  pauseIntervals: PauseInterval[];
 }

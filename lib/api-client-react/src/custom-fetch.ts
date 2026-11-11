@@ -17,6 +17,7 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 
 let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
+let _csrfToken: string | null = null;
 
 /**
  * Set a base URL that is prepended to every relative request URL
@@ -42,6 +43,10 @@ export function setBaseUrl(url: string | null): void {
  */
 export function setAuthTokenGetter(getter: AuthTokenGetter | null): void {
   _authTokenGetter = getter;
+}
+
+export function setV2CsrfToken(token: string | null): void {
+  _csrfToken = token;
 }
 
 function isRequest(input: RequestInfo | URL): input is Request {
@@ -349,6 +354,10 @@ export async function customFetch<T = unknown>(
     headers.set("accept", DEFAULT_JSON_ACCEPT);
   }
 
+  if (method !== "GET" && method !== "HEAD" && _csrfToken && !headers.has("x-csrf-token")) {
+    headers.set("X-CSRF-Token", _csrfToken);
+  }
+
   // Attach bearer token when an auth getter is configured and no
   // Authorization header has been explicitly provided.
   if (_authTokenGetter && !headers.has("authorization")) {
@@ -368,4 +377,15 @@ export async function customFetch<T = unknown>(
   }
 
   return (await parseSuccessBody(response, responseType, requestInfo)) as T;
+}
+
+export async function revokeV2Session(): Promise<void> {
+  try {
+    await customFetch<void>("/api/v2/session", {
+      method: "DELETE",
+      credentials: "include",
+    });
+  } finally {
+    setV2CsrfToken(null);
+  }
 }

@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type RunCommandInputAction = typeof RunCommandInputAction[keyof typeof RunCommandInputAction];
+export type RunCommandRequestCommandType = typeof RunCommandRequestCommandType[keyof typeof RunCommandRequestCommandType];
 
 
-export const RunCommandInputAction = {
+export const RunCommandRequestCommandType = {
   start: 'start',
   pause: 'pause',
   resume: 'resume',

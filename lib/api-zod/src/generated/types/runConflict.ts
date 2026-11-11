@@ -5,11 +5,10 @@
  * Run-control API for Lucia's Production Assistant V2
  * OpenAPI spec version: 0.1.0
  */
-import type { RunCommandInputAction } from './runCommandInputAction';
+import type { Run } from './run';
 
-export interface RunCommandInput {
-  action: RunCommandInputAction;
-  /** @minimum 1 */
+export interface RunConflict {
+  outcome: 'conflict';
   expectedRevision: number;
-  idempotencyKey: string;
+  currentRun: Run;
 }

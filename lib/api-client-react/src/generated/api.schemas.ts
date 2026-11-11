@@ -17,7 +17,7 @@ export type RunStatus = typeof RunStatus[keyof typeof RunStatus];
 
 
 export const RunStatus = {
-  draft: 'draft',
+  planned: 'planned',
   running: 'running',
   paused: 'paused',
   completed: 'completed',
@@ -51,12 +51,36 @@ export interface FacilityInput {
   name: string;
 }
 
-export interface ProductionRun {
+export interface V2Session {
+  csrfToken: string;
+}
+
+export interface RunSetup {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  label: string;
+  /**
+     * @minimum 1
+     * @maximum 9007199254740991
+     */
+  targetCases: number;
+}
+
+export interface PauseInterval {
+  startedAt: string;
+  /** @nullable */
+  endedAt: string | null;
+}
+
+export interface Run {
   id: string;
-  facilityId: string;
-  name: string;
   status: RunStatus;
-  /** @minimum 1 */
+  /**
+     * @minimum 0
+     * @maximum 9007199254740991
+     */
   revision: number;
   createdAt: string;
   updatedAt: string;
@@ -65,50 +89,85 @@ export interface ProductionRun {
   /** @nullable */
   pausedAt: string | null;
   /** @nullable */
+  resumedAt: string | null;
+  /** @nullable */
   completedAt: string | null;
+  setupSnapshot: RunSetup;
+  pauseIntervals: PauseInterval[];
 }
 
-export interface RunInput {
-  /**
-     * @minLength 1
-     * @maxLength 120
-     */
-  name: string;
+export interface RunCreateInput {
+  requestId: string;
+  setupSnapshot: RunSetup;
 }
 
-export type RunCommandInputAction = typeof RunCommandInputAction[keyof typeof RunCommandInputAction];
+export type RunCommandRequestCommandType = typeof RunCommandRequestCommandType[keyof typeof RunCommandRequestCommandType];
 
 
-export const RunCommandInputAction = {
+export const RunCommandRequestCommandType = {
   start: 'start',
   pause: 'pause',
   resume: 'resume',
   complete: 'complete',
 } as const;
 
-export interface RunCommandInput {
-  action: RunCommandInputAction;
-  /** @minimum 1 */
+export interface RunCommandRequest {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  commandId: string;
+  commandType: RunCommandRequestCommandType;
+  /**
+     * @minimum 0
+     * @maximum 9007199254740991
+     */
   expectedRevision: number;
-  idempotencyKey: string;
 }
 
-export interface RunCommandResult {
-  run: ProductionRun;
+export interface RunList {
+  runs: Run[];
+}
+
+export interface RunEnvelope {
+  run: Run;
+}
+
+export interface RunCreated {
+  outcome: 'created';
   replayed: boolean;
+  run: Run;
+}
+
+export interface RunCommandAccepted {
+  outcome: 'accepted';
+  replayed: boolean;
+  commandId: string;
+  run: Run;
+}
+
+export interface RunConflict {
+  outcome: 'conflict';
+  expectedRevision: number;
+  currentRun: Run;
+}
+
+export interface InvalidTransition {
+  outcome: 'invalid_transition';
+  currentStatus: RunStatus;
 }
 
 export type DashboardSummaryCounts = {
   active: number;
-  draft: number;
+  planned: number;
   completed: number;
 };
 
 export interface DashboardSummary {
   facility: Facility;
   counts: DashboardSummaryCounts;
-  activeRuns: ProductionRun[];
-  recentRuns: ProductionRun[];
+  activeRuns: Run[];
+  recentRuns: Run[];
 }
 
 /**
@@ -136,7 +195,13 @@ export type NotFoundResponse = ErrorResponse;
  */
 export type ConflictResponse = ErrorResponse;
 
+export type CsrfTokenParameter = string;
+
 export type ListRunsParams = {
-status?: RunStatus;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: number;
 };
 

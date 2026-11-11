@@ -162,11 +162,11 @@ h3 { font: 700 16px/1.25 var(--app-font-display); }
 .status-running { color: #256f57; background: #e3f1e9; }
 .status-paused { color: #98621d; background: #f7edd9; }
 .status-completed { color: #51677a; background: #e8edf0; }
-.status-draft { color: #766a5d; background: #eee9e0; }
+.status-draft, .status-planned { color: #766a5d; background: #eee9e0; }
 .dark .status-running { color: #a4dbc0; background: #23463b; }
 .dark .status-paused { color: #e2c28c; background: #4c3b24; }
 .dark .status-completed { color: #bacbd5; background: #2d414e; }
-.dark .status-draft { color: #d0c0ac; background: #413a32; }
+.dark .status-draft, .dark .status-planned { color: #d0c0ac; background: #413a32; }
 .mono { font-family: var(--app-font-mono); }
 .connection-banner { margin-bottom: 20px; padding: 12px 15px; display: flex; align-items: flex-start; gap: 10px; background: #f6eadb; border: 1px solid #e6c8a2; border-radius: 10px; color: #694b2c; font-size: 13px; line-height: 1.5; }
 .dark .connection-banner { background: #413422; border-color: #71552e; color: #ecd1a7; }

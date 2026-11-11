@@ -1,17 +1,18 @@
 import { and, count, desc, eq, inArray } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
+  ApplyRunCommandBody,
+  ApplyRunCommandParams,
+  ApplyRunCommandResponse,
   CreateFacilityBody,
   CreateFacilityResponse,
+  CreateV2SessionResponse,
   CreateRunBody,
   CreateRunResponse,
   GetDashboardSummaryResponse,
   GetFacilityContextResponse,
   GetRunParams,
   GetRunResponse,
-  IssueRunCommandBody,
-  IssueRunCommandParams,
-  IssueRunCommandResponse,
   ListRunsQueryParams,
   ListRunsResponse,
 } from "@workspace/api-zod";
@@ -28,6 +29,16 @@ import {
 } from "../middlewares/requestGuards";
 import { HttpError } from "../lib/http-error";
 import { executeRunCommand } from "../lib/run-command-service";
+import { createPlannedRun } from "../lib/run-create-service";
+import { toContractRun } from "../lib/run-contract";
+import {
+  clearV2SessionCookie,
+  currentClerkIdentity,
+  issueV2Session,
+  requireV2Csrf,
+  requireV2Session,
+  setV2SessionCookie,
+} from "../lib/v2-session";
 
 const router: IRouter = Router();
 
@@ -98,8 +109,32 @@ router.get("/facility/context", async (req, res): Promise<void> => {
 });
 
 router.post(
-  "/facilities",
+  "/v2/session",
   csrfProtection,
+  mutationRateLimit,
+  async (req, res): Promise<void> => {
+    const identity = currentClerkIdentity(req);
+    const issued = issueV2Session(identity.actorId, identity.sessionId);
+    setV2SessionCookie(res, issued.token, issued.maxAgeSeconds);
+    res.json(CreateV2SessionResponse.parse({ csrfToken: issued.csrfToken }));
+  },
+);
+
+router.delete(
+  "/v2/session",
+  requireV2Session,
+  requireV2Csrf,
+  mutationRateLimit,
+  (_req, res): void => {
+    clearV2SessionCookie(res);
+    res.sendStatus(204);
+  },
+);
+
+router.post(
+  "/facilities",
+  requireV2Session,
+  requireV2Csrf,
   mutationRateLimit,
   async (req, res): Promise<void> => {
     const actorId = actorOrRespond(req, res);
@@ -152,10 +187,13 @@ router.post(
   },
 );
 
-router.get("/runs", async (req, res): Promise<void> => {
+router.get(
+  "/v2/runs",
+  requireV2Session,
+  async (req, res): Promise<void> => {
   const parsed = ListRunsQueryParams.safeParse(req.query);
   if (!parsed.success) {
-    res.status(400).json({ error: "Choose a valid run status." });
+    res.status(400).json({ error: "Choose a run limit between 1 and 100." });
     return;
   }
   const access = await membershipOrRespond(req, res);
@@ -164,47 +202,42 @@ router.get("/runs", async (req, res): Promise<void> => {
   const rows = await db
     .select()
     .from(productionRunsTable)
-    .where(
-      parsed.data.status
-        ? and(
-            eq(productionRunsTable.facilityId, access.membership.facilityId),
-            eq(productionRunsTable.status, parsed.data.status),
-          )
-        : eq(productionRunsTable.facilityId, access.membership.facilityId),
-    )
+    .where(eq(productionRunsTable.facilityId, access.membership.facilityId))
     .orderBy(desc(productionRunsTable.updatedAt))
-    .limit(100);
+    .limit(parsed.data.limit);
 
-  res.json(ListRunsResponse.parse(rows));
+  res.json(ListRunsResponse.parse({ runs: rows.map(toContractRun) }));
 });
 
 router.post(
-  "/runs",
-  csrfProtection,
+  "/v2/runs",
+  requireV2Session,
+  requireV2Csrf,
   mutationRateLimit,
   async (req, res): Promise<void> => {
     const parsed = CreateRunBody.safeParse(req.body);
-    if (!parsed.success || !parsed.data.name.trim()) {
-      res.status(400).json({ error: "Enter a run name up to 120 characters." });
+    if (!parsed.success || !parsed.data.setupSnapshot.label.trim()) {
+      res.status(400).json({ error: "Enter a label and target case count." });
       return;
     }
     const access = await membershipOrRespond(req, res);
     if (!access) return;
 
-    const [run] = await db
-      .insert(productionRunsTable)
-      .values({
-        facilityId: access.membership.facilityId,
-        name: parsed.data.name.trim(),
-        createdBy: access.actorId,
-      })
-      .returning();
-
-    res.status(201).json(CreateRunResponse.parse(run));
+    const result = await createPlannedRun({
+      facilityId: access.membership.facilityId,
+      actorUserId: access.actorId,
+      requestId: parsed.data.requestId,
+      setupSnapshot: parsed.data.setupSnapshot,
+    });
+    const response = CreateRunResponse.parse(result);
+    res.status(response.replayed ? 200 : 201).json(response);
   },
 );
 
-router.get("/runs/:runId", async (req, res): Promise<void> => {
+router.get(
+  "/v2/runs/:runId",
+  requireV2Session,
+  async (req, res): Promise<void> => {
   const params = GetRunParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: "Invalid run identifier." });
@@ -226,16 +259,17 @@ router.get("/runs/:runId", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Run not found." });
     return;
   }
-  res.json(GetRunResponse.parse(run));
+  res.json(GetRunResponse.parse({ run: toContractRun(run) }));
 });
 
 router.post(
-  "/runs/:runId/commands",
-  csrfProtection,
+  "/v2/runs/:runId/commands",
+  requireV2Session,
+  requireV2Csrf,
   mutationRateLimit,
   async (req, res): Promise<void> => {
-    const params = IssueRunCommandParams.safeParse(req.params);
-    const command = IssueRunCommandBody.safeParse(req.body);
+    const params = ApplyRunCommandParams.safeParse(req.params);
+    const command = ApplyRunCommandBody.safeParse(req.body);
     if (!params.success || !command.success) {
       res.status(400).json({ error: "Invalid run command." });
       return;
@@ -249,11 +283,22 @@ router.post(
       runId: params.data.runId,
       command: command.data,
     });
-    res.json(IssueRunCommandResponse.parse(result));
+    if (result.outcome === "conflict") {
+      res.status(409).json(result);
+      return;
+    }
+    if (result.outcome === "invalid_transition") {
+      res.status(409).json(result);
+      return;
+    }
+    res.json(ApplyRunCommandResponse.parse(result));
   },
 );
 
-router.get("/dashboard/summary", async (req, res): Promise<void> => {
+router.get(
+  "/dashboard/summary",
+  requireV2Session,
+  async (req, res): Promise<void> => {
   const access = await membershipOrRespond(req, res);
   if (!access) return;
 
@@ -282,12 +327,14 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
       .limit(8),
   ]);
 
-  const counts = { active: 0, draft: 0, completed: 0 };
+  const counts = { active: 0, planned: 0, completed: 0 };
   for (const item of statusCounts) {
     if (item.status === "running" || item.status === "paused") {
       counts.active += item.total;
-    } else if (item.status === "draft" || item.status === "completed") {
-      counts[item.status] = item.total;
+    } else if (item.status === "draft" || item.status === "planned") {
+      counts.planned += item.total;
+    } else if (item.status === "completed") {
+      counts.completed = item.total;
     }
   }
   const facility = {
@@ -300,8 +347,8 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     GetDashboardSummaryResponse.parse({
       facility,
       counts,
-      activeRuns,
-      recentRuns,
+      activeRuns: activeRuns.map(toContractRun),
+      recentRuns: recentRuns.map(toContractRun),
     }),
   );
 });

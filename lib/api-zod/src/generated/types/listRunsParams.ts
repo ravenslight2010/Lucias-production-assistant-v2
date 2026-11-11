@@ -5,8 +5,11 @@
  * Run-control API for Lucia's Production Assistant V2
  * OpenAPI spec version: 0.1.0
  */
-import type { RunStatus } from './runStatus';
 
 export type ListRunsParams = {
-status?: RunStatus;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: number;
 };

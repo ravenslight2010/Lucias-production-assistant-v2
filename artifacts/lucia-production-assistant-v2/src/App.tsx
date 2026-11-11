@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { ClerkProvider, Show, SignIn, SignUp, useClerk } from '@clerk/react';
+import { ClerkProvider, Show, SignIn, SignUp, useAuth, useClerk } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
@@ -13,16 +13,18 @@ import {
   getGetFacilityContextQueryKey,
   getGetRunQueryKey,
   getListRunsQueryKey,
+  revokeV2Session,
+  setV2CsrfToken,
+  useApplyRunCommand,
   useCreateFacility,
   useCreateRun,
   useGetDashboardSummary,
   useGetFacilityContext,
   useGetRun,
   useHealthCheck,
-  useIssueRunCommand,
   useListRuns,
 } from '@workspace/api-client-react';
-import type { ProductionRun, RunCommandInput, RunStatus } from '@workspace/api-client-react';
+import type { Run, RunCommandRequest, RunStatus } from '@workspace/api-client-react';
 import { Link, Redirect, Route, Switch, Router as WouterRouter, useLocation, useRoute } from 'wouter';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -93,6 +95,14 @@ function Brand({ compact = false }: { compact?: boolean }) {
 function SiteShell({ children, facilityName }: { children: ReactNode; facilityName?: string }) {
   const { signOut } = useClerk();
   const [location] = useLocation();
+  const handleSignOut = async () => {
+    try {
+      await revokeV2Session();
+    } catch {
+      setV2CsrfToken(null);
+    }
+    await signOut({ redirectUrl: basePath || '/' });
+  };
   const facilityContext = useGetFacilityContext({
     query: { queryKey: getGetFacilityContextQueryKey(), retry: false },
     request: { credentials: 'include' },
@@ -117,7 +127,7 @@ function SiteShell({ children, facilityName }: { children: ReactNode; facilityNa
         <div className="sidebar-bottom">
           <div className="facility-mini">Current facility</div>
           <div className="facility-mini-name" data-testid="text-current-facility">{currentFacilityName || 'Facility setup'}</div>
-          <button className="logout" type="button" onClick={() => void signOut({ redirectUrl: basePath || '/' })} data-testid="button-sign-out">
+          <button className="logout" type="button" onClick={() => void handleSignOut()} data-testid="button-sign-out">
             <LogOut size={15} aria-hidden="true" /> <span>Sign out</span>
           </button>
         </div>
@@ -131,7 +141,7 @@ function SiteShell({ children, facilityName }: { children: ReactNode; facilityNa
                 <Icon size={18} aria-hidden="true" />
               </Link>
             ))}
-            <button type="button" aria-label="Sign out" title="Sign out" onClick={() => void signOut({ redirectUrl: basePath || '/' })} data-testid="mobile-button-sign-out" style={{ display: 'grid', placeItems: 'center', minWidth: 42, minHeight: 42, border: 0, borderRadius: 8, background: 'transparent', color: '#e5eee8', cursor: 'pointer' }}>
+            <button type="button" aria-label="Sign out" title="Sign out" onClick={() => void handleSignOut()} data-testid="mobile-button-sign-out" style={{ display: 'grid', placeItems: 'center', minWidth: 42, minHeight: 42, border: 0, borderRadius: 8, background: 'transparent', color: '#e5eee8', cursor: 'pointer' }}>
               <LogOut size={17} aria-hidden="true" />
             </button>
           </nav>
@@ -293,7 +303,7 @@ function FacilityDashboard({ facilityName }: { facilityName: string }) {
         {data && <>
           <section className="stats-grid" aria-label="Run totals">
             <Stat label="In progress" value={data.counts.active} detail="Running or paused" icon={<Activity size={16} />} />
-            <Stat label="Drafts" value={data.counts.draft} detail="Ready to start" icon={<ClipboardList size={16} />} />
+            <Stat label="Planned" value={data.counts.planned} detail="Ready to start" icon={<ClipboardList size={16} />} />
             <Stat label="Completed" value={data.counts.completed} detail="Recorded runs" icon={<Check size={16} />} />
           </section>
           <div className="section-heading"><h2>Active now</h2><Link href="/runs" className="text-link">All runs <ArrowRight size={14} /></Link></div>
@@ -315,10 +325,10 @@ function Stat({ label, value, detail, icon }: { label: string; value: number; de
   return <article className="panel stat" data-testid={`stat-${label.toLowerCase().replaceAll(' ', '-')}`}><div style={{ display: 'flex', justifyContent: 'space-between', color: 'hsl(var(--primary))' }}><span className="stat-label">{label}</span>{icon}</div><div className="stat-value">{value}</div><div className="stat-detail">{detail}</div></article>;
 }
 
-function RunRow({ run }: { run: ProductionRun }) {
+function RunRow({ run }: { run: Run }) {
   return (
     <Link href={`/runs/${encodeURIComponent(run.id)}`} className="run-row" data-testid={`link-run-${run.id}`}>
-      <div><div className="run-name">{run.name}</div><div className="run-meta">REV {String(run.revision).padStart(2, '0')} <span aria-hidden="true">·</span> Updated {formatTime(run.updatedAt)}</div></div>
+      <div><div className="run-name">{run.setupSnapshot.label}</div><div className="run-meta">{run.setupSnapshot.targetCases} target cases · REV {String(run.revision).padStart(2, '0')} <span aria-hidden="true">·</span> Updated {formatTime(run.updatedAt)}</div></div>
       <div className="run-row-end"><Status status={run.status} /><ChevronRight size={16} aria-hidden="true" /></div>
     </Link>
   );
@@ -336,9 +346,10 @@ function RunsPage() {
   const online = useConnection();
   const [isCreating, setIsCreating] = useState(false);
   const [name, setName] = useState('');
+  const [targetCases, setTargetCases] = useState('1');
   const [validation, setValidation] = useState('');
   const [filter, setFilter] = useState<RunStatus | 'all'>('all');
-  const queryArgs = filter === 'all' ? undefined : { status: filter };
+  const queryArgs = { limit: 100 };
   const queryKey = getListRunsQueryKey(queryArgs);
   const runsQuery = useListRuns(queryArgs, {
     query: { queryKey, refetchInterval: online ? 5000 : false },
@@ -346,21 +357,37 @@ function RunsPage() {
   });
   const createRun = useCreateRun({ request: { credentials: 'include' } });
   const client = useQueryClient();
-  const runs = runsQuery.data ?? [];
+  const createAttempt = useRef<{ fingerprint: string; requestId: string } | null>(null);
+  const allRuns = runsQuery.data?.runs ?? [];
+  const runs = filter === 'all' ? allRuns : allRuns.filter((run) => run.status === filter);
 
   const handleCreate = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const cleaned = name.trim();
-    if (!cleaned || cleaned.length > 120) {
-      setValidation('Run name must be between 1 and 120 characters.');
+    const countValue = Number(targetCases);
+    if (!cleaned || cleaned.length > 120 || !Number.isSafeInteger(countValue) || countValue < 1) {
+      setValidation('Enter a label and a whole target case count of at least one.');
       return;
     }
     setValidation('');
-    createRun.mutate({ data: { name: cleaned } }, {
+    const fingerprint = JSON.stringify({ label: cleaned, targetCases: countValue });
+    if (!createAttempt.current || createAttempt.current.fingerprint !== fingerprint) {
+      createAttempt.current = { fingerprint, requestId: crypto.randomUUID() };
+    }
+    createRun.mutate({
+      data: {
+        requestId: createAttempt.current.requestId,
+        setupSnapshot: { label: cleaned, targetCases: countValue },
+      },
+    }, {
       onSuccess: (created) => {
         setName('');
+        setTargetCases('1');
         setIsCreating(false);
-        client.setQueryData<ProductionRun[]>(queryKey, (old) => old ? [created, ...old] : [created]);
+        createAttempt.current = null;
+        client.setQueryData<{ runs: Run[] }>(queryKey, (old) => ({
+          runs: [created.run, ...(old?.runs ?? []).filter((run) => run.id !== created.run.id)],
+        }));
         void client.invalidateQueries({ queryKey: getListRunsQueryKey() });
         void client.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
       },
@@ -380,20 +407,22 @@ function RunsPage() {
         {runsQuery.isError && !runsQuery.data && <DataError message={getErrorMessage(runsQuery.error, 'Runs could not be loaded.')} onRetry={() => void runsQuery.refetch()} />}
         {runsQuery.isError && runsQuery.data && <div className="error-banner" role="status">Refresh failed. Showing cached run records.</div>}
         {isCreating && <form className="panel form-card" onSubmit={handleCreate} noValidate>
-          <div className="eyebrow">New run</div><h2>Name this production run</h2>
-          <div className="form-field"><label htmlFor="run-name">Run name</label><input id="run-name" data-testid="input-run-name" autoFocus maxLength={120} value={name} onChange={(event) => setName(event.target.value)} aria-describedby={validation ? 'run-error' : undefined} required /><span className="field-help">A clear name helps the next operator pick up the right run.</span>{validation && <span className="field-help" id="run-error" role="alert">{validation}</span>}</div>
+          <div className="eyebrow">New planned run</div><h2>Set up this production run</h2>
+          <div className="form-field"><label htmlFor="run-name">Run label</label><input id="run-name" data-testid="input-run-name" autoFocus maxLength={120} value={name} onChange={(event) => setName(event.target.value)} aria-describedby={validation ? 'run-error' : 'run-label-help'} required /><span className="field-help" id="run-label-help">A clear label helps the next operator identify this run.</span></div>
+          <div className="form-field"><label htmlFor="run-target-cases">Target cases</label><input id="run-target-cases" data-testid="input-run-target-cases" type="number" inputMode="numeric" min={1} step={1} value={targetCases} onChange={(event) => setTargetCases(event.target.value)} aria-describedby={validation ? 'run-error' : undefined} required /></div>
+          {validation && <span className="field-help" id="run-error" role="alert">{validation}</span>}
           {createRun.isError && <div className="error-banner" role="alert">{getErrorMessage(createRun.error, 'Run could not be created.')}</div>}
-          <div className="control-row"><button className="button button-primary" type="submit" disabled={!online || createRun.isPending}>{createRun.isPending ? <LoaderCircle size={16} /> : <Plus size={16} />} {createRun.isPending ? 'Saving draft…' : 'Create draft run'}</button><button className="button button-secondary" type="button" onClick={() => setIsCreating(false)}>Cancel</button></div>
+          <div className="control-row"><button className="button button-primary" type="submit" disabled={!online || createRun.isPending}>{createRun.isPending ? <LoaderCircle size={16} /> : <Plus size={16} />} {createRun.isPending ? 'Saving planned run…' : 'Create planned run'}</button><button className="button button-secondary" type="button" onClick={() => setIsCreating(false)}>Cancel</button></div>
         </form>}
         <div className="section-heading" style={{ marginTop: 26 }}>
           <h2>{filter === 'all' ? 'All facility runs' : `${filter[0].toUpperCase()}${filter.slice(1)} runs`}</h2>
           <label className="sr-only" htmlFor="run-filter">Filter runs by status</label>
           <select id="run-filter" aria-label="Filter runs by status" data-testid="select-run-filter" value={filter} onChange={(event) => setFilter(event.target.value as RunStatus | 'all')} style={{ minHeight: 40, padding: '0 12px', border: '1px solid hsl(var(--input))', borderRadius: 8, background: 'hsl(var(--card))', color: 'hsl(var(--foreground))' }}>
-            <option value="all">All statuses</option><option value="draft">Draft</option><option value="running">Running</option><option value="paused">Paused</option><option value="completed">Completed</option>
+            <option value="all">All statuses</option><option value="planned">Planned</option><option value="running">Running</option><option value="paused">Paused</option><option value="completed">Completed</option>
           </select>
         </div>
         {runsQuery.data && <section className="panel run-list" aria-label="Facility production runs">
-          {runs.length ? runs.map((run) => <RunRow key={run.id} run={run} />) : <EmptyState title={filter === 'all' ? 'No runs to show' : `No ${filter} runs`} copy={filter === 'all' ? 'Create a draft to give your next shift a shared starting point.' : 'Try another status or create a new draft run.'} action={filter === 'all' ? <button className="button button-secondary" type="button" onClick={() => setIsCreating(true)} disabled={!online}>Create a run <ArrowRight size={15} /></button> : undefined} />}
+          {runs.length ? runs.map((run) => <RunRow key={run.id} run={run} />) : <EmptyState title={filter === 'all' ? 'No runs to show' : `No ${filter} runs`} copy={filter === 'all' ? 'Create a planned run to give your next shift a shared starting point.' : 'Try another status or create a new planned run.'} action={filter === 'all' ? <button className="button button-secondary" type="button" onClick={() => setIsCreating(true)} disabled={!online}>Create a run <ArrowRight size={15} /></button> : undefined} />}
         </section>}
         {!online && runsQuery.data && <p className="field-help" style={{ marginTop: 14 }}>Cached run list only. Creating and lifecycle controls are unavailable offline.</p>}
       </main>
@@ -404,24 +433,24 @@ function RunsPage() {
 function RunDetailPage() {
   const [, params] = useRoute('/runs/:runId');
   const rawRunId = params?.runId || '';
-  const runId = /^[A-Za-z0-9_-]{1,128}$/.test(rawRunId) ? rawRunId : '';
+  const runId = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(rawRunId) ? rawRunId : '';
   const online = useConnection();
   const runQuery = useGetRun(runId, {
     query: { queryKey: getGetRunQueryKey(runId), enabled: Boolean(runId), refetchInterval: online ? 5000 : false },
     request: { credentials: 'include' },
   });
-  const command = useIssueRunCommand({ request: { credentials: 'include' } });
+  const command = useApplyRunCommand({ request: { credentials: 'include' } });
   const client = useQueryClient();
   const [conflict, setConflict] = useState('');
   const commandKeys = useRef(new Map<string, string>());
-  const run = runQuery.data;
-  const actions: { action: RunCommandInput['action']; label: string; icon: ReactNode; className: string }[] = run ? (
-    run.status === 'draft' ? [{ action: 'start', label: 'Start run', icon: <Play size={16} />, className: 'button-primary' }]
+  const run = runQuery.data?.run;
+  const actions: { action: RunCommandRequest['commandType']; label: string; icon: ReactNode; className: string }[] = run ? (
+    run.status === 'planned' ? [{ action: 'start', label: 'Start run', icon: <Play size={16} />, className: 'button-primary' }]
       : run.status === 'running' ? [{ action: 'pause', label: 'Pause run', icon: <Pause size={16} />, className: 'button-secondary' }, { action: 'complete', label: 'Complete run', icon: <Square size={15} />, className: 'button-warn' }]
         : run.status === 'paused' ? [{ action: 'resume', label: 'Resume run', icon: <Play size={16} />, className: 'button-primary' }, { action: 'complete', label: 'Complete run', icon: <Square size={15} />, className: 'button-warn' }]
           : []
   ) : [];
-  const runAction = (action: RunCommandInput['action']) => {
+  const runAction = (action: RunCommandRequest['commandType']) => {
     if (!run || !online || command.isPending) return;
     setConflict('');
     const commandScope = `${run.id}:${run.revision}:${action}`;
@@ -429,15 +458,15 @@ function RunDetailPage() {
     commandKeys.current.set(commandScope, idempotencyKey);
     command.mutate({
       runId: run.id,
-      data: { action, expectedRevision: run.revision, idempotencyKey },
+      data: { commandType: action, expectedRevision: run.revision, commandId: idempotencyKey },
     }, {
       onSuccess: (result) => {
         commandKeys.current.delete(commandScope);
-        client.setQueryData(getGetRunQueryKey(run.id), result.run);
+        client.setQueryData(getGetRunQueryKey(run.id), { run: result.run });
         void client.invalidateQueries({ queryKey: getListRunsQueryKey() });
         void client.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
         setConflict(result.replayed
-          ? `Already applied. Current saved state: ${result.run.status}, revision ${result.run.revision}.`
+          ? `Already processed. Current saved state: ${result.run.status}, revision ${result.run.revision}.`
           : `Saved. Run is ${result.run.status} at revision ${result.run.revision}.`);
       },
       onError: (error) => {
@@ -460,7 +489,7 @@ function RunDetailPage() {
         {runQuery.isError && !run && <DataError message={getErrorMessage(runQuery.error, 'This run could not be loaded.')} onRetry={() => void runQuery.refetch()} />}
         {runQuery.isError && run && <div className="error-banner" role="status">Could not refresh. Showing the last saved run state.</div>}
         {run && <>
-          <div className="page-head"><div><div className="eyebrow">Run detail · revision {run.revision}</div><h1 data-testid={`text-run-name-${run.id}`}>{run.name}</h1><p className="page-subtitle">Facility run record · Last updated {formatDateTime(run.updatedAt)}</p></div><Status status={run.status} /></div>
+          <div className="page-head"><div><div className="eyebrow">Run detail · revision {run.revision}</div><h1 data-testid={`text-run-name-${run.id}`}>{run.setupSnapshot.label}</h1><p className="page-subtitle">{run.setupSnapshot.targetCases} target cases · Last updated {formatDateTime(run.updatedAt)}</p></div><Status status={run.status} /></div>
           {(conflict || command.isError) && <div className={getErrorStatus(command.error) === 409 || conflict ? 'notice' : 'error-banner'} role="status" data-testid="status-command-feedback">{conflict || getErrorMessage(command.error, 'The command could not be saved. Check your connection and retry.')}</div>}
           <div className="detail-grid">
             <section className="panel detail-main">
@@ -473,8 +502,8 @@ function RunDetailPage() {
                 {run.status === 'completed' && <div className="notice"><Check size={15} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />This run is complete. Its lifecycle is closed.</div>}
                 {actions.length > 0 && <div className="control-row">
                   {actions.map((item) => <button key={item.action} type="button" className={`button ${item.className}`} disabled={!online || command.isPending} onClick={() => runAction(item.action)} data-testid={`button-run-${item.action}`}>
-                    {command.isPending && command.variables?.data.action === item.action ? <LoaderCircle size={16} /> : item.icon}
-                    {command.isPending && command.variables?.data.action === item.action ? 'Saving state…' : item.label}
+                    {command.isPending && command.variables?.data.commandType === item.action ? <LoaderCircle size={16} /> : item.icon}
+                    {command.isPending && command.variables?.data.commandType === item.action ? 'Saving state…' : item.label}
                   </button>)}
                 </div>}
                 {!online && <p className="field-help" style={{ marginTop: 13 }}>Lifecycle commands are read-only while disconnected. No changes will be queued.</p>}
@@ -487,6 +516,7 @@ function RunDetailPage() {
               <Property label="Created" value={formatDateTime(run.createdAt)} />
               <Property label="Started" value={run.startedAt ? formatDateTime(run.startedAt) : 'Not started'} />
               <Property label="Paused" value={run.pausedAt ? formatDateTime(run.pausedAt) : '—'} />
+              <Property label="Resumed" value={run.resumedAt ? formatDateTime(run.resumedAt) : '—'} />
               <Property label="Completed" value={run.completedAt ? formatDateTime(run.completedAt) : '—'} />
             </aside>
           </div>
@@ -503,7 +533,7 @@ function Property({ label, value }: { label: string; value: ReactNode }) {
 
 function stateDescription(status: RunStatus) {
   switch (status) {
-    case 'draft': return 'This draft is ready for an operator to start when the line is prepared.';
+    case 'planned': return 'This planned run is ready for an operator to start when the line is prepared.';
     case 'running': return 'This run is in progress. Changes to its state are shared after confirmation.';
     case 'paused': return 'This run is paused. Resume when the team is ready to continue.';
     case 'completed': return 'This run has been completed and recorded.';
@@ -614,11 +644,73 @@ function ClerkQueryClientCacheInvalidator() {
   useEffect(() => {
     const unsubscribe = addListener(({ user }) => {
       const userId = user?.id ?? null;
-      if (prevUserIdRef.current !== undefined && prevUserIdRef.current !== userId) queryClientInstance.clear();
+      if (prevUserIdRef.current !== undefined && prevUserIdRef.current !== userId) {
+        queryClientInstance.clear();
+        setV2CsrfToken(null);
+      }
       prevUserIdRef.current = userId;
     });
     return unsubscribe;
   }, [addListener, queryClientInstance]);
+  return null;
+}
+
+function V2SessionBootstrapper() {
+  const { isLoaded, isSignedIn, userId } = useAuth();
+  const client = useQueryClient();
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (!isSignedIn || !userId) {
+      setV2CsrfToken(null);
+      return;
+    }
+
+    let active = true;
+    let bootstrapping = false;
+    const bootstrap = async () => {
+      if (bootstrapping) return;
+      bootstrapping = true;
+      try {
+        const response = await fetch('/api/v2/session', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { Accept: 'application/json' },
+        });
+        if (!response.ok) throw new Error('The API session could not be refreshed.');
+        const body: unknown = await response.json();
+        if (!body || typeof body !== 'object' || !('csrfToken' in body) || typeof body.csrfToken !== 'string') {
+          throw new Error('The API session response was invalid.');
+        }
+        if (active) {
+          setV2CsrfToken(body.csrfToken);
+          await client.invalidateQueries();
+        }
+      } finally {
+        bootstrapping = false;
+      }
+    };
+
+    const onOnline = () => {
+      void bootstrap().catch(() => {
+        if (active) setV2CsrfToken(null);
+      });
+    };
+    void bootstrap().catch(() => {
+      if (active) setV2CsrfToken(null);
+    });
+    window.addEventListener('online', onOnline);
+    const interval = window.setInterval(() => {
+      void bootstrap().catch(() => {
+        if (active) setV2CsrfToken(null);
+      });
+    }, 4 * 60 * 60 * 1000);
+
+    return () => {
+      active = false;
+      window.removeEventListener('online', onOnline);
+      window.clearInterval(interval);
+    };
+  }, [client, isLoaded, isSignedIn, userId]);
   return null;
 }
 
@@ -641,6 +733,7 @@ function RouterContent() {
       routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
     >
       <ClerkQueryClientCacheInvalidator />
+      <V2SessionBootstrapper />
       <ErrorBoundary resetKey={window.location.pathname}>
         <Switch>
           <Route path="/" component={HomeRoute} />

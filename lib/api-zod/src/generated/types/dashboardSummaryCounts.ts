@@ -8,6 +8,6 @@
 
 export type DashboardSummaryCounts = {
   active: number;
-  draft: number;
+  planned: number;
   completed: number;
 };

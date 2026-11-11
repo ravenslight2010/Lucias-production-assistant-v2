@@ -34,9 +34,10 @@ A secure production operations app for facility teams to create and control runs
 
 - V2 is a separate Replit project with its own database and deployment; never connect it to V1 credentials or production data.
 - The server is authoritative for facility and actor identity; lifecycle commands check revisions and stable idempotency keys.
+- Clerk remains the V2 sign-in provider. The API issues a short-lived `v2_session` bound to the currently verified Clerk user and session; run requests still resolve facility membership and role from PostgreSQL on every request. Never accept or transfer V1 cookies, sessions, or credentials.
 - A lifecycle change, its receipt, audit event, and outbox event are committed in one database transaction.
 - V1 historical runs are not imported; opening inventory at cutover must come from a new physical count.
-- Do not implement additional V2 features until the separate-project Reserved VM pilot passes. Use a disposable V2 database and synthetic data to verify the supervised API/worker, shared database access, restart/publish behavior, and connection budget; never test against V1.
+- The separate-project Reserved VM pilot has passed. Continue using a disposable V2 database and synthetic data for infrastructure checks; never test against V1.
 
 ## Product
 

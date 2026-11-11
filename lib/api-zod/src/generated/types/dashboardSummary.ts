@@ -7,11 +7,11 @@
  */
 import type { DashboardSummaryCounts } from './dashboardSummaryCounts';
 import type { Facility } from './facility';
-import type { ProductionRun } from './productionRun';
+import type { Run } from './run';
 
 export interface DashboardSummary {
   facility: Facility;
   counts: DashboardSummaryCounts;
-  activeRuns: ProductionRun[];
-  recentRuns: ProductionRun[];
+  activeRuns: Run[];
+  recentRuns: Run[];
 }

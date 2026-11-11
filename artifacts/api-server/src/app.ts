@@ -1,4 +1,5 @@
 import express, { type Express } from "express";
+import cookieParser from "cookie-parser";
 import { clerkMiddleware } from "@clerk/express";
 import { publishableKeyFromHost } from "@clerk/shared/keys";
 import pinoHttp from "pino-http";
@@ -55,6 +56,7 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.json({ limit: "32kb" }));
+app.use(cookieParser());
 
 app.use("/api", router);
 

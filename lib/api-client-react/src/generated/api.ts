@@ -27,13 +27,18 @@ import type {
   FacilityInput,
   ForbiddenResponse,
   HealthStatus,
+  InvalidTransition,
   ListRunsParams,
   NotFoundResponse,
-  ProductionRun,
-  RunCommandInput,
-  RunCommandResult,
-  RunInput,
-  UnauthorizedResponse
+  RunCommandAccepted,
+  RunCommandRequest,
+  RunConflict,
+  RunCreateInput,
+  RunCreated,
+  RunEnvelope,
+  RunList,
+  UnauthorizedResponse,
+  V2Session
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -218,6 +223,155 @@ export function useGetFacilityContext<TData = Awaited<ReturnType<typeof getFacil
 
 
 
+export const getCreateV2SessionUrl = () => {
+
+
+
+
+  return `/api/v2/session`
+}
+
+/**
+ * Issues a separate short-lived V2 cookie bound to the verified Clerk user and session. V1 cookies and credentials are never accepted.
+ * @summary Create an API session from the current Clerk session
+ */
+export const createV2Session = async ( options?: Parameters<typeof customFetch>[1]): Promise<V2Session> => {
+
+  return customFetch<V2Session>(getCreateV2SessionUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCreateV2SessionMutationKey = () => ['createV2Session'] as const;
+
+export const getCreateV2SessionMutationOptions = <TError = ErrorType<UnauthorizedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createV2Session>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createV2Session>>, TError,void, TContext> => {
+
+const mutationKey = getCreateV2SessionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createV2Session>>, void> = () => {
+
+
+          return  createV2Session(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateV2SessionMutationResult = NonNullable<Awaited<ReturnType<typeof createV2Session>>>
+
+    export type CreateV2SessionMutationError = ErrorType<UnauthorizedResponse>
+
+
+    /**
+ * @summary Create an API session from the current Clerk session
+ */
+export const useCreateV2Session = <TError = ErrorType<UnauthorizedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createV2Session>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createV2Session>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getCreateV2SessionMutationOptions(options));
+    }
+
+export const getDeleteV2SessionUrl = () => {
+
+
+
+
+  return `/api/v2/session`
+}
+
+/**
+ * @summary Revoke the current API session
+ */
+export const deleteV2Session = async ( options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteV2SessionUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteV2SessionMutationKey = () => ['deleteV2Session'] as const;
+
+export const getDeleteV2SessionMutationOptions = <TError = ErrorType<UnauthorizedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteV2Session>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteV2Session>>, TError,void, TContext> => {
+
+const mutationKey = getDeleteV2SessionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteV2Session>>, void> = () => {
+
+
+          return  deleteV2Session(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteV2SessionMutationResult = NonNullable<Awaited<ReturnType<typeof deleteV2Session>>>
+
+    export type DeleteV2SessionMutationError = ErrorType<UnauthorizedResponse>
+
+
+    /**
+ * @summary Revoke the current API session
+ */
+export const useDeleteV2Session = <TError = ErrorType<UnauthorizedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteV2Session>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteV2Session>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getDeleteV2SessionMutationOptions(options));
+    }
+
 export const getCreateFacilityUrl = () => {
 
 
@@ -318,15 +472,15 @@ export const getListRunsUrl = (params?: ListRunsParams,) => {
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/api/runs?${stringifiedParams}` : `/api/runs`
+  return stringifiedParams.length > 0 ? `/api/v2/runs?${stringifiedParams}` : `/api/v2/runs`
 }
 
 /**
- * @summary List runs in the signed-in user's facility
+ * @summary List runs for the authenticated facility
  */
-export const listRuns = async (params?: ListRunsParams, options?: Parameters<typeof customFetch>[1]): Promise<ProductionRun[]> => {
+export const listRuns = async (params?: ListRunsParams, options?: Parameters<typeof customFetch>[1]): Promise<RunList> => {
 
-  return customFetch<ProductionRun[]>(getListRunsUrl(params),
+  return customFetch<RunList>(getListRunsUrl(params),
   {
     ...options,
     method: 'GET'
@@ -341,12 +495,12 @@ export const listRuns = async (params?: ListRunsParams, options?: Parameters<typ
 
 export const getListRunsQueryKey = (params?: ListRunsParams,) => {
     return [
-    `/api/runs`, ...(params ? [params] : [])
+    `/api/v2/runs`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListRunsQueryOptions = <TData = Awaited<ReturnType<typeof listRuns>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(params?: ListRunsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRuns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListRunsQueryOptions = <TData = Awaited<ReturnType<typeof listRuns>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>>(params?: ListRunsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRuns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -365,14 +519,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type ListRunsQueryResult = NonNullable<Awaited<ReturnType<typeof listRuns>>>
-export type ListRunsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+export type ListRunsQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>
 
 
 /**
- * @summary List runs in the signed-in user's facility
+ * @summary List runs for the authenticated facility
  */
 
-export function useListRuns<TData = Awaited<ReturnType<typeof listRuns>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+export function useListRuns<TData = Awaited<ReturnType<typeof listRuns>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>>(
  params?: ListRunsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRuns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -395,13 +549,14 @@ export const getCreateRunUrl = () => {
 
 
 
-  return `/api/runs`
+  return `/api/v2/runs`
 }
 
 /**
- * @summary Create a draft run in the signed-in user's facility
+ * Reusing requestId with identical setup returns the original run; reusing it with different setup returns 409.
+ * @summary Create a planned run
  */
-export const createRun = async (runInput: RunInput, options?: Parameters<typeof customFetch>[1]): Promise<ProductionRun> => {
+export const createRun = async (runCreateInput: RunCreateInput, options?: Parameters<typeof customFetch>[1]): Promise<RunCreated> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -417,12 +572,12 @@ export const createRun = async (runInput: RunInput, options?: Parameters<typeof 
     }
     return headers;
   };
-return customFetch<ProductionRun>(getCreateRunUrl(),
+return customFetch<RunCreated>(getCreateRunUrl(),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(runInput)
+    body: JSON.stringify(runCreateInput)
   }
 );}
 
@@ -432,7 +587,7 @@ return customFetch<ProductionRun>(getCreateRunUrl(),
 
 export const getCreateRunMutationKey = () => ['createRun'] as const;
 
-export const getCreateRunMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>,
+export const getCreateRunMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRun>>, TError,CreateRunMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createRun>>, TError,CreateRunMutationVariables, TContext> => {
 
@@ -460,14 +615,14 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type CreateRunMutationResult = NonNullable<Awaited<ReturnType<typeof createRun>>>
-    export type CreateRunMutationBody = BodyType<RunInput>
-    export type CreateRunMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>
-    export type CreateRunMutationVariables = {data: BodyType<RunInput>}
+    export type CreateRunMutationBody = BodyType<RunCreateInput>
+    export type CreateRunMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>
+    export type CreateRunMutationVariables = {data: BodyType<RunCreateInput>}
 
     /**
- * @summary Create a draft run in the signed-in user's facility
+ * @summary Create a planned run
  */
-export const useCreateRun = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>,
+export const useCreateRun = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRun>>, TError,CreateRunMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createRun>>,
@@ -483,15 +638,15 @@ export const getGetRunUrl = (runId: string,) => {
 
 
 
-  return `/api/runs/${runId}`
+  return `/api/v2/runs/${runId}`
 }
 
 /**
- * @summary Get a run from the signed-in user's facility
+ * @summary Get a run from the authenticated facility
  */
-export const getRun = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<ProductionRun> => {
+export const getRun = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<RunEnvelope> => {
 
-  return customFetch<ProductionRun>(getGetRunUrl(runId),
+  return customFetch<RunEnvelope>(getGetRunUrl(runId),
   {
     ...options,
     method: 'GET'
@@ -506,7 +661,7 @@ export const getRun = async (runId: string, options?: Parameters<typeof customFe
 
 export const getGetRunQueryKey = (runId: string,) => {
     return [
-    `/api/runs/${runId}`
+    `/api/v2/runs/${runId}`
     ] as const;
     }
 
@@ -534,7 +689,7 @@ export type GetRunQueryError = ErrorType<UnauthorizedResponse | ForbiddenRespons
 
 
 /**
- * @summary Get a run from the signed-in user's facility
+ * @summary Get a run from the authenticated facility
  */
 
 export function useGetRun<TData = Awaited<ReturnType<typeof getRun>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
@@ -555,19 +710,19 @@ export function useGetRun<TData = Awaited<ReturnType<typeof getRun>>, TError = E
 
 
 
-export const getIssueRunCommandUrl = (runId: string,) => {
+export const getApplyRunCommandUrl = (runId: string,) => {
 
 
 
 
-  return `/api/runs/${runId}/commands`
+  return `/api/v2/runs/${runId}/commands`
 }
 
 /**
- * @summary Apply a revision-checked run lifecycle command
+ * @summary Apply a revision-guarded run lifecycle command
  */
-export const issueRunCommand = async (runId: string,
-    runCommandInput: RunCommandInput, options?: Parameters<typeof customFetch>[1]): Promise<RunCommandResult> => {
+export const applyRunCommand = async (runId: string,
+    runCommandRequest: RunCommandRequest, options?: Parameters<typeof customFetch>[1]): Promise<RunCommandAccepted> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -583,12 +738,12 @@ export const issueRunCommand = async (runId: string,
     }
     return headers;
   };
-return customFetch<RunCommandResult>(getIssueRunCommandUrl(runId),
+return customFetch<RunCommandAccepted>(getApplyRunCommandUrl(runId),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(runCommandInput)
+    body: JSON.stringify(runCommandRequest)
   }
 );}
 
@@ -596,13 +751,13 @@ return customFetch<RunCommandResult>(getIssueRunCommandUrl(runId),
 
 
 
-export const getIssueRunCommandMutationKey = () => ['issueRunCommand'] as const;
+export const getApplyRunCommandMutationKey = () => ['applyRunCommand'] as const;
 
-export const getIssueRunCommandMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof issueRunCommand>>, TError,IssueRunCommandMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof issueRunCommand>>, TError,IssueRunCommandMutationVariables, TContext> => {
+export const getApplyRunCommandMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | RunConflict | InvalidTransition>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyRunCommand>>, TError,ApplyRunCommandMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof applyRunCommand>>, TError,ApplyRunCommandMutationVariables, TContext> => {
 
-const mutationKey = getIssueRunCommandMutationKey();
+const mutationKey = getApplyRunCommandMutationKey();
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -612,10 +767,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof issueRunCommand>>, IssueRunCommandMutationVariables> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof applyRunCommand>>, ApplyRunCommandMutationVariables> = (props) => {
           const {runId,data} = props ?? {};
 
-          return  issueRunCommand(runId,data,requestOptions)
+          return  applyRunCommand(runId,data,requestOptions)
         }
 
 
@@ -625,23 +780,23 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type IssueRunCommandMutationResult = NonNullable<Awaited<ReturnType<typeof issueRunCommand>>>
-    export type IssueRunCommandMutationBody = BodyType<RunCommandInput>
-    export type IssueRunCommandMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
-    export type IssueRunCommandMutationVariables = {runId: string;data: BodyType<RunCommandInput>}
+    export type ApplyRunCommandMutationResult = NonNullable<Awaited<ReturnType<typeof applyRunCommand>>>
+    export type ApplyRunCommandMutationBody = BodyType<RunCommandRequest>
+    export type ApplyRunCommandMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | RunConflict | InvalidTransition>
+    export type ApplyRunCommandMutationVariables = {runId: string;data: BodyType<RunCommandRequest>}
 
     /**
- * @summary Apply a revision-checked run lifecycle command
+ * @summary Apply a revision-guarded run lifecycle command
  */
-export const useIssueRunCommand = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof issueRunCommand>>, TError,IssueRunCommandMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+export const useApplyRunCommand = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | RunConflict | InvalidTransition>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyRunCommand>>, TError,ApplyRunCommandMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
-        Awaited<ReturnType<typeof issueRunCommand>>,
+        Awaited<ReturnType<typeof applyRunCommand>>,
         TError,
-        IssueRunCommandMutationVariables,
+        ApplyRunCommandMutationVariables,
         TContext
       > => {
-      return useMutation(getIssueRunCommandMutationOptions(options));
+      return useMutation(getApplyRunCommandMutationOptions(options));
     }
 
 export const getGetDashboardSummaryUrl = () => {

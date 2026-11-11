@@ -31,8 +31,31 @@ export const GetFacilityContextResponse = zod.object({
 
 
 /**
+ * Issues a separate short-lived V2 cookie bound to the verified Clerk user and session. V1 cookies and credentials are never accepted.
+ * @summary Create an API session from the current Clerk session
+ */
+export const CreateV2SessionResponse = zod.object({
+  "csrfToken": zod.string()
+})
+
+
+/**
+ * @summary Revoke the current API session
+ */
+export const DeleteV2SessionHeader = zod.object({
+  "X-CSRF-Token": zod.string()
+})
+
+export const DeleteV2SessionResponse = zod.void()
+
+
+/**
  * @summary Create a facility for the signed-in user
  */
+export const CreateFacilityHeader = zod.object({
+  "X-CSRF-Token": zod.string()
+})
+
 export const createFacilityBodyNameMax = 120;
 
 
@@ -52,122 +75,225 @@ export const CreateFacilityResponse = zod.object({
 
 
 /**
- * @summary List runs in the signed-in user's facility
+ * @summary List runs for the authenticated facility
  */
+export const listRunsQueryLimitDefault = 50;
+export const listRunsQueryLimitMax = 100;
+
+
+
 export const ListRunsQueryParams = zod.object({
-  "status": zod.enum(['draft', 'running', 'paused', 'completed']).optional()
+  "limit": zod.coerce.number().int().min(1).max(listRunsQueryLimitMax).default(listRunsQueryLimitDefault)
 })
 
+export const listRunsResponseRunsItemRevisionMin = 0;
+export const listRunsResponseRunsItemRevisionMax = 9007199254740991;
+
+export const listRunsResponseRunsItemSetupSnapshotLabelMax = 120;
+
+export const listRunsResponseRunsItemSetupSnapshotTargetCasesMax = 9007199254740991;
 
 
 
-export const ListRunsResponseItem = zod.object({
+export const ListRunsResponse = zod.object({
+  "runs": zod.array(zod.object({
   "id": zod.string().uuid(),
-  "facilityId": zod.string().uuid(),
-  "name": zod.string(),
-  "status": zod.enum(['draft', 'running', 'paused', 'completed']),
-  "revision": zod.number().int().min(1),
+  "status": zod.enum(['planned', 'running', 'paused', 'completed']),
+  "revision": zod.number().int().min(listRunsResponseRunsItemRevisionMin).max(listRunsResponseRunsItemRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "startedAt": zod.coerce.date().nullable(),
   "pausedAt": zod.coerce.date().nullable(),
-  "completedAt": zod.coerce.date().nullable()
+  "resumedAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "setupSnapshot": zod.object({
+  "label": zod.string().min(1).max(listRunsResponseRunsItemSetupSnapshotLabelMax),
+  "targetCases": zod.number().int().min(1).max(listRunsResponseRunsItemSetupSnapshotTargetCasesMax)
+}),
+  "pauseIntervals": zod.array(zod.object({
+  "startedAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().nullable()
+}))
+}))
 })
-export const ListRunsResponse = zod.array(ListRunsResponseItem)
 
 
 /**
- * @summary Create a draft run in the signed-in user's facility
+ * Reusing requestId with identical setup returns the original run; reusing it with different setup returns 409.
+ * @summary Create a planned run
  */
-export const createRunBodyNameMax = 120;
+export const CreateRunHeader = zod.object({
+  "X-CSRF-Token": zod.string()
+})
+
+export const createRunBodySetupSnapshotLabelMax = 120;
+
+export const createRunBodySetupSnapshotTargetCasesMax = 9007199254740991;
 
 
 
 export const CreateRunBody = zod.object({
-  "name": zod.string().min(1).max(createRunBodyNameMax)
+  "requestId": zod.string().uuid(),
+  "setupSnapshot": zod.object({
+  "label": zod.string().min(1).max(createRunBodySetupSnapshotLabelMax),
+  "targetCases": zod.number().int().min(1).max(createRunBodySetupSnapshotTargetCasesMax)
+})
 })
 
+export const createRunResponseRunRevisionMin = 0;
+export const createRunResponseRunRevisionMax = 9007199254740991;
+
+export const createRunResponseRunSetupSnapshotLabelMax = 120;
+
+export const createRunResponseRunSetupSnapshotTargetCasesMax = 9007199254740991;
 
 
 
 export const CreateRunResponse = zod.object({
+  "outcome": zod.literal("created"),
+  "replayed": zod.boolean(),
+  "run": zod.object({
   "id": zod.string().uuid(),
-  "facilityId": zod.string().uuid(),
-  "name": zod.string(),
-  "status": zod.enum(['draft', 'running', 'paused', 'completed']),
-  "revision": zod.number().int().min(1),
+  "status": zod.enum(['planned', 'running', 'paused', 'completed']),
+  "revision": zod.number().int().min(createRunResponseRunRevisionMin).max(createRunResponseRunRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "startedAt": zod.coerce.date().nullable(),
   "pausedAt": zod.coerce.date().nullable(),
-  "completedAt": zod.coerce.date().nullable()
+  "resumedAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "setupSnapshot": zod.object({
+  "label": zod.string().min(1).max(createRunResponseRunSetupSnapshotLabelMax),
+  "targetCases": zod.number().int().min(1).max(createRunResponseRunSetupSnapshotTargetCasesMax)
+}),
+  "pauseIntervals": zod.array(zod.object({
+  "startedAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().nullable()
+}))
+})
 })
 
 
 /**
- * @summary Get a run from the signed-in user's facility
+ * @summary Get a run from the authenticated facility
  */
+export const getRunPathRunIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
 export const GetRunParams = zod.object({
-  "runId": zod.coerce.string().uuid()
+  "runId": zod.coerce.string().regex(getRunPathRunIdRegExp)
 })
 
+export const getRunResponseRunRevisionMin = 0;
+export const getRunResponseRunRevisionMax = 9007199254740991;
+
+export const getRunResponseRunSetupSnapshotLabelMax = 120;
+
+export const getRunResponseRunSetupSnapshotTargetCasesMax = 9007199254740991;
 
 
 
 export const GetRunResponse = zod.object({
+  "run": zod.object({
   "id": zod.string().uuid(),
-  "facilityId": zod.string().uuid(),
-  "name": zod.string(),
-  "status": zod.enum(['draft', 'running', 'paused', 'completed']),
-  "revision": zod.number().int().min(1),
+  "status": zod.enum(['planned', 'running', 'paused', 'completed']),
+  "revision": zod.number().int().min(getRunResponseRunRevisionMin).max(getRunResponseRunRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "startedAt": zod.coerce.date().nullable(),
   "pausedAt": zod.coerce.date().nullable(),
-  "completedAt": zod.coerce.date().nullable()
+  "resumedAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "setupSnapshot": zod.object({
+  "label": zod.string().min(1).max(getRunResponseRunSetupSnapshotLabelMax),
+  "targetCases": zod.number().int().min(1).max(getRunResponseRunSetupSnapshotTargetCasesMax)
+}),
+  "pauseIntervals": zod.array(zod.object({
+  "startedAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().nullable()
+}))
+})
 })
 
 
 /**
- * @summary Apply a revision-checked run lifecycle command
+ * @summary Apply a revision-guarded run lifecycle command
  */
-export const IssueRunCommandParams = zod.object({
-  "runId": zod.coerce.string().uuid()
+export const applyRunCommandPathRunIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
+export const ApplyRunCommandParams = zod.object({
+  "runId": zod.coerce.string().regex(applyRunCommandPathRunIdRegExp)
 })
 
-
-
-
-export const IssueRunCommandBody = zod.object({
-  "action": zod.enum(['start', 'pause', 'resume', 'complete']),
-  "expectedRevision": zod.number().int().min(1),
-  "idempotencyKey": zod.string().uuid()
+export const ApplyRunCommandHeader = zod.object({
+  "X-CSRF-Token": zod.string()
 })
 
+export const applyRunCommandBodyCommandIdMax = 200;
+
+export const applyRunCommandBodyExpectedRevisionMin = 0;
+export const applyRunCommandBodyExpectedRevisionMax = 9007199254740991;
 
 
 
-export const IssueRunCommandResponse = zod.object({
+export const ApplyRunCommandBody = zod.object({
+  "commandId": zod.string().min(1).max(applyRunCommandBodyCommandIdMax),
+  "commandType": zod.enum(['start', 'pause', 'resume', 'complete']),
+  "expectedRevision": zod.number().int().min(applyRunCommandBodyExpectedRevisionMin).max(applyRunCommandBodyExpectedRevisionMax)
+})
+
+export const applyRunCommandResponseRunRevisionMin = 0;
+export const applyRunCommandResponseRunRevisionMax = 9007199254740991;
+
+export const applyRunCommandResponseRunSetupSnapshotLabelMax = 120;
+
+export const applyRunCommandResponseRunSetupSnapshotTargetCasesMax = 9007199254740991;
+
+
+
+export const ApplyRunCommandResponse = zod.object({
+  "outcome": zod.literal("accepted"),
+  "replayed": zod.boolean(),
+  "commandId": zod.string(),
   "run": zod.object({
   "id": zod.string().uuid(),
-  "facilityId": zod.string().uuid(),
-  "name": zod.string(),
-  "status": zod.enum(['draft', 'running', 'paused', 'completed']),
-  "revision": zod.number().int().min(1),
+  "status": zod.enum(['planned', 'running', 'paused', 'completed']),
+  "revision": zod.number().int().min(applyRunCommandResponseRunRevisionMin).max(applyRunCommandResponseRunRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "startedAt": zod.coerce.date().nullable(),
   "pausedAt": zod.coerce.date().nullable(),
-  "completedAt": zod.coerce.date().nullable()
+  "resumedAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "setupSnapshot": zod.object({
+  "label": zod.string().min(1).max(applyRunCommandResponseRunSetupSnapshotLabelMax),
+  "targetCases": zod.number().int().min(1).max(applyRunCommandResponseRunSetupSnapshotTargetCasesMax)
 }),
-  "replayed": zod.boolean()
+  "pauseIntervals": zod.array(zod.object({
+  "startedAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().nullable()
+}))
+})
 })
 
 
 /**
  * @summary Get the facility's run summary and recent activity
  */
+export const getDashboardSummaryResponseActiveRunsItemRevisionMin = 0;
+export const getDashboardSummaryResponseActiveRunsItemRevisionMax = 9007199254740991;
 
+export const getDashboardSummaryResponseActiveRunsItemSetupSnapshotLabelMax = 120;
+
+export const getDashboardSummaryResponseActiveRunsItemSetupSnapshotTargetCasesMax = 9007199254740991;
+
+export const getDashboardSummaryResponseRecentRunsItemRevisionMin = 0;
+export const getDashboardSummaryResponseRecentRunsItemRevisionMax = 9007199254740991;
+
+export const getDashboardSummaryResponseRecentRunsItemSetupSnapshotLabelMax = 120;
+
+export const getDashboardSummaryResponseRecentRunsItemSetupSnapshotTargetCasesMax = 9007199254740991;
 
 
 
@@ -179,32 +305,46 @@ export const GetDashboardSummaryResponse = zod.object({
 }),
   "counts": zod.object({
   "active": zod.number().int(),
-  "draft": zod.number().int(),
+  "planned": zod.number().int(),
   "completed": zod.number().int()
 }),
   "activeRuns": zod.array(zod.object({
   "id": zod.string().uuid(),
-  "facilityId": zod.string().uuid(),
-  "name": zod.string(),
-  "status": zod.enum(['draft', 'running', 'paused', 'completed']),
-  "revision": zod.number().int().min(1),
+  "status": zod.enum(['planned', 'running', 'paused', 'completed']),
+  "revision": zod.number().int().min(getDashboardSummaryResponseActiveRunsItemRevisionMin).max(getDashboardSummaryResponseActiveRunsItemRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "startedAt": zod.coerce.date().nullable(),
   "pausedAt": zod.coerce.date().nullable(),
-  "completedAt": zod.coerce.date().nullable()
+  "resumedAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "setupSnapshot": zod.object({
+  "label": zod.string().min(1).max(getDashboardSummaryResponseActiveRunsItemSetupSnapshotLabelMax),
+  "targetCases": zod.number().int().min(1).max(getDashboardSummaryResponseActiveRunsItemSetupSnapshotTargetCasesMax)
+}),
+  "pauseIntervals": zod.array(zod.object({
+  "startedAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().nullable()
+}))
 })),
   "recentRuns": zod.array(zod.object({
   "id": zod.string().uuid(),
-  "facilityId": zod.string().uuid(),
-  "name": zod.string(),
-  "status": zod.enum(['draft', 'running', 'paused', 'completed']),
-  "revision": zod.number().int().min(1),
+  "status": zod.enum(['planned', 'running', 'paused', 'completed']),
+  "revision": zod.number().int().min(getDashboardSummaryResponseRecentRunsItemRevisionMin).max(getDashboardSummaryResponseRecentRunsItemRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "startedAt": zod.coerce.date().nullable(),
   "pausedAt": zod.coerce.date().nullable(),
-  "completedAt": zod.coerce.date().nullable()
+  "resumedAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "setupSnapshot": zod.object({
+  "label": zod.string().min(1).max(getDashboardSummaryResponseRecentRunsItemSetupSnapshotLabelMax),
+  "targetCases": zod.number().int().min(1).max(getDashboardSummaryResponseRecentRunsItemSetupSnapshotTargetCasesMax)
+}),
+  "pauseIntervals": zod.array(zod.object({
+  "startedAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().nullable()
+}))
 }))
 })
 

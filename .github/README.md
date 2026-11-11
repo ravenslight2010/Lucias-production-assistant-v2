@@ -8,8 +8,15 @@
 | `dependency-review.yml` | PR dependency vulnerability/license review |
 | `codeql.yml` | CodeQL JS/TS analysis (push/PR + weekly) |
 | `lockfile.yml` | pnpm-only lockfile + frozen install |
-| `dependabot-auto-merge.yml` | Auto-merge non-major Dependabot PRs when checks pass |
+| `auto-merge.yml` | Auto-enable squash auto-merge for same-repo non-draft PRs (majors from Dependabot still manual) |
 | `dependabot.yml` | Weekly npm + GitHub Actions updates (grouped) |
+
+## Auto-merge behavior
+
+- Every **non-draft** PR from **this repository** (not forks) gets **squash auto-merge** enabled automatically.
+- Merge only completes after **required checks** on `main` are green and the branch is up to date.
+- **Dependabot major** version bumps are left for a human.
+- Fork PRs are never auto-merged.
 
 ## Repo settings (optimized)
 

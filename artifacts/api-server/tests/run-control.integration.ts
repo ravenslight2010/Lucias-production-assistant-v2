@@ -197,11 +197,39 @@ test("signed HTTP requests enforce current facility roles without rotating the s
     });
 
   try {
+    const deniedCreateRequestId = randomUUID();
+    const deniedCreateLabel = "Operator create attempt";
     const deniedCreate = await send("/v2/runs", {
-      requestId: randomUUID(),
-      setupSnapshot: { label: "Operator create attempt", targetCases: 4 },
+      requestId: deniedCreateRequestId,
+      setupSnapshot: { label: deniedCreateLabel, targetCases: 4 },
     });
     assert.equal(deniedCreate.status, 403);
+    assert.deepEqual(
+      await db
+        .select()
+        .from(productionRunsTable)
+        .where(
+          and(
+            eq(productionRunsTable.facilityId, facility.id),
+            eq(productionRunsTable.name, deniedCreateLabel),
+          ),
+        ),
+      [],
+      "a forbidden run create must not persist a production run",
+    );
+    assert.deepEqual(
+      await db
+        .select()
+        .from(runCreateReceiptsTable)
+        .where(
+          and(
+            eq(runCreateReceiptsTable.facilityId, facility.id),
+            eq(runCreateReceiptsTable.requestId, deniedCreateRequestId),
+          ),
+        ),
+      [],
+      "a forbidden run create must not persist a creation receipt",
+    );
 
     const command = (commandType: string, expectedRevision: number) =>
       send(`/v2/runs/${run.id}/commands`, {

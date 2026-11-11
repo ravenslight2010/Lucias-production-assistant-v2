@@ -36,6 +36,7 @@ A secure production operations app for facility teams to create and control runs
 - The server is authoritative for facility and actor identity; lifecycle commands check revisions and stable idempotency keys.
 - A lifecycle change, its receipt, audit event, and outbox event are committed in one database transaction.
 - V1 historical runs are not imported; opening inventory at cutover must come from a new physical count.
+- Do not implement additional V2 features until the separate-project Reserved VM pilot passes. Use a disposable V2 database and synthetic data to verify the supervised API/worker, shared database access, restart/publish behavior, and connection budget; never test against V1.
 
 ## Product
 

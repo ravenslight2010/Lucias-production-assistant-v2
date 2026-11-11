@@ -447,7 +447,7 @@ test("shutdown clears both pending spawn-failure retries", () => {
   assert.deepEqual(exits, [0]);
 });
 
-test("shutdown after a spawn error clears pending retry and exits on close", () => {
+test("shutdown after a spawn error fails when that child closes abnormally", () => {
   const { supervisor, children, timers, exits, logs } = createHarness();
   supervisor.start();
 
@@ -465,7 +465,7 @@ test("shutdown after a spawn error clears pending retry and exits on close", () 
   worker.emit("close", -2, null);
   api.emit("close", 0, "SIGTERM");
 
-  assert.deepEqual(exits, [0]);
+  assert.deepEqual(exits, [1]);
   assert.equal(
     timers.some((timer) => timer.delayMs === 12_000 && timer.cleared),
     true,
@@ -502,12 +502,31 @@ test("graceful shutdown signals both children and prevents a replacement worker"
   assert.deepEqual(api.signals, ["SIGTERM"]);
   assert.deepEqual(worker.signals, ["SIGTERM"]);
 
-  worker.emit("close", 0, "SIGTERM");
-  api.emit("close", 0, "SIGTERM");
+  worker.emit("close", null, "SIGTERM");
+  api.emit("close", 0, null);
 
   assert.deepEqual(exits, [0]);
   assert.equal(timers.some((timer) => timer.delayMs === 1_000 && !timer.cleared), false);
   assert.equal(children.length, 2);
+});
+
+test("shutdown fails if one child exits abnormally while another exits on SIGTERM", () => {
+  const { supervisor, children, exits, logs } = createHarness();
+  supervisor.start();
+
+  const [api, worker] = children;
+  supervisor.stop("SIGTERM");
+
+  api.emit("close", 1, null);
+  assert.deepEqual(exits, []);
+
+  worker.emit("close", null, "SIGTERM");
+
+  assert.deepEqual(exits, [1]);
+  assert.deepEqual(logs.error.at(-1), [
+    { service: "api", code: 1, signal: null },
+    "Supervised process exited unexpectedly during shutdown",
+  ]);
 });
 
 test("shutdown cancels a pending worker restart and waits for active children", () => {

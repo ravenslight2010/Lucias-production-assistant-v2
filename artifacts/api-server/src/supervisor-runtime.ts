@@ -64,6 +64,7 @@ export function createSupervisor(
   let stopping = false;
   let shutdownTimer: Timer | undefined;
   let shutdownExitCode: number | undefined;
+  let shutdownFailed = false;
 
   function publishWorkerAvailability(): void {
     const api = children.get("api");
@@ -205,8 +206,17 @@ export function createSupervisor(
         children.delete(service.name);
       }
       if (stopping) {
+        // A clean exit or the SIGTERM requested by stop() is expected.
+        // Any other close status makes the overall shutdown fail.
+        if (code !== 0 && !(code === null && signal === "SIGTERM")) {
+          shutdownFailed = true;
+          logger.error(
+            { service: service.name, code, signal },
+            "Supervised process exited unexpectedly during shutdown",
+          );
+        }
         if (children.size === 0) {
-          finishShutdown(0);
+          finishShutdown(shutdownFailed ? 1 : 0);
         }
         return;
       }

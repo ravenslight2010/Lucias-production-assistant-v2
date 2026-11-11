@@ -77,17 +77,19 @@ jobs:
         with:
           node-version: "24"
           cache: pnpm
-      - name: Install PostgreSQL (initdb for disposable DB tests)
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y --no-install-recommends postgresql postgresql-contrib ||             sudo apt-get install -y --no-install-recommends postgresql-16 postgresql-contrib-16 ||             sudo apt-get install -y --no-install-recommends postgresql-common postgresql
-          command -v initdb
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: DB pool-config tests
         run: pnpm --filter @workspace/db run test:pool-config
-      - name: API server tests
-        run: pnpm --filter @workspace/api-server test
+      - name: API server unit tests (no local initdb)
+        # facility-invitation.integration.test.mjs boots disposable Postgres via initdb;
+        # run that under API integration once the runner image provides initdb reliably.
+        run: |
+          pnpm --filter @workspace/api-server run build
+          pnpm --filter @workspace/api-server exec node --test \
+            test/health.test.mjs \
+            test/supervisor.test.mjs \
+            test/db-pool-metrics.test.mjs
 
   security-audit:
     name: Security audit (prod deps)

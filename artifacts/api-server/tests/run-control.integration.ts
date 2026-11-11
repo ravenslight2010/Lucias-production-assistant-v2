@@ -141,6 +141,8 @@ test("independent signed-in sessions share canonical revisions and safe retries"
     .where(eq(productionRunsTable.id, "20000000-0000-4000-8000-000000000001"))
     .limit(1);
   assert.ok(upgradedLegacyRun, "the pre-upgrade V2 run should remain present");
+  assert.equal(upgradedLegacyRun.name, "Legacy V2 run label");
+  assert.equal(upgradedLegacyRun.createdBy, "legacy-user");
   const upgradedLegacyContract = toContractRun(upgradedLegacyRun);
   assert.equal(upgradedLegacyContract.setupSnapshot.label, "Legacy V2 run label");
   assert.equal(
@@ -159,11 +161,13 @@ test("independent signed-in sessions share canonical revisions and safe retries"
     .from(productionRunsTable)
     .where(inArray(productionRunsTable.id, legacyLifecycleIds));
   const legacyLifecycleRuns = new Map(
-    legacyLifecycleRows.map((row) => [row.id, toContractRun(row)]),
+    legacyLifecycleRows.map((row) => [row.id, row]),
   );
   const expectedLegacyRuns = [
     {
       id: legacyLifecycleIds[0],
+      name: "Legacy running run",
+      createdBy: "legacy-running-user",
       status: "running",
       revision: 7,
       createdAt: "2024-02-01T08:00:00.000Z",
@@ -181,6 +185,8 @@ test("independent signed-in sessions share canonical revisions and safe retries"
     },
     {
       id: legacyLifecycleIds[1],
+      name: "Legacy paused run",
+      createdBy: "legacy-paused-user",
       status: "paused",
       revision: 8,
       createdAt: "2024-03-01T09:00:00.000Z",
@@ -202,6 +208,8 @@ test("independent signed-in sessions share canonical revisions and safe retries"
     },
     {
       id: legacyLifecycleIds[2],
+      name: "Legacy completed run",
+      createdBy: "legacy-completed-user",
       status: "completed",
       revision: 10,
       createdAt: "2024-04-01T07:00:00.000Z",
@@ -223,8 +231,11 @@ test("independent signed-in sessions share canonical revisions and safe retries"
     },
   ] as const;
   for (const expected of expectedLegacyRuns) {
-    const run = legacyLifecycleRuns.get(expected.id);
-    assert.ok(run, `legacy ${expected.status} run should remain present`);
+    const row = legacyLifecycleRuns.get(expected.id);
+    assert.ok(row, `legacy ${expected.status} run should remain present`);
+    assert.equal(row.name, expected.name);
+    assert.equal(row.createdBy, expected.createdBy);
+    const run = toContractRun(row);
     assert.equal(run.status, expected.status);
     assert.equal(run.revision, expected.revision);
     assert.equal(run.setupSnapshot.targetCases, 1);

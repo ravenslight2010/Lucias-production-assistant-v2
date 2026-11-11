@@ -533,6 +533,34 @@ test("independent signed-in sessions share canonical revisions and safe retries"
     "20000000-0000-4000-8000-000000000001",
     "an identical create retry should resolve to the original run after upgrade",
   );
+  const runsBeforeChangedLegacyRetry = await db
+    .select({ id: productionRunsTable.id })
+    .from(productionRunsTable)
+    .where(eq(productionRunsTable.facilityId, legacyCreateReceipt.facilityId));
+  await assert.rejects(
+    createPlannedRun({
+      facilityId: legacyCreateReceipt.facilityId,
+      actorUserId: legacyCreateReceipt.actorUserId,
+      requestId: legacyCreateReceipt.requestId,
+      setupSnapshot: { label: "Changed legacy details", targetCases: 1 },
+    }),
+    (error: unknown) =>
+      error instanceof Error &&
+      "statusCode" in error &&
+      error.statusCode === 409 &&
+      error.message ===
+        "This request ID was already used for different run details.",
+    "a changed retry must return the existing request-details conflict",
+  );
+  const runsAfterChangedLegacyRetry = await db
+    .select({ id: productionRunsTable.id })
+    .from(productionRunsTable)
+    .where(eq(productionRunsTable.facilityId, legacyCreateReceipt.facilityId));
+  assert.equal(
+    runsAfterChangedLegacyRetry.length,
+    runsBeforeChangedLegacyRetry.length,
+    "a changed retry must not create another run after upgrade",
+  );
 
   const [legacyOutboxEvent] = await db
     .select()

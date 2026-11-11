@@ -191,6 +191,43 @@ test("worker availability is reported through restart and recovery", () => {
   );
 });
 
+test("worker launch failure reports restarting until a retry succeeds", () => {
+  let workerLaunches = 0;
+  const { supervisor, children, timers } = createHarness({
+    launcher(command, args, options, defaultLauncher) {
+      if (
+        options.env.DB_APPLICATION_NAME === "lucia-v2-worker" &&
+        workerLaunches++ === 0
+      ) {
+        throw Object.assign(new Error("worker launch failed"), {
+          code: "EAGAIN",
+        });
+      }
+      return defaultLauncher(command, args, options);
+    },
+  });
+
+  supervisor.start();
+
+  const [api] = children;
+  assert.deepEqual(api.messages, [
+    { type: "worker-availability", status: "starting" },
+    { type: "worker-availability", status: "restarting" },
+  ]);
+  assert.equal(timers.length, 1);
+  assert.equal(timers[0].delayMs, 1_000);
+
+  timers[0].callback();
+
+  assert.equal(children.length, 2);
+  assert.equal(children[1].options.env.DB_APPLICATION_NAME, "lucia-v2-worker");
+  assert.deepEqual(api.messages, [
+    { type: "worker-availability", status: "starting" },
+    { type: "worker-availability", status: "restarting" },
+    { type: "worker-availability", status: "available" },
+  ]);
+});
+
 test("clean API exit schedules one API replacement and leaves the worker running", () => {
   const { supervisor, children, timers } = createHarness();
   supervisor.start();

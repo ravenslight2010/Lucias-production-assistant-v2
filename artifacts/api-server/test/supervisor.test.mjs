@@ -886,6 +886,25 @@ test("shutdown fails if one child exits abnormally while another exits on SIGTER
   ]);
 });
 
+test("shutdown fails after an unexpected signal even when a sibling exits cleanly later", () => {
+  const { supervisor, children, exits, logs } = createHarness();
+  supervisor.start();
+
+  const [api, worker] = children;
+  supervisor.stop("SIGTERM");
+
+  worker.emit("close", null, "SIGKILL");
+  assert.deepEqual(exits, []);
+
+  api.emit("close", 0, null);
+
+  assert.deepEqual(exits, [1]);
+  assert.deepEqual(logs.error.at(-1), [
+    { service: "worker", code: null, signal: "SIGKILL" },
+    "Supervised process exited unexpectedly during shutdown",
+  ]);
+});
+
 test("shutdown cancels a pending worker restart and waits for active children", () => {
   const { supervisor, children, timers, exits } = createHarness();
   supervisor.start();

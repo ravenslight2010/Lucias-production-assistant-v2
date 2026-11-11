@@ -247,8 +247,23 @@ test("signed HTTP requests enforce current facility roles without rotating the s
     const promotedCreate = await send("/v2/runs", {
       requestId: randomUUID(),
       setupSnapshot: { label: "Manager create attempt", targetCases: 4 },
+      createdBy: ownerId,
     });
     assert.equal(promotedCreate.status, 201);
+    const promotedCreateBody = (await promotedCreate.json()) as {
+      run: { id: string };
+    };
+    const [savedPromotedRun] = await db
+      .select()
+      .from(productionRunsTable)
+      .where(eq(productionRunsTable.id, promotedCreateBody.run.id))
+      .limit(1);
+    assert.ok(savedPromotedRun, "the authenticated create should persist a run");
+    assert.equal(
+      savedPromotedRun.createdBy,
+      operatorId,
+      "new runs must record the signed-in creator, not a client-supplied identity",
+    );
     const promotedComplete = await command("complete", 3);
     assert.equal(promotedComplete.status, 200);
     assert.equal(

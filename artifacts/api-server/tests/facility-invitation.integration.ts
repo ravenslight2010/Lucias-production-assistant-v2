@@ -9,6 +9,9 @@ import {
 import {
   acceptPendingFacilityInvitation,
   cancelPendingFacilityInvitation,
+  FACILITY_INVITATION_METADATA_KEY,
+  persistInvitationTrackingOrCleanup,
+  resolveUntrackedClerkInvitation,
 } from "../src/lib/facility-invitation-service";
 import { getFacilityMembership } from "../src/lib/run-permissions";
 import { pool } from "@workspace/db";
@@ -28,6 +31,147 @@ const emailAddressesByUser = new Map<
   }>
 >();
 let facilityId: string;
+
+test("untracked Clerk invitations match by the facility record marker", () => {
+  const invitation = {
+    id: "facility-invitation-id",
+    email: "owner@example.com",
+    createdAt: new Date("2026-11-11T10:00:00.000Z"),
+  };
+
+  assert.deepEqual(
+    resolveUntrackedClerkInvitation(invitation, [
+      {
+        id: "clerk-invitation-id",
+        emailAddress: "OWNER@example.com",
+        publicMetadata: {
+          [FACILITY_INVITATION_METADATA_KEY]: invitation.id,
+        },
+        createdAt: new Date("2026-11-11T09:00:00.000Z").getTime(),
+      },
+    ]),
+    { kind: "matched", invitationId: "clerk-invitation-id" },
+  );
+});
+
+test("legacy invitation recovery requires one recent exact-email candidate", () => {
+  const invitation = {
+    id: "legacy-facility-invitation",
+    email: "owner@example.com",
+    createdAt: new Date("2026-11-11T10:00:00.000Z"),
+  };
+  const legacyClerkInvitation = {
+    id: "legacy-clerk-invitation",
+    emailAddress: "owner@example.com",
+    publicMetadata: null,
+    createdAt: new Date("2026-11-11T10:02:00.000Z").getTime(),
+  };
+
+  assert.deepEqual(
+    resolveUntrackedClerkInvitation(invitation, [legacyClerkInvitation]),
+    { kind: "matched", invitationId: "legacy-clerk-invitation" },
+  );
+  assert.deepEqual(
+    resolveUntrackedClerkInvitation(invitation, [
+      legacyClerkInvitation,
+      { ...legacyClerkInvitation, id: "another-clerk-invitation" },
+    ]),
+    { kind: "unsafe" },
+  );
+  assert.deepEqual(
+    resolveUntrackedClerkInvitation(invitation, [
+      {
+        ...legacyClerkInvitation,
+        publicMetadata: {
+          [FACILITY_INVITATION_METADATA_KEY]: "another-facility-invitation",
+        },
+      },
+    ]),
+    { kind: "unsafe" },
+  );
+  assert.deepEqual(
+    resolveUntrackedClerkInvitation(invitation, [
+      {
+        ...legacyClerkInvitation,
+        createdAt: invitation.createdAt.getTime() + 700_000,
+      },
+    ]),
+    { kind: "unsafe" },
+  );
+});
+
+test("an absent Clerk invitation is safe to reconcile, unrelated email is not", () => {
+  const invitation = {
+    id: "facility-invitation-id",
+    email: "owner@example.com",
+    createdAt: new Date(),
+  };
+
+  assert.deepEqual(resolveUntrackedClerkInvitation(invitation, []), {
+    kind: "not-found",
+  });
+  assert.deepEqual(
+    resolveUntrackedClerkInvitation(invitation, [
+      {
+        id: "other-email",
+        emailAddress: "someone-else@example.com",
+        createdAt: Date.now(),
+      },
+    ]),
+    { kind: "not-found" },
+  );
+});
+
+test("failed Clerk ID persistence revokes and removes the local invitation", async () => {
+  const calls: string[] = [];
+
+  const result = await persistInvitationTrackingOrCleanup({
+    persist: async () => {
+      calls.push("persist");
+      throw new Error("database unavailable");
+    },
+    revoke: async () => {
+      calls.push("revoke");
+    },
+    removeLocalRecord: async () => {
+      calls.push("remove");
+    },
+  });
+
+  assert.equal(result, "cleaned");
+  assert.deepEqual(calls, ["persist", "revoke", "remove"]);
+});
+
+test("failed compensation leaves the invitation available for recovery", async () => {
+  const result = await persistInvitationTrackingOrCleanup({
+    persist: async () => false,
+    revoke: async () => {
+      throw new Error("Clerk unavailable");
+    },
+    removeLocalRecord: async () => {
+      assert.fail("Local record must remain when Clerk revocation fails.");
+    },
+  });
+
+  assert.equal(result, "recovery-required");
+});
+
+test("a cleaned Clerk invite remains recoverable if local deletion fails", async () => {
+  const calls: string[] = [];
+  const result = await persistInvitationTrackingOrCleanup({
+    persist: async () => false,
+    revoke: async () => {
+      calls.push("revoke");
+    },
+    removeLocalRecord: async () => {
+      calls.push("remove");
+      throw new Error("database unavailable");
+    },
+  });
+
+  assert.equal(result, "recovery-required");
+  assert.deepEqual(calls, ["revoke", "remove"]);
+});
 
 beforeEach(async () => {
   emailAddressesByUser.clear();
@@ -234,6 +378,7 @@ test("cancellation winning the invitation lock prevents facility access", async 
         revokeStarted.resolve();
         await finishRevoke.promise;
       },
+      resolveUntrackedInvitation: async () => ({ kind: "not-found" }),
     },
   );
 
@@ -282,6 +427,7 @@ test("acceptance winning the invitation lock makes cancellation report not found
     {
       database: db,
       revokeInvitation: async () => {},
+      resolveUntrackedInvitation: async () => ({ kind: "not-found" }),
     },
   );
   await waitForInvitationLockWait();

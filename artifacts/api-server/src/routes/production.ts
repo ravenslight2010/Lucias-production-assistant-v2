@@ -41,6 +41,9 @@ import { HttpError } from "../lib/http-error";
 import {
   acceptPendingFacilityInvitation,
   cancelPendingFacilityInvitation,
+  FACILITY_INVITATION_METADATA_KEY,
+  persistInvitationTrackingOrCleanup,
+  resolveUntrackedClerkInvitation,
 } from "../lib/facility-invitation-service";
 import { executeRunCommand } from "../lib/run-command-service";
 import { createPlannedRun } from "../lib/run-create-service";
@@ -435,6 +438,9 @@ router.post(
         emailAddress: email,
         expiresInDays: 30,
         ignoreExisting: true,
+        publicMetadata: {
+          [FACILITY_INVITATION_METADATA_KEY]: pendingInvitation.id,
+        },
         redirectUrl: new URL("/sign-up", origin).toString(),
       });
     } catch (error) {
@@ -454,16 +460,34 @@ router.post(
         .json({ error: "The email invitation could not be sent. Please try again." });
       return;
     }
-    try {
-      await db
-        .update(facilityInvitationsTable)
-        .set({ clerkInvitationId: clerkInvitation.id })
-        .where(eq(facilityInvitationsTable.id, pendingInvitation.id));
-    } catch {
+    const trackingResult = await persistInvitationTrackingOrCleanup({
+      persist: async () => {
+        const [updatedInvitation] = await db
+          .update(facilityInvitationsTable)
+          .set({ clerkInvitationId: clerkInvitation.id })
+          .where(eq(facilityInvitationsTable.id, pendingInvitation.id))
+          .returning({ id: facilityInvitationsTable.id });
+        return Boolean(updatedInvitation);
+      },
+      revoke: () => revokeClerkInvitation(clerkInvitation.id),
+      removeLocalRecord: async () => {
+        await db
+          .delete(facilityInvitationsTable)
+          .where(eq(facilityInvitationsTable.id, pendingInvitation.id));
+      },
+    });
+    if (trackingResult !== "tracked") {
       req.log.warn(
-        { invitationRecordId: pendingInvitation.id },
-        "Invitation tracking could not be updated after Clerk accepted the invitation",
+        { invitationRecordId: pendingInvitation.id, trackingResult },
+        "Clerk invitation tracking failed and compensation did not fully complete",
       );
+      res.status(502).json({
+        error:
+          trackingResult === "cleaned"
+            ? "The invitation could not be tracked and was cancelled. You can invite this email again now."
+            : "The invitation could not be tracked or cancelled. Cancel the pending invitation before inviting this email again.",
+      });
+      return;
     }
 
     res.status(201).json(
@@ -509,6 +533,28 @@ router.delete(
             );
           }
         },
+        resolveUntrackedInvitation: async (invitation) => {
+          try {
+            const response = await clerkClient.invitations.getInvitationList({
+              query: invitation.email,
+              status: "pending",
+              limit: 100,
+            });
+            return resolveUntrackedClerkInvitation(
+              invitation,
+              response.data,
+            );
+          } catch {
+            req.log.warn(
+              { invitationId: invitation.id },
+              "Clerk invitations could not be checked during recovery",
+            );
+            throw new HttpError(
+              502,
+              "The invitation could not be recovered. Please try again.",
+            );
+          }
+        },
       },
     );
 
@@ -516,9 +562,10 @@ router.delete(
       res.status(404).json({ error: "Pending facility invitation not found." });
       return;
     }
-    if (result === "untracked") {
+    if (result === "unresolved") {
       res.status(409).json({
-        error: "This invitation cannot be cancelled because its Clerk record is unavailable.",
+        error:
+          "This invitation could not be safely matched to a Clerk record. It was not changed; contact support before retrying.",
       });
       return;
     }

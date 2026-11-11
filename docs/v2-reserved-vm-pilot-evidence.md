@@ -164,6 +164,23 @@ production measurement.
 Exclude replica `pg_stat_activity` values from this calculation; they do not
 measure primary application connections. Do not access V1.
 
+## Preflight for the next published update
+
+Observed 2026-11-11 15:58 UTC before the next V2 publish:
+
+- Deployment metadata reported an active, public `vm` deployment with a
+  successful current build.
+- A read-only production `GET /api/healthz` returned HTTP 200 with
+  `{"status":"ok"}`.
+- The current V2 source contains the API and worker pool instrumentation.
+  API/web typechecks and artifact builds passed; the session-cookie regression
+  tests passed 3/3.
+- This workspace has not yet published the current session-cookie fix or
+  redeployed the instrumentation. No restart-overlap measurement has been made.
+- The user authorized the pilot. The prepared publish action remains
+  user-initiated; no production database writes or V1 access occurred in this
+  preflight.
+
 ## Remaining gates
 
 - Confirm the exact Reserved VM machine configuration in the Publishing UI.

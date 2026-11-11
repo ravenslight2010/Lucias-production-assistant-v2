@@ -1,7 +1,14 @@
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { createServer } from "node:http";
 import { and, eq, inArray } from "drizzle-orm";
+import express, {
+  type NextFunction,
+  type Request,
+  type Response,
+} from "express";
+import cookieParser from "cookie-parser";
 import {
   db,
   facilitiesTable,
@@ -20,13 +27,164 @@ import {
   issueV2Session,
   verifyV2SessionToken,
 } from "../src/lib/v2-session";
+import { HttpError } from "../src/lib/http-error";
 import {
   assertRunPermission,
   getFacilityMembership,
 } from "../src/lib/run-permissions";
+import productionRouter from "../src/routes/production";
 
 after(async () => {
   await pool.end();
+});
+
+test("signed HTTP requests enforce current facility roles without rotating the session", async () => {
+  const [facility] = await db
+    .insert(facilitiesTable)
+    .values({ name: "Signed API role integration facility" })
+    .returning();
+  const ownerId = `http-owner-${randomUUID()}`;
+  const operatorId = `http-operator-${randomUUID()}`;
+  await db.insert(facilityMembersTable).values([
+    { facilityId: facility.id, userId: ownerId, role: "owner" },
+    { facilityId: facility.id, userId: operatorId, role: "operator" },
+  ]);
+
+  const clerkSessionId = `http-clerk-session-${randomUUID()}`;
+  const v2Session = issueV2Session(operatorId, clerkSessionId);
+  const initialRun = await createPlannedRun({
+    facilityId: facility.id,
+    actorUserId: ownerId,
+    requestId: randomUUID(),
+    setupSnapshot: { label: "Operator lifecycle run", targetCases: 4 },
+  });
+  const run = initialRun.run;
+
+  const app = express();
+  app.use(express.json(), cookieParser());
+  app.use((req, _res, next) => {
+    const authHandler = Object.assign(
+      () => ({
+        userId: operatorId,
+        sessionId: clerkSessionId,
+        tokenType: "session_token" as const,
+      }),
+      { [Symbol.for("@clerk/express.auth")]: true },
+    );
+    (req as Request & { auth: typeof authHandler }).auth = authHandler;
+    next();
+  });
+  app.use(productionRouter);
+  app.use(
+    (error: unknown, _req: Request, res: Response, _next: NextFunction) => {
+      if (error instanceof HttpError) {
+        res.status(error.statusCode).json({ error: error.message });
+        return;
+      }
+      res.status(500).json({ error: "Request could not be completed." });
+    },
+  );
+
+  const server = createServer(app);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  const origin = `http://127.0.0.1:${address.port}`;
+  const send = async (path: string, body: unknown) =>
+    fetch(`${origin}${path}`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: `v2_session=${v2Session.token}`,
+        origin,
+        "x-csrf-token": v2Session.csrfToken,
+      },
+      body: JSON.stringify(body),
+    });
+
+  try {
+    const deniedCreate = await send("/v2/runs", {
+      requestId: randomUUID(),
+      setupSnapshot: { label: "Operator create attempt", targetCases: 4 },
+    });
+    assert.equal(deniedCreate.status, 403);
+
+    const command = (commandType: string, expectedRevision: number) =>
+      send(`/v2/runs/${run.id}/commands`, {
+        commandId: `${commandType}-${randomUUID()}`,
+        commandType,
+        expectedRevision,
+      });
+
+    const started = await command("start", 0);
+    assert.equal(started.status, 200, "operators can start runs");
+    assert.equal(
+      ((await started.json()) as { run: { status: string } }).run.status,
+      "running",
+    );
+
+    const paused = await command("pause", 1);
+    assert.equal(paused.status, 200, "operators can pause runs");
+    assert.equal(
+      ((await paused.json()) as { run: { status: string } }).run.status,
+      "paused",
+    );
+
+    const resumed = await command("resume", 2);
+    assert.equal(resumed.status, 200, "operators can resume runs");
+    assert.equal(
+      ((await resumed.json()) as { run: { status: string } }).run.status,
+      "running",
+    );
+
+    const deniedComplete = await command("complete", 3);
+    assert.equal(deniedComplete.status, 403);
+
+    await db
+      .update(facilityMembersTable)
+      .set({ role: "manager" })
+      .where(
+        and(
+          eq(facilityMembersTable.facilityId, facility.id),
+          eq(facilityMembersTable.userId, operatorId),
+        ),
+      );
+
+    const promotedCreate = await send("/v2/runs", {
+      requestId: randomUUID(),
+      setupSnapshot: { label: "Manager create attempt", targetCases: 4 },
+    });
+    assert.equal(promotedCreate.status, 201);
+    const promotedComplete = await command("complete", 3);
+    assert.equal(promotedComplete.status, 200);
+    assert.equal(
+      ((await promotedComplete.json()) as { run: { status: string } }).run
+        .status,
+      "completed",
+    );
+
+    await db
+      .update(facilityMembersTable)
+      .set({ role: "operator" })
+      .where(
+        and(
+          eq(facilityMembersTable.facilityId, facility.id),
+          eq(facilityMembersTable.userId, operatorId),
+        ),
+      );
+
+    const demotedCreate = await send("/v2/runs", {
+      requestId: randomUUID(),
+      setupSnapshot: { label: "Demoted create attempt", targetCases: 4 },
+    });
+    assert.equal(demotedCreate.status, 403);
+    const demotedComplete = await command("complete", 4);
+    assert.equal(demotedComplete.status, 403);
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
 });
 
 test("independent signed-in sessions share canonical revisions and safe retries", async () => {

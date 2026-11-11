@@ -89,7 +89,9 @@ export const productionRunsTable = pgTable(
     // Older V2 rows stored only a name, so the additive upgrade uses one as
     // the smallest valid target rather than guessing a historical quantity.
     targetCases: integer("target_cases").notNull().default(1),
-    status: runStatusEnum("status").notNull().default("planned"),
+    // Keep the database fallback compatible with production; the API explicitly
+    // sets "planned" when creating a new run.
+    status: runStatusEnum("status").notNull().default("draft"),
     revision: integer("revision").notNull().default(0),
     createdBy: text("created_by").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })

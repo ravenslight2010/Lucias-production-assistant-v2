@@ -2,3 +2,4 @@
 - [Temporary ESM integration bundles](temporary-esm-integration-bundles.md) — externalized packages resolve from the emitted bundle path, not the test runner's working directory.
 - [Drizzle push safeguards](drizzle-push-safeguards.md) — keep confirmation enabled because schema pushes can treat independently maintained indexes and constraints as drift.
 - [Publish check-constraint formatting](publish-check-constraint-formatting.md) — Avoid top-level CASE checks; the Publish diff can duplicate CHECK wrappers, so verify generated DDL before retrying.
+- [Enum additions in Publish](enum-addition-publish-staging.md) — Keep new PostgreSQL enum labels out of same-transaction defaults; use explicit app values or a later Publish.

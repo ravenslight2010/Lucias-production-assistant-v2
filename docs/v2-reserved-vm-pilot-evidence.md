@@ -187,6 +187,15 @@ Observed 2026-11-11 15:58 UTC before the next V2 publish:
   no structural data loss reported. Its broader compatibility flag remains
   true, so review any Publish warning before proceeding. Production was queried
   read-only and still has no `facility_station_layouts` table.
+- The enum retry failure was traced to the same Publish diff: it added
+  `run_status.planned` and then used that new value as the column default before
+  the value could be committed. The development schema now keeps the existing
+  production default (`draft`); the API explicitly writes `planned` for new
+  runs. Development and production defaults match.
+- The latest diff has 18 statements and only adds the `planned` enum value; it
+  no longer sets the status default to `planned` in that transaction. No
+  structural data loss or removals are reported. Review the remaining
+  compatibility flag in Publish before confirming.
 
 ## Remaining gates
 

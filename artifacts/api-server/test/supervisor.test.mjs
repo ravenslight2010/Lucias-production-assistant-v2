@@ -109,6 +109,29 @@ test("graceful shutdown signals both children and prevents a replacement worker"
   assert.equal(children.length, 2);
 });
 
+test("shutdown force-kills children that remain open after the timeout", () => {
+  const { supervisor, children, timers, exits } = createHarness();
+  supervisor.start();
+
+  const [api, worker] = children;
+  supervisor.stop("SIGTERM");
+
+  assert.deepEqual(api.signals, ["SIGTERM"]);
+  assert.deepEqual(worker.signals, ["SIGTERM"]);
+  assert.equal(api.closed, false);
+  assert.equal(worker.closed, false);
+
+  const shutdownTimer = timers.find((timer) => timer.delayMs === 12_000);
+  assert.ok(shutdownTimer);
+  assert.equal(shutdownTimer.cleared, false);
+
+  shutdownTimer.callback();
+
+  assert.deepEqual(api.signals, ["SIGTERM", "SIGKILL"]);
+  assert.deepEqual(worker.signals, ["SIGTERM", "SIGKILL"]);
+  assert.deepEqual(exits, [1]);
+});
+
 test("pool maxima match the documented connection budget", async () => {
   const evidence = await readFile(
     new URL("../../../docs/v2-reserved-vm-pilot-evidence.md", import.meta.url),

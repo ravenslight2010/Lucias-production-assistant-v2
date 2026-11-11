@@ -231,6 +231,72 @@ test("spawn errors are logged and retried after the child closes", () => {
   assert.deepEqual(worker.signals, []);
 });
 
+test("API and worker spawn failures retry independently", () => {
+  const { supervisor, children, timers } = createHarness();
+  supervisor.start();
+
+  const [api, worker] = children;
+  api.emit(
+    "error",
+    Object.assign(new Error("API entry not found"), { code: "ENOENT" }),
+  );
+  worker.emit(
+    "error",
+    Object.assign(new Error("worker entry not found"), { code: "ENOENT" }),
+  );
+  api.emit("close", -2, null);
+  worker.emit("close", -2, null);
+
+  assert.equal(timers.length, 2);
+  const [apiRetry, workerRetry] = timers;
+  assert.equal(apiRetry.delayMs, 1_000);
+  assert.equal(workerRetry.delayMs, 1_000);
+  assert.equal(children.length, 2);
+
+  apiRetry.callback();
+  assert.equal(children.length, 3);
+  assert.equal(children[2].options.env.DB_APPLICATION_NAME, "lucia-v2-api");
+  assert.equal(workerRetry.cleared, false);
+  assert.equal(children[1].closed, true);
+
+  workerRetry.callback();
+  assert.equal(children.length, 4);
+  assert.equal(children[3].options.env.DB_APPLICATION_NAME, "lucia-v2-worker");
+  assert.equal(children[2].closed, false);
+  assert.equal(children[3].closed, false);
+
+  supervisor.stop("SIGTERM");
+  children[2].emit("close", 0, "SIGTERM");
+  children[3].emit("close", 0, "SIGTERM");
+});
+
+test("shutdown clears both pending spawn-failure retries", () => {
+  const { supervisor, children, timers, exits } = createHarness();
+  supervisor.start();
+
+  const [api, worker] = children;
+  api.emit(
+    "error",
+    Object.assign(new Error("API entry not found"), { code: "ENOENT" }),
+  );
+  worker.emit(
+    "error",
+    Object.assign(new Error("worker entry not found"), { code: "ENOENT" }),
+  );
+  api.emit("close", -2, null);
+  worker.emit("close", -2, null);
+
+  const retryTimers = timers.filter((timer) => timer.delayMs === 1_000);
+  assert.equal(retryTimers.length, 2);
+  supervisor.stop("SIGTERM");
+
+  assert.deepEqual(retryTimers.map((timer) => timer.cleared), [true, true]);
+  assert.deepEqual(exits, [0]);
+  for (const timer of retryTimers) timer.callback();
+  assert.equal(children.length, 2);
+  assert.deepEqual(exits, [0]);
+});
+
 test("shutdown after a spawn error clears pending retry and exits on close", () => {
   const { supervisor, children, timers, exits, logs } = createHarness();
   supervisor.start();

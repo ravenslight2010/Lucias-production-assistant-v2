@@ -429,7 +429,7 @@ test("cancellation winning the invitation lock prevents facility access", async 
         revokeStarted.resolve();
         await finishRevoke.promise;
       },
-      resolveUntrackedInvitation: async () => ({ kind: "not-found" }),
+      resolveUntrackedInvitation: async () => ({ kind: "not-found" as const }),
     },
   );
 
@@ -468,6 +468,7 @@ test("a cancelled invitation cannot be accepted while a later valid invitation s
     {
       database: db,
       revokeInvitation: async () => {},
+      resolveUntrackedInvitation: async () => ({ kind: "not-found" as const }),
     },
   );
   const cancelledAcceptance = await acceptPendingFacilityInvitation(
@@ -538,7 +539,7 @@ test("acceptance winning the invitation lock makes cancellation report not found
     {
       database: db,
       revokeInvitation: async () => {},
-      resolveUntrackedInvitation: async () => ({ kind: "not-found" }),
+      resolveUntrackedInvitation: async () => ({ kind: "not-found" as const }),
     },
   );
   await waitForInvitationLockWait();

@@ -74,7 +74,7 @@ import { executeRunCommand } from "../lib/run-command-service";
 import { getRunStationProgress } from "../lib/run-station-progress-service";
 import { createPlannedRun } from "../lib/run-create-service";
 import { importSchedule } from "../lib/schedule-import-service";
-import { shippingDataMatchesBrand } from "../lib/shipping-import-validation";
+import { shippingDataMatchesBrand, shippingSelectionIdentity } from "../lib/shipping-import-validation";
 import { toContractRun } from "../lib/run-contract";
 import {
   DEFAULT_FACILITY_STATIONS,
@@ -996,11 +996,11 @@ router.post(
       !/^[a-f0-9]{64}$/i.test(input.sourceHash) ||
       input.importKind === "schedule" ||
       !safeJsonPayload(input.productData) ||
-      (input.importKind === "shipping" && !shippingDataMatchesBrand(input.productData, brand))
+      (input.importKind === "shipping" && !shippingDataMatchesBrand(input.productData, brand, flavor))
     ) {
       res.status(400).json({
         error: input.importKind === "shipping"
-          ? "Shipping details must contain rows for only the target profile brand."
+          ? "Review one shipping variant for the target product, or supply legacy rows for only its brand."
           : "This workbook cannot be saved as product setup data.",
       });
       return;
@@ -1012,6 +1012,9 @@ router.post(
     let doughSelection: string | null = null;
     let cheeseSelection: string | null = null;
     let sauceSelection: string | null = null;
+    const shippingSelection = input.importKind === "shipping"
+      ? shippingSelectionIdentity(input.productData, brand, flavor)
+      : null;
     if (input.importKind === "dough_guide") {
       try {
         doughSelection = doughImportSelectionIdentity(input.productData);
@@ -1052,6 +1055,7 @@ router.post(
         ...(cheeseSelection ? { cheeseSelection } : {}),
         ...(sauceSelection ? { sauceSelection } : {}),
         ...(premixSelection ? { premixSelection } : {}),
+        ...(shippingSelection ? { shippingSelection } : {}),
       }))
       .digest("hex");
     try {

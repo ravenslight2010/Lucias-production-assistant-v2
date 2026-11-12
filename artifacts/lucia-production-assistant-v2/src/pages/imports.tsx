@@ -19,10 +19,8 @@ import type { ProductProfile, ProductProfileImportInput, ScheduleImportInput } f
 import { OperationalSetupSummary } from '../components/operational-setup-summary';
 import { ProductSpecSummary } from '../components/product-spec-summary';
 import {
-  filterShippingWorkbookByBrand,
   normalizeShippingBrand,
   parseOperationalWorkbook,
-  shippingRowCountForBrand,
   type OperationalImportKind,
   type OperationalWorkbookData,
 } from '../importing/operational';
@@ -31,6 +29,7 @@ import { doughPortionChoices, scopeDoughWorkbook } from '../importing/dough';
 import { cheeseRecipeChoices, scopeCheeseWorkbook } from '../importing/cheese';
 import { sauceIssueCount } from '../importing/sauce';
 import { premixIssueCount } from '../importing/premix';
+import { scopeShippingWorkbook, shippingChoices } from '../importing/shipping';
 import {
   IMPORT_KINDS,
   parseProductSpecProfiles,
@@ -96,21 +95,19 @@ function operationalProductData(workbook: ParsedWorkbook, kind: OperationalImpor
   };
 }
 
-function shippingProductData(workbook: ParsedWorkbook, selectedSheetNames: string[], brand: string) {
-  const structured = filterShippingWorkbookByBrand(
+function shippingProductData(workbook: ParsedWorkbook, selectedSheetNames: string[], key: string, brand: string, flavor: string) {
+  const structured = scopeShippingWorkbook(
     parseOperationalWorkbook(workbook, 'shipping', selectedSheetNames),
-    brand,
+    key, brand, flavor,
   );
   const matchingRows = new Map(structured.sheets.map((sheet) => [sheet.name, new Set(sheet.shippingRecords.map((record) => record.sourceRow - 1))]));
   const rawSheets = workbook.sheets
     .filter((sheet) => selectedSheetNames.includes(sheet.name))
     .map((sheet) => {
       const keepRows = matchingRows.get(sheet.name) ?? new Set<number>();
-      const headerRow = sheet.rows.findIndex((row) => {
-        const text = row.map((value) => typeof value === 'string' ? value.toLocaleLowerCase() : '').join(' ');
-        return /\bpizza\b/.test(text) && /\bbox\b/.test(text) && /pallet/.test(text);
-      });
-      if (headerRow >= 0) keepRows.add(headerRow);
+      for (const record of structured.sheets.find(s => s.name === sheet.name)?.shippingRecords ?? []) {
+        if (record.shipping) keepRows.add(record.shipping.headerRow - 1);
+      }
       return {
         name: sheet.name,
         cells: sheet.rows.flatMap((row, rowIndex) => keepRows.has(rowIndex)
@@ -219,6 +216,23 @@ const visualOperationalPreview: OperationalWorkbookData = {
   ...parseOperationalWorkbook(visualOperationalWorkbook, 'premix', ['Sample Brand']),
   premixReview: { reviewedAsReference: true },
 };
+
+const visualShippingWorkbook: ParsedWorkbook = {
+  fileName: 'Sample_Shipping_Guide.xlsx', sizeBytes: 2048, cellCount: 39, sheetCount: 1,
+  kind: 'shipping', kindConfidence: 'high',
+  sheets: [{ name: 'Palletizing', rows: [
+    ['Shipping and palletizing — synthetic sample'],
+    ['PIZZA', 'BOX', 'DIMENSIONS', 'CIRCLE', 'PIZZAS/CS', 'CASES', 'GRIPSHEEETS', 'PALLET TYPE', 'STACKING', 'FILM', 'PALLET HEIGHT'],
+    ['Sample Brand', '11" carton shipper', '22 x 11 x 8', '11"', 12, 54, 'X', 'No Blue', 'Column', '16"', '80"'],
+    ['Sample Brand multipack', '2-pack shipper', '15 x 12 x 12', '12"', '6 - 2PACK', 54, 'X', 'Block', 'Column', '16"', null],
+  ] }],
+};
+const visualShippingData = parseOperationalWorkbook(visualShippingWorkbook, 'shipping');
+const visualShippingPreview = scopeShippingWorkbook(visualShippingData, shippingChoices(visualShippingData)[0].key, 'Sample Brand', 'Classic');
+const visualShippingProfiles: ProductProfile[] = [{
+  id: '00000000-0000-4000-8000-000000000001', brand: 'Sample Brand', flavor: 'Classic', revision: 0,
+  productData: {}, mergedIntoId: null, createdAt: '2026-11-12T00:00:00Z', updatedAt: '2026-11-12T00:00:00Z',
+}];
 
 const visualDoughWorkbook: ParsedWorkbook = {
   fileName: 'Sample_Dough_Mixing_Procedure.xlsx',
@@ -356,6 +370,7 @@ function WorkbookReview({
   const [brand, setBrand] = useState('');
   const [flavor, setFlavor] = useState('');
   const [shippingImportStates, setShippingImportStates] = useState<Record<string, { status: 'saving' | 'saved' | 'failed'; error?: string }>>({});
+  const [shippingProfileChoices, setShippingProfileChoices] = useState<Record<string, string>>({});
   const [productSpecDrafts, setProductSpecDrafts] = useState<ProductSpecDraft[]>(() =>
     initialWorkbook?.kind === 'product_specs' ? prepareProductSpecDrafts(initialWorkbook) : [],
   );
@@ -415,6 +430,10 @@ function WorkbookReview({
   useEffect(() => { setCheeseReviewConfirmed(false); }, [cheeseKeys]);
   useEffect(() => { setSauceReviewConfirmed(false); }, [unscopedOperationalPreview]);
   useEffect(() => { setPremixReviewConfirmed(false); }, [unscopedOperationalPreview]);
+  useEffect(() => {
+    setShippingImportStates({});
+    setShippingProfileChoices({});
+  }, [unscopedOperationalPreview]);
   const sauceReviewIssueCount = kind === 'sauce_guide' ? sauceIssueCount(operationalPreview) : 0;
   const premixReviewIssueCount = kind === 'premix' ? premixIssueCount(operationalPreview) : 0;
   const doughReviewIssueCount = kind === 'dough_guide'
@@ -442,16 +461,18 @@ function WorkbookReview({
     () => new Map(profiles.map((profile) => [scheduleProductKey(profile.brand, profile.flavor), profile])),
     [profiles],
   );
-  const shippingTargets = useMemo(() => {
+  const availableShippingChoices = useMemo(() => operationalPreview && kind === 'shipping' ? shippingChoices(operationalPreview) : [], [operationalPreview, kind]);
+  const shippingProfileRows = useMemo(() => {
     if (kind !== 'shipping' || !operationalPreview) return [];
     return profiles
       .filter((profile) => !profile.mergedIntoId)
-      .map((profile) => ({
-        profile,
-        rowCount: shippingRowCountForBrand(operationalPreview, profile.brand),
-      }))
-      .filter((target) => target.rowCount > 0);
-  }, [kind, operationalPreview, profiles]);
+      .map(profile => {
+        const exact = availableShippingChoices.filter(c => normalizeShippingBrand(c.record.brand) === normalizeShippingBrand(profile.brand));
+        const key = shippingProfileChoices[profile.id] ?? (exact.length === 1 ? exact[0].key : '');
+        return { profile, key, choice: availableShippingChoices.find(c => c.key === key) };
+      });
+  }, [kind, operationalPreview, profiles, availableShippingChoices, shippingProfileChoices]);
+  const shippingTargets = shippingProfileRows.filter(row => row.choice);
   const shippingPendingCount = shippingTargets.filter(
     ({ profile }) => shippingImportStates[profile.id]?.status !== 'saved',
   ).length;
@@ -503,6 +524,7 @@ function WorkbookReview({
     setDoughReviewConfirmed(false);
     setSelectedOperationalSheets([]);
     setShippingImportStates({});
+    setShippingProfileChoices({});
     setSheetFilter('');
     setWorkbook(null);
     setSourceFile(file);
@@ -698,7 +720,7 @@ function WorkbookReview({
         return;
       }
       if (!shippingTargets.length) {
-        setValidation('No active product profiles match the shipping brands in the selected worksheets.');
+        setValidation('Choose a shipping row for at least one active product profile.');
         return;
       }
       const pendingTargets = shippingTargets.filter((target) => shippingImportStates[target.profile.id]?.status !== 'saved');
@@ -720,7 +742,7 @@ function WorkbookReview({
             [profile.id]: { status: 'saving' },
           }));
           try {
-            const productData = shippingProductData(workbook, selectedOperationalSheets, profile.brand);
+            const productData = shippingProductData(workbook, selectedOperationalSheets, pendingTargets[index].key, profile.brand, profile.flavor);
             if (JSON.stringify(productData).length > 700_000) {
               throw new Error('This profile’s shipping data exceeds the 700,000-character API limit.');
             }
@@ -963,8 +985,8 @@ function WorkbookReview({
             <p className="field-help">Select only tabs that belong to the Brand and Flavor below. If a workbook contains different products, import those tabs separately so each run gets the right setup.</p>
             <div className="operational-sheet-actions">
               <span>{selectedOperationalSheets.length} of {workbook.sheets.length} selected</span>
-              {kind !== 'cheese' && <button className="button button-quiet" type="button" onClick={() => setSelectedOperationalSheets(workbook.sheets.map((sheet) => sheet.name))} disabled={previewMode || selectedOperationalSheets.length === workbook.sheets.length}>Select all</button>}
-              <button className="button button-quiet" type="button" onClick={() => setSelectedOperationalSheets([])} disabled={previewMode || selectedOperationalSheets.length === 0}>Clear</button>
+              {kind !== 'cheese' && <button className="button button-quiet" type="button" onClick={() => setSelectedOperationalSheets(workbook.sheets.map((sheet) => sheet.name))} disabled={previewMode || importer.isPending || (kind === 'shipping' && shippingScopeLocked) || selectedOperationalSheets.length === workbook.sheets.length}>Select all</button>}
+              <button className="button button-quiet" type="button" onClick={() => setSelectedOperationalSheets([])} disabled={previewMode || importer.isPending || (kind === 'shipping' && shippingScopeLocked) || selectedOperationalSheets.length === 0}>Clear</button>
             </div>
             {workbook.sheets.length > 12 && <div className="form-field" style={{ marginTop: 8 }}>
               <label htmlFor="operational-sheet-filter">Filter worksheets</label>
@@ -994,25 +1016,32 @@ function WorkbookReview({
             </div>
           </fieldset>}
           {kind === 'shipping' && <div className="form-field" style={{ marginTop: 12 }}>
-            <strong>Matching active profiles</strong>
-            <span className="field-help">Each selected shipping row is saved only to active profiles with the same normalized brand. Existing run snapshots stay unchanged.</span>
+            <strong>Packaging variant for each product</strong>
+            <span className="field-help">Choose one guide row per product, or leave it unapplied. A unique exact brand match is suggested; review its box, size and pack count before saving. Different guide labels can be mapped explicitly. Existing run snapshots stay unchanged.</span>
             {shippingScopeLocked && <span className="field-help">Worksheet selection is locked after a profile saves. Choose the workbook again to review a different selection.</span>}
             {!profilesReady && <span className="field-help" role="status">Loading active profiles…</span>}
             {profilesReady && profiles.length === 0 && <span className="field-help">Create a product profile before attaching its shipping reference.</span>}
-            {profilesReady && shippingTargets.length === 0 && <span className="field-help" role="status">No active profiles match brands found in the selected worksheets.</span>}
-            {shippingTargets.length > 0 && <ul className="field-help" data-testid="shipping-profile-targets">
-              {shippingTargets.map(({ profile, rowCount }) => {
+            {profilesReady && shippingTargets.length === 0 && <span className="field-help" role="status">Choose a shipping row for at least one active profile.</span>}
+            {shippingProfileRows.length > 0 && <div data-testid="shipping-profile-targets">
+              {shippingProfileRows.map(({ profile, key }) => {
                 const state = shippingImportStates[profile.id];
-                return <li key={profile.id} data-testid={`shipping-target-${profile.id}`}>
-                  {profile.brand} / {profile.flavor} · {rowCount} matching {rowCount === 1 ? 'row' : 'rows'}
+                return <div className="form-field" key={profile.id} data-testid={`shipping-target-${profile.id}`}>
+                  <label htmlFor={`shipping-choice-${profile.id}`}>{profile.brand} / {profile.flavor}</label>
+                  <select id={`shipping-choice-${profile.id}`} value={key} disabled={previewMode || importer.isPending || shippingScopeLocked} onChange={e => {
+                    setShippingProfileChoices(current => ({ ...current, [profile.id]: e.target.value }));
+                    setSavedMessage('');
+                  }}>
+                    <option value="">Do not apply shipping to this product</option>
+                    {availableShippingChoices.map(c => <option key={c.key} value={c.key}>{c.record.brand} · {String(c.record.values.BOX ?? c.record.values.SHIPPER ?? '')} · {c.sheet} row {c.record.sourceRow}</option>)}
+                  </select>
                   {state?.status === 'saving' && ' · saving'}
                   {state?.status === 'saved' && ' · saved'}
                   {state?.status === 'failed' && <> · failed: {state.error}</>}
-                </li>;
+                </div>;
               })}
-            </ul>}
+            </div>}
             {shippingBrandsWithoutProfiles.length > 0 && <span className="field-help" role="status">
-              No active profiles for: {shippingBrandsWithoutProfiles.map(({ brand: unmatchedBrand }) => unmatchedBrand).join(', ')}.
+              Guide labels without an exact profile-brand match (map explicitly above when appropriate): {shippingBrandsWithoutProfiles.map(({ brand: unmatchedBrand }) => unmatchedBrand).join(', ')}.
             </span>}
           </div>}
           {kind !== 'schedule' && kind !== 'shipping' && !hasProductSpecDrafts && <div className="import-fields">
@@ -1397,6 +1426,8 @@ export default function ImportsPage() {
 }
 
 export function ImportsVisualPreviewPage() {
+  const shippingMode = typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('kind') === 'shipping';
   const sauceMode = typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).get('kind') === 'sauce';
   const cheeseMode = typeof window !== 'undefined' &&
@@ -1404,7 +1435,7 @@ export function ImportsVisualPreviewPage() {
   const doughMode = typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).get('kind') === 'dough';
   const operationalMode = typeof window !== 'undefined' &&
-    (new URLSearchParams(window.location.search).get('kind') === 'operational' || doughMode || cheeseMode || sauceMode);
+    (new URLSearchParams(window.location.search).get('kind') === 'operational' || doughMode || cheeseMode || sauceMode || shippingMode);
   return (
     <main className="workspace">
       <div className="page-head">
@@ -1412,7 +1443,7 @@ export function ImportsVisualPreviewPage() {
           <div className="eyebrow">Development-only visual check</div>
           <h1>Importer preview</h1>
           <p className="page-subtitle">
-            Synthetic {sauceMode ? 'sauce procedure' : cheeseMode ? 'cheese recipe' : doughMode ? 'dough procedure' : operationalMode ? 'premix and process' : 'product-spec'} data shown in the real importer components.
+            Synthetic {shippingMode ? 'shipping and palletizing' : sauceMode ? 'sauce procedure' : cheeseMode ? 'cheese recipe' : doughMode ? 'dough procedure' : operationalMode ? 'premix and process' : 'product-spec'} data shown in the real importer components.
           </p>
         </div>
       </div>
@@ -1423,10 +1454,10 @@ export function ImportsVisualPreviewPage() {
       <p className="import-intro">Use this page to check the importer layout at phone, tablet, and desktop widths without signing in or touching facility data.</p>
       <div className="import-layout">
         <WorkbookReview
-          profiles={[]}
+          profiles={shippingMode ? visualShippingProfiles : []}
           profilesReady
           previewMode
-          initialWorkbook={sauceMode ? visualSauceWorkbook : cheeseMode ? visualCheeseWorkbook : doughMode ? visualDoughWorkbook : operationalMode ? visualOperationalWorkbook : visualPreviewWorkbook}
+          initialWorkbook={shippingMode ? visualShippingWorkbook : sauceMode ? visualSauceWorkbook : cheeseMode ? visualCheeseWorkbook : doughMode ? visualDoughWorkbook : operationalMode ? visualOperationalWorkbook : visualPreviewWorkbook}
         />
         {operationalMode
           ? <section aria-labelledby="visual-preview-operations-heading">
@@ -1442,11 +1473,11 @@ export function ImportsVisualPreviewPage() {
                   <div>
                     <div className="eyebrow">Sample profile</div>
                     <h3>Sample Brand / Classic</h3>
-                <div className="profile-meta">{sauceMode ? 'Sauce guide' : cheeseMode ? 'Cheese' : doughMode ? 'Dough guide' : 'Premix'} · saved source snapshot</div>
+                <div className="profile-meta">{shippingMode ? 'Shipping' : sauceMode ? 'Sauce guide' : cheeseMode ? 'Cheese' : doughMode ? 'Dough guide' : 'Premix'} · saved source snapshot</div>
                   </div>
                   <span className="import-state">Preview only</span>
                 </div>
-                <OperationalSetupSummary data={sauceMode ? visualSaucePreview : cheeseMode ? visualCheesePreview : doughMode ? visualDoughPreview : visualOperationalPreview} title="Recipe and process details" defaultOpen />
+                <OperationalSetupSummary data={shippingMode ? visualShippingPreview : sauceMode ? visualSaucePreview : cheeseMode ? visualCheesePreview : doughMode ? visualDoughPreview : visualOperationalPreview} title={shippingMode ? 'Shipping and palletizing details' : 'Recipe and process details'} defaultOpen />
               </article>
               <div className="notice" role="note">This sample shows how selected operational fields appear in a future run’s captured profile.</div>
             </section>

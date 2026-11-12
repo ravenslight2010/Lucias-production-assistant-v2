@@ -42,3 +42,9 @@ Premix workbook planning totals are source references, not current-run requireme
 **Why:** The source workbooks include saved mix counts, cases, already-made amounts, and pull totals from prior planning. Adjacent preparation tables can have different timing and quantities from the mix itself.
 
 **How to apply:** Preserve the source values and timing in profile/run snapshots with their table identity. Do not reuse saved totals as new-run requirements or combine preparation quantities into a formula without a verified calculation rule.
+
+Treat shipping guide labels as possible packaging variants, not reliable aliases for a whole customer brand.
+
+**Why:** The guide distinguishes carton versus label packaging, sizes, product codes, and multipacks under related customer names. Automatically collapsing those rows into one brand setting could give a product the wrong packaging instructions.
+
+**How to apply:** Keep original guide labels and source coordinates. Let the reviewer choose one row for each product; do not infer fuzzy aliases or apply every related variant to every flavor. Preserve uncertain grip-sheet placement and missing pallet heights rather than filling them in.

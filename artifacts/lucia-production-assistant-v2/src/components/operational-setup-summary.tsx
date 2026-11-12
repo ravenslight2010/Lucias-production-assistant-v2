@@ -156,6 +156,10 @@ export function OperationalSetupSummary({
         {isRecord(workbook.premixReview) && workbook.premixReview.reviewedAsReference === true && <p className="field-help">
           Premix source details were acknowledged as reference data. Stored planning totals are not current-run requirements.
         </p>}
+        {isRecord(workbook.shippingSelection) && <p className="field-help">
+          Explicit packaging choice for {asText(workbook.shippingSelection.targetBrand)} / {asText(workbook.shippingSelection.targetFlavor)}.
+          Original guide labels and source values are preserved; other variants were not applied.
+        </p>}
         {workbook.warnings.length > 0 && <div className="notice" role="status">
           Review parser notes:
           <ul className="operational-items">{workbook.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>
@@ -169,11 +173,16 @@ export function OperationalSetupSummary({
             {sheet.productMappings.map((mapping) => `${mapping.product}: ${mapping.recipe}`).join(' · ')}
           </p>}
           {sheet.shippingRecords.length > 0 && <div className="operational-shipping-list">
-            {sheet.shippingRecords.filter(isRecord).slice(0, 12).map((record, index) => <div key={`${asText(record.sourceRow)}:${index}`}>
-              <strong>{asText(record.brand)}</strong>
+            {sheet.shippingRecords.filter(isRecord).map((record, index) => <div key={`${asText(record.sourceRow)}:${index}`}>
+              <strong>{asText(record.brand)} · row {asText(record.sourceRow)}</strong>
               <span>{Object.entries(isRecord(record.values) ? record.values : {}).filter(([key]) => key.toLowerCase() !== 'pizza').map(([key, value]) => `${key}: ${String(value)}`).join(' · ')}</span>
+              {isRecord(record.shipping) && <>
+                <span>Counts from guide: {asText(record.shipping.pizzasPerCase) || 'unconfirmed'} pizzas/case · {asText(record.shipping.casesPerPallet) || 'unconfirmed'} cases/pallet
+                  {record.shipping.packsPerCase !== undefined && ` · ${asText(record.shipping.packsPerCase)} packs × ${asText(record.shipping.pizzasPerPack)} pizzas`}
+                </span>
+                {(Array.isArray(record.shipping.issues) ? record.shipping.issues.filter((v): v is string => typeof v === 'string') : []).map((issue, i) => <p className="field-help" key={i}>{issue}</p>)}
+              </>}
             </div>)}
-            {sheet.shippingRecords.length > 12 && <p className="field-help">Showing 12 of {sheet.shippingRecords.length} shipping rows.</p>}
           </div>}
         </div>)}
       </section>)}

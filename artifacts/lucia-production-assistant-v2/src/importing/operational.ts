@@ -7,6 +7,8 @@ import { reviewSauceSheet } from './sauce.ts';
 import type { SauceDetails } from './sauce';
 import { parsePremixSheet } from './premix.ts';
 import type { PremixDetails } from './premix';
+import { parseShippingSheet } from './shipping.ts';
+import type { ShippingDetails } from './shipping';
 
 export type OperationalImportKind = Exclude<ImportKind, 'product_specs' | 'schedule'>;
 
@@ -49,6 +51,7 @@ export type OperationalShippingRecord = {
   sourceRow: number;
   brand: string;
   values: Record<string, OperationalValue>;
+  shipping?: ShippingDetails;
 };
 export type OperationalSheet = {
   name: string;
@@ -70,6 +73,7 @@ export type OperationalWorkbookData = {
   cheeseSelection?: CheeseSelection;
   sauceReview?: { reviewedAsReference: boolean };
   premixReview?: { reviewedAsReference: boolean };
+  shippingSelection?: { format: 'lucia.shipping-selection.v1'; key: string; targetBrand: string; targetFlavor: string; reviewed: boolean };
 };
 
 const normalizeText = (value: string) => value.normalize('NFKC').trim().replace(/\s+/g, ' ');
@@ -311,39 +315,6 @@ function parseGeneralRecipe(workbook: ParsedWorkbook, sheet: WorkbookSheet, doug
   return { name: sheet.name, recipes, productMappings: mappings, shippingRecords: [], notes: warning };
 }
 
-function parseShippingRecords(sheet: WorkbookSheet): OperationalSheet {
-  const headerRow = sheet.rows.findIndex((row) => {
-    const text = rowStrings(row).join(' ').toLowerCase();
-    return /\bpizza\b/.test(text) && /\bbox\b/.test(text) && /pallet/.test(text);
-  });
-  if (headerRow < 0) {
-    return { name: sheet.name, recipes: [], productMappings: [], shippingRecords: [], notes: ['No shipping table header was confidently detected.'] };
-  }
-  const headers = sheet.rows[headerRow].map((value) => cellText(value));
-  const shippingRecords: OperationalShippingRecord[] = [];
-  for (let rowIndex = headerRow + 1; rowIndex < sheet.rows.length; rowIndex++) {
-    const row = sheet.rows[rowIndex];
-    const brand = cellText(row[0]);
-    if (!brand) continue;
-    const values: Record<string, OperationalValue> = {};
-    for (let column = 0; column < headers.length; column++) {
-      const value = row[column];
-      const header = headers[column];
-      if (header && (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')) {
-        values[header] = value;
-      }
-    }
-    shippingRecords.push({ sourceRow: rowIndex + 1, brand, values });
-  }
-  return {
-    name: sheet.name,
-    recipes: [],
-    productMappings: [],
-    shippingRecords,
-    notes: shippingRecords.length ? [] : ['The shipping table had no populated product rows.'],
-  };
-}
-
 export function parseOperationalWorkbook(
   workbook: ParsedWorkbook,
   kind: OperationalImportKind,
@@ -353,8 +324,12 @@ export function parseOperationalWorkbook(
   const sourceSheets = selected ? workbook.sheets.filter((sheet) => selected.has(sheet.name)) : workbook.sheets;
   const metadataSheet = sourceSheets[0] ?? workbook.sheets[0] ?? { name: workbook.fileName, rows: [] };
   const metadata = titleAndRevision(workbook, metadataSheet, kind === 'cheese' || kind === 'sauce_guide');
+  if (kind === 'shipping') {
+    const firstText = metadataSheet.rows.flatMap(rowStrings)[0];
+    metadata.title = firstText && !/^(?:pizza|product|brand)$/i.test(firstText) ? firstText : workbook.fileName;
+  }
   const sheets = sourceSheets.map((sheet) => {
-    if (kind === 'shipping') return parseShippingRecords(sheet);
+    if (kind === 'shipping') return parseShippingSheet(sheet);
     if (kind === 'premix') return parsePremixSheet(sheet);
     if (kind === 'cheese') return parseCheeseSheet(sheet);
     if (kind === 'sauce_guide') return reviewSauceSheet(sheet, parseGeneralRecipe(workbook, sheet));

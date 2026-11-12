@@ -16,7 +16,15 @@ import {
   useRenameProductProfile,
 } from '@workspace/api-client-react';
 import type { ProductProfile, ProductProfileImportInput, ScheduleImportInput } from '@workspace/api-client-react';
-import { IMPORT_KINDS, parseScheduleWorkbook, parseWorkbookFile, type ImportKind, type ParsedWorkbook } from '../importing/workbook';
+import {
+  IMPORT_KINDS,
+  parseProductSpecProfiles,
+  parseScheduleWorkbook,
+  parseWorkbookFile,
+  type ImportKind,
+  type ParsedWorkbook,
+  type ProductSpecProfileCandidate,
+} from '../importing/workbook';
 
 const kindLabels: Record<ImportKind, string> = {
   product_specs: 'Product specifications',
@@ -60,6 +68,22 @@ function toSparseWorkbook(workbook: ParsedWorkbook) {
   };
 }
 
+type ProductSpecDraft = ProductSpecProfileCandidate & {
+  saveState?: 'saving' | 'saved' | 'failed';
+  saveError?: string;
+};
+
+function toProductSpecData(workbook: ParsedWorkbook, draft: ProductSpecDraft) {
+  return {
+    ...toSparseWorkbook(workbook),
+    selectedProduct: {
+      brand: draft.brand.trim(),
+      flavor: draft.flavor.trim(),
+      sections: draft.sections,
+    },
+  };
+}
+
 async function sha256(file: File) {
   const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
@@ -83,6 +107,7 @@ function WorkbookReview({ profiles, profilesReady }: { profiles: ProductProfile[
   const [kind, setKind] = useState<ImportKind | ''>('');
   const [brand, setBrand] = useState('');
   const [flavor, setFlavor] = useState('');
+  const [productSpecDrafts, setProductSpecDrafts] = useState<ProductSpecDraft[]>([]);
   const [parseError, setParseError] = useState('');
   const [validation, setValidation] = useState('');
   const [savedMessage, setSavedMessage] = useState('');
@@ -114,6 +139,8 @@ function WorkbookReview({ profiles, profilesReady }: { profiles: ProductProfile[
     return { ...product, chosenId, selectedProfile: profiles.find((profile) => profile.id === chosenId) };
   });
   const hasScheduleMappings = profilesReady && resolvedScheduleProducts.length > 0 && resolvedScheduleProducts.every((product) => Boolean(product.selectedProfile));
+  const hasProductSpecDrafts = kind === 'product_specs' && productSpecDrafts.length > 0;
+  const unsavedProductSpecCount = productSpecDrafts.filter((draft) => draft.saveState !== 'saved').length;
   const matchingProfile = profilesReady && brand.trim() && flavor.trim()
     ? activeProfileByProduct.get(scheduleProductKey(brand, flavor))
     : undefined;
@@ -128,12 +155,14 @@ function WorkbookReview({ profiles, profilesReady }: { profiles: ProductProfile[
     setScheduleVisibleRows(50);
     setScheduleImportDate(localDateString());
     setScheduleProfileChoices({});
+    setProductSpecDrafts([]);
     setWorkbook(null);
     setSourceFile(file);
     try {
       const parsed = await parseWorkbookFile(file);
       setWorkbook(parsed);
       setKind(parsed.kind ?? '');
+      setProductSpecDrafts(parsed.kind === 'product_specs' ? parseProductSpecProfiles(parsed) : []);
     } catch (error) {
       setParseError(errorText(error, 'This workbook could not be opened.'));
     } finally {
@@ -200,6 +229,114 @@ function WorkbookReview({ profiles, profilesReady }: { profiles: ProductProfile[
       }
       return;
     }
+    if (kind === 'product_specs' && productSpecDrafts.length > 0) {
+      const pendingDrafts = productSpecDrafts.filter((draft) => draft.saveState !== 'saved');
+      if (!pendingDrafts.length) {
+        setSavedMessage('All detected product profiles are already saved.');
+        return;
+      }
+      if (!profilesReady) {
+        setValidation('Product profiles are still loading. Wait for them to load before importing this workbook.');
+        return;
+      }
+      const seenProfiles = new Set<string>();
+      for (const draft of productSpecDrafts) {
+        const cleanBrand = draft.brand.trim();
+        const cleanFlavor = draft.flavor.trim();
+        if (!cleanBrand || cleanBrand.length > 120 || !cleanFlavor || cleanFlavor.length > 120) {
+          setValidation('Every product needs a brand and flavor, each no longer than 120 characters.');
+          return;
+        }
+        const key = scheduleProductKey(cleanBrand, cleanFlavor);
+        if (seenProfiles.has(key)) {
+          setValidation(`More than one section is mapped to ${cleanBrand} / ${cleanFlavor}. Combine the workbook sections or rename one profile.`);
+          return;
+        }
+        seenProfiles.add(key);
+      }
+
+      setValidation('');
+      setSavedMessage('');
+      const sourceWorkbook = toSparseWorkbook(workbook);
+      if (JSON.stringify(sourceWorkbook).length > 700_000) {
+        setValidation('The compact workbook data is over the 700,000-character API limit. Remove excess content from the source workbook and review it again.');
+        return;
+      }
+
+      try {
+        const sourceHash = await sha256(sourceFile);
+        let importedCount = 0;
+        let alreadySavedCount = 0;
+        let failedCount = 0;
+
+        for (let index = 0; index < pendingDrafts.length; index++) {
+          const draft = pendingDrafts[index];
+          setProductSpecDrafts((current) => current.map((item) =>
+            item.id === draft.id ? { ...item, saveState: 'saving', saveError: undefined } : item,
+          ));
+          try {
+            const cleanBrand = draft.brand.trim();
+            const cleanFlavor = draft.flavor.trim();
+            const productData = toProductSpecData(workbook, draft);
+            const productDataSize = JSON.stringify(productData).length;
+            if (productDataSize > 700_000) {
+              throw new Error('This profile’s source data exceeds the 700,000-character API limit.');
+            }
+            const matchedProfile = activeProfileByProduct.get(scheduleProductKey(cleanBrand, cleanFlavor));
+            const input: ProductProfileImportInput = {
+              brand: cleanBrand,
+              flavor: cleanFlavor,
+              sourceName: workbook.fileName,
+              sourceHash,
+              importKind: kind,
+              productData,
+              ...(matchedProfile ? { expectedRevision: matchedProfile.revision } : {}),
+            };
+            if (new TextEncoder().encode(JSON.stringify(input)).byteLength > 1_000_000) {
+              throw new Error('This profile request is over the 1 MB API limit after adding source details.');
+            }
+            const result = await importer.mutateAsync({ data: input });
+            if (result.imported) importedCount++;
+            else alreadySavedCount++;
+            setProductSpecDrafts((current) => current.map((item) =>
+              item.id === draft.id ? { ...item, saveState: 'saved', saveError: undefined } : item,
+            ));
+          } catch (error) {
+            failedCount++;
+            const message = errorStatus(error) === 409
+              ? 'This profile changed elsewhere. Refresh profiles and review the latest revision before retrying.'
+              : errorText(error, 'This profile could not be saved.');
+            setProductSpecDrafts((current) => current.map((item) =>
+              item.id === draft.id ? { ...item, saveState: 'failed', saveError: message } : item,
+            ));
+            if (errorStatus(error) === 429) {
+              const remainingDrafts = pendingDrafts.slice(index + 1);
+              failedCount += remainingDrafts.length;
+              setProductSpecDrafts((current) => current.map((item) =>
+                remainingDrafts.some((remaining) => remaining.id === item.id)
+                  ? { ...item, saveState: 'failed', saveError: 'The facility write limit was reached. Wait briefly, then retry.' }
+                  : item,
+              ));
+              break;
+            }
+          }
+        }
+
+        const savedCount = importedCount + alreadySavedCount;
+        const savedDetails = [
+          importedCount ? `${importedCount} new` : '',
+          alreadySavedCount ? `${alreadySavedCount} already present` : '',
+        ].filter(Boolean).join(', ');
+        setSavedMessage(
+          `${savedCount} of ${pendingDrafts.length} profiles saved${savedDetails ? ` (${savedDetails})` : ''}.${failedCount ? ` ${failedCount} failed; successful profiles will not be duplicated if you retry.` : ''}`,
+        );
+        void client.invalidateQueries({ queryKey: getListProductProfilesQueryKey() });
+        void client.invalidateQueries({ queryKey: getListImportBatchesQueryKey() });
+      } catch (error) {
+        setValidation(errorText(error, 'The workbook source could not be prepared.'));
+      }
+      return;
+    }
     const cleanBrand = brand.trim();
     const cleanFlavor = flavor.trim();
     if (!cleanBrand || cleanBrand.length > 120 || !cleanFlavor || cleanFlavor.length > 120) {
@@ -249,6 +386,26 @@ function WorkbookReview({ profiles, profilesReady }: { profiles: ProductProfile[
     }
   };
 
+  const updateProductSpecDraft = (id: string, update: Partial<ProductSpecDraft>) => {
+    setValidation('');
+    setSavedMessage('');
+    setProductSpecDrafts((current) => current.map((draft) =>
+      draft.id === id ? { ...draft, ...update, saveState: update.saveState ?? undefined, saveError: undefined } : draft,
+    ));
+  };
+
+  const addManualProductSpecDraft = () => {
+    setValidation('');
+    setSavedMessage('');
+    const id = `manual-${Date.now()}-${productSpecDrafts.length}`;
+    setProductSpecDrafts((current) => [...current, {
+      id,
+      brand: '',
+      flavor: '',
+      sections: [],
+    }]);
+  };
+
   return (
     <section className="panel import-panel" aria-labelledby="workbook-heading">
       <div className="eyebrow">Reviewed source</div>
@@ -289,21 +446,71 @@ function WorkbookReview({ profiles, profilesReady }: { profiles: ProductProfile[
           {workbook.sheets.length > 4 && <div className="workbook-sheet field-help">Preview limited to the first 4 of {workbook.sheets.length} worksheets. All source cells are retained in the compact import payload.</div>}
         </div>
         <form onSubmit={(event) => void submit(event)} noValidate>
-          {kind !== 'schedule' && <div className="import-fields">
-            <div className="form-field"><label htmlFor="profile-brand">Brand</label><input id="profile-brand" autoComplete="organization" maxLength={120} value={brand} onChange={(event) => setBrand(event.target.value)} required /></div>
-            <div className="form-field"><label htmlFor="profile-flavor">Flavor</label><input id="profile-flavor" maxLength={120} value={flavor} onChange={(event) => setFlavor(event.target.value)} required /></div>
-          </div>}
-          {kind !== 'schedule' && matchingProfile && <div className="notice" role="status" data-testid="notice-existing-profile">
-            This matches active profile revision {matchingProfile.revision}. Import will add this workbook as another preserved source and create a new revision; existing run snapshots will not change.
-          </div>}
           <div className="form-field">
             <label htmlFor="workbook-kind">Workbook type</label>
-            <select id="workbook-kind" data-testid="select-workbook-kind" value={kind} onChange={(event) => setKind(event.target.value as ImportKind | '')} required>
+            <select id="workbook-kind" data-testid="select-workbook-kind" value={kind} onChange={(event) => {
+              const nextKind = event.target.value as ImportKind | '';
+              setKind(nextKind);
+              if (nextKind === 'product_specs' && workbook && !productSpecDrafts.length) {
+                setProductSpecDrafts(parseProductSpecProfiles(workbook));
+              }
+            }} required>
               <option value="">Select type to continue</option>
               {IMPORT_KINDS.map((item) => <option key={item} value={item}>{kindLabels[item]}{item === 'schedule' ? ' · creates planned runs' : ''}</option>)}
             </select>
             <span className="field-help">Detected: {workbook.kind ? `${kindLabels[workbook.kind]} (${workbook.kindConfidence === 'high' ? 'high confidence' : 'review suggested'})` : 'No confident type; choose one after reviewing.'}</span>
           </div>
+          {kind !== 'schedule' && !hasProductSpecDrafts && <div className="import-fields">
+            <div className="form-field"><label htmlFor="profile-brand">Brand</label><input id="profile-brand" autoComplete="organization" maxLength={120} value={brand} onChange={(event) => setBrand(event.target.value)} required /></div>
+            <div className="form-field"><label htmlFor="profile-flavor">Flavor</label><input id="profile-flavor" maxLength={120} value={flavor} onChange={(event) => setFlavor(event.target.value)} required /></div>
+          </div>}
+          {kind === 'product_specs' && productSpecDrafts.length === 0 && <div className="notice" role="status">
+            No complete product sections were detected automatically. You can still import the full workbook to one profile; every source cell will be retained.
+          </div>}
+          {hasProductSpecDrafts && <section className="product-spec-review" aria-labelledby="product-spec-review-heading" data-testid="product-spec-review">
+            <div className="section-heading">
+              <div><div className="eyebrow">Review detected sections</div><h3 id="product-spec-review-heading">{productSpecDrafts.length} product {productSpecDrafts.length === 1 ? 'profile' : 'profiles'} found</h3></div>
+            </div>
+            <p className="field-help">Confirm or edit each brand and flavor before saving. The full workbook is preserved with every profile, along with the section location. Existing runs are not changed.</p>
+            <div className="product-spec-draft-list">
+              {productSpecDrafts.map((draft, index) => {
+                const draftProfile = profilesReady && draft.brand.trim() && draft.flavor.trim()
+                  ? activeProfileByProduct.get(scheduleProductKey(draft.brand, draft.flavor))
+                  : undefined;
+                const sourceLocation = draft.sections.length
+                  ? draft.sections.slice(0, 3).map((section) => `${section.sheet} · row ${section.headerRow}–${section.endRow}`).join('; ')
+                  : 'Manual profile; full workbook retained';
+                const locked = importer.isPending || draft.saveState === 'saved';
+                return <fieldset className="product-spec-draft" key={draft.id} data-testid={`product-spec-draft-${index}`}>
+                  <legend>Product {index + 1}</legend>
+                  <div className="product-spec-draft-fields">
+                    <div className="form-field">
+                      <label htmlFor={`product-spec-brand-${index}`}>Brand</label>
+                      <input id={`product-spec-brand-${index}`} autoComplete="organization" maxLength={120} value={draft.brand} onChange={(event) => updateProductSpecDraft(draft.id, { brand: event.target.value })} required disabled={locked} />
+                    </div>
+                    <div className="form-field">
+                      <label htmlFor={`product-spec-flavor-${index}`}>Flavor</label>
+                      <input id={`product-spec-flavor-${index}`} maxLength={120} value={draft.flavor} onChange={(event) => updateProductSpecDraft(draft.id, { flavor: event.target.value })} required disabled={locked} />
+                    </div>
+                  </div>
+                  <div className="product-spec-draft-meta">
+                    <span>{sourceLocation}{draft.sections.length > 3 ? `; +${draft.sections.length - 3} more` : ''}</span>
+                    {draftProfile && <span>Matches active profile revision {draftProfile.revision}</span>}
+                  </div>
+                  {draft.saveState === 'saving' && <div className="field-help" role="status">Saving this profile…</div>}
+                  {draft.saveState === 'saved' && <div className="notice" role="status">Saved. This profile will not be duplicated if you retry the batch.</div>}
+                  {draft.saveState === 'failed' && <div className="error-banner" role="alert">{draft.saveError || 'This profile could not be saved.'}</div>}
+                  <div className="control-row product-spec-draft-actions">
+                    <button className="button button-quiet" type="button" onClick={() => setProductSpecDrafts((current) => current.filter((item) => item.id !== draft.id))} disabled={locked}>Remove profile</button>
+                  </div>
+                </fieldset>;
+              })}
+            </div>
+            <button className="button button-secondary" type="button" onClick={addManualProductSpecDraft} disabled={importer.isPending}>Add profile manually</button>
+          </section>}
+          {kind !== 'schedule' && !hasProductSpecDrafts && matchingProfile && <div className="notice" role="status" data-testid="notice-existing-profile">
+            This matches active profile revision {matchingProfile.revision}. Import will add this workbook as another preserved source and create a new revision; existing run snapshots will not change.
+          </div>}
           {kind === 'schedule' && schedulePreview && <section className="schedule-review" aria-labelledby="schedule-preview-heading" data-testid="schedule-preview" style={{ marginTop: 16, padding: 16, border: '1px solid hsl(var(--border))', borderRadius: 12, background: 'hsl(var(--muted) / .35)' }}>
             <div className="schedule-review-head" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
               <div><div className="eyebrow">Read-only review</div><h3 id="schedule-preview-heading">Parsed production schedule</h3></div>
@@ -349,12 +556,17 @@ function WorkbookReview({ profiles, profilesReady }: { profiles: ProductProfile[
           </section>}
           {kind !== 'schedule' && <>
             {validation && <div className="error-banner" role="alert">{validation}</div>}
-            {importer.isError && <div className={errorStatus(importer.error) === 409 ? 'notice' : 'error-banner'} role="alert">{errorStatus(importer.error) === 409 ? 'The source conflicts with a change made elsewhere. Refresh profiles and review the current setup before retrying.' : errorText(importer.error, 'The profile was not saved. Check the connection and try again.')}</div>}
+            {importer.isError && !hasProductSpecDrafts && <div className={errorStatus(importer.error) === 409 ? 'notice' : 'error-banner'} role="alert">{errorStatus(importer.error) === 409 ? 'The source conflicts with a change made elsewhere. Refresh profiles and review the current setup before retrying.' : errorText(importer.error, 'The profile was not saved. Check the connection and try again.')}</div>}
             {savedMessage && <div className="notice" role="status"><ShieldCheck size={15} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />{savedMessage}</div>}
-            <button className="button button-primary" type="submit" disabled={!online || importer.isPending || !kind} data-testid="button-import-profile">
+            {hasProductSpecDrafts
+              ? <button className="button button-primary" type="submit" disabled={!online || importer.isPending || !profilesReady || unsavedProductSpecCount === 0} data-testid="button-import-product-profiles">
+                {importer.isPending ? <LoaderCircle size={16} className="spin" /> : <ArrowDownToLine size={16} />}
+                {importer.isPending ? 'Saving product profiles…' : unsavedProductSpecCount ? `Save ${unsavedProductSpecCount} product ${unsavedProductSpecCount === 1 ? 'profile' : 'profiles'}` : 'All profiles saved'}
+              </button>
+              : <button className="button button-primary" type="submit" disabled={!online || importer.isPending || !kind} data-testid="button-import-profile">
               {importer.isPending ? <LoaderCircle size={16} className="spin" /> : <ArrowDownToLine size={16} />}
               {importer.isPending ? 'Saving source profile…' : matchingProfile ? 'Add workbook to profile' : 'Save product profile'}
-            </button>
+              </button>}
             {!online && <p className="field-help" style={{ marginTop: 10 }}>Offline: workbook review is available, but profiles cannot be saved.</p>}
           </>}
         </form>

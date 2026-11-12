@@ -44,7 +44,150 @@ export type ScheduleParseResult = {
   ignoredPastCount: number;
 };
 
+export type ProductSpecSection = {
+  sheet: string;
+  headerRow: number;
+  headerColumn: number;
+  targetWeightRow: number;
+  endRow: number;
+};
+
+export type ProductSpecProfileCandidate = {
+  id: string;
+  brand: string;
+  flavor: string;
+  sections: ProductSpecSection[];
+};
+
 const scheduleUnitHeaders = new Set(["units", "cases", "qty", "quantity", "cases planned"]);
+const productSpecHeaderExclusions = new Set([
+  "oz",
+  "lb",
+  "lbs",
+  "pound",
+  "pounds",
+  "brand",
+  "flavor",
+  "target weight",
+  "weight spec range",
+  "repack",
+  "repacks",
+  "product description",
+]);
+
+const componentHeaderPattern = /^(?:applicator\b|parbake crust\b|pepperoni stick\b|pizza sauce\b|sauce barrel\b|target weight\b|weight spec range\b)/i;
+const quantityExpressionPattern = /^\s*\d+(?:\.\d+)?\s*=\s*\d+(?:\.\d+)?\s*$/;
+const instructionHeaderPattern = /^(?:on|use|note|make sure|always|do not|don't|place|when)\b/i;
+const revisionHeaderPattern = /\b(?:revision|rev\.?)\b/i;
+const dateHeaderPattern = /^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b/;
+
+function normalizedProductName(value: string) {
+  return value.normalize("NFKC").trim().replace(/\s+/g, " ");
+}
+
+function profileKey(brand: string, flavor: string) {
+  return JSON.stringify([normalizedProductName(brand).toLocaleLowerCase(), normalizedProductName(flavor).toLocaleLowerCase()]);
+}
+
+function isProductHeaderName(value: string) {
+  const normalized = normalizedProductName(value);
+  if (
+    !normalized ||
+    normalized.length > 80 ||
+    productSpecHeaderExclusions.has(normalized.toLocaleLowerCase()) ||
+    instructionHeaderPattern.test(normalized) ||
+    revisionHeaderPattern.test(normalized) ||
+    dateHeaderPattern.test(normalized) ||
+    /[,;.!?]/.test(normalized)
+  ) return false;
+  if (componentHeaderPattern.test(normalized) || quantityExpressionPattern.test(normalized)) return false;
+  return !/^\d+(?:\.\d+)?$/.test(normalized);
+}
+
+function labelColumnAt(row: WorkbookCell[], column: number) {
+  if (typeof row[column + 1] === "string" && cellText(row[column + 1])) return column + 1;
+  if (
+    row[column + 1] == null &&
+    typeof row[column + 2] === "string" &&
+    cellText(row[column + 2])
+  ) return column + 2;
+  return -1;
+}
+
+function findTargetWeightRow(sheet: WorkbookSheet, startRow: number, startColumn: number) {
+  const limit = Math.min(sheet.rows.length, startRow + 51);
+  for (let rowIndex = startRow + 1; rowIndex < limit; rowIndex++) {
+    for (const column of [startColumn, startColumn + 1]) {
+      if (/^target\s+weight$/i.test(cellText(sheet.rows[rowIndex]?.[column]))) {
+        return { row: rowIndex, column };
+      }
+    }
+  }
+  return null;
+}
+
+function findProductSpecEndRow(sheet: WorkbookSheet, targetRow: number, targetColumn: number) {
+  const limit = Math.min(sheet.rows.length, targetRow + 5);
+  for (let rowIndex = targetRow + 1; rowIndex < limit; rowIndex++) {
+    if (/^weight\s+spec\s+range$/i.test(cellText(sheet.rows[rowIndex]?.[targetColumn]))) {
+      return rowIndex;
+    }
+  }
+  return targetRow;
+}
+
+/**
+ * Split common customer product-spec sheets into reviewable brand/flavor
+ * profiles. This only accepts a heading pair followed by a nearby TARGET
+ * WEIGHT row; ingredient rows and product codes that resemble quantities are
+ * not treated as profile names. Unrecognized layouts remain available through
+ * the ordinary single-profile source import.
+ */
+export function parseProductSpecProfiles(workbook: ParsedWorkbook): ProductSpecProfileCandidate[] {
+  const groups = new Map<string, ProductSpecProfileCandidate>();
+
+  for (const sheet of workbook.sheets) {
+    const headers: Array<{ row: number; column: number; brand: string; flavor: string }> = [];
+    for (let rowIndex = 0; rowIndex < sheet.rows.length; rowIndex++) {
+      const row = sheet.rows[rowIndex];
+      for (let column = 0; column < row.length - 1; column++) {
+        const labelColumn = labelColumnAt(row, column);
+        if (labelColumn < 0) continue;
+        const brand = normalizedProductName(cellText(row[column]));
+        const flavor = normalizedProductName(cellText(row[labelColumn]));
+        if (!isProductHeaderName(brand) || !isProductHeaderName(flavor)) continue;
+        if (!findTargetWeightRow(sheet, rowIndex, column)) continue;
+        headers.push({ row: rowIndex, column, brand, flavor });
+      }
+    }
+
+    for (const header of headers) {
+      const target = findTargetWeightRow(sheet, header.row, header.column);
+      if (!target) continue;
+      const section: ProductSpecSection = {
+        sheet: sheet.name,
+        headerRow: header.row + 1,
+        headerColumn: header.column + 1,
+        targetWeightRow: target.row + 1,
+        endRow: findProductSpecEndRow(sheet, target.row, target.column) + 1,
+      };
+      const key = profileKey(header.brand, header.flavor);
+      const candidate = groups.get(key);
+      if (candidate) {
+        candidate.sections.push(section);
+      } else {
+        groups.set(key, {
+          id: `${key}:${sheet.name}:${section.headerRow}:${section.headerColumn}`,
+          brand: header.brand,
+          flavor: header.flavor,
+          sections: [section],
+        });
+      }
+    }
+  }
+
+  return [...groups.values()];
+}
 
 function cellText(value: WorkbookCell | undefined) {
   return value == null ? "" : String(value).trim();
@@ -131,7 +274,7 @@ function cellValue(value: unknown): WorkbookCell {
   return null;
 }
 
-export function detectImportKind(sheets: WorkbookSheet[]): {
+export function detectImportKind(sheets: WorkbookSheet[], sourceFileName = ""): {
   kind: ImportKind | null;
   confidence: "high" | "review";
 } {
@@ -140,6 +283,7 @@ export function detectImportKind(sheets: WorkbookSheet[]): {
     .filter((cell): cell is string => typeof cell === "string")
     .join(" ")
     .toLowerCase();
+  const fileName = sourceFileName.normalize("NFKC").toLowerCase();
   const candidates: Array<[ImportKind, number]> = [
     ["shipping", Number(/shipping boxes|palletiz/.test(text)) * 5],
     ["schedule", Number(/week of|production schedule/.test(text)) * 4 + Number(/\bday\b/.test(text))],
@@ -147,7 +291,11 @@ export function detectImportKind(sheets: WorkbookSheet[]): {
     ["premix", Number(/per batch\s*\(lbs\)|#\s*of mixes|total needed/.test(text)) * 4],
     ["dough_guide", Number(/dough mixing procedure|doughball|dough balls/.test(text)) * 5],
     ["sauce_guide", Number(/sauce procedure|sauce mix|sauce barrel/.test(text)) * 4],
-    ["product_specs", Number(/pizza recipe specs|pizza specs|applicator|die type|oz\s*\/?\s*pizza/.test(text)) * 3],
+    ["product_specs",
+      Number(/\b(?:pizza|pizzas)\b/.test(fileName) && /\b(?:recipe|specs?)\b/.test(fileName)) * 4 +
+      Number(/applicator|die type|oz\s*\/?\s*pizza/.test(text)) * 2 +
+      Number(/target weight/.test(text)) * 2 +
+      Number(/weight spec range/.test(text)) * 2],
   ];
   candidates.sort((a, b) => b[1] - a[1]);
   const [kind, score] = candidates[0];
@@ -208,7 +356,7 @@ export async function parseWorkbookFile(file: File): Promise<ParsedWorkbook> {
     }).map((row) => row.map(cellValue));
     return { name: name.slice(0, 80), rows };
   });
-  const detected = detectImportKind(sheets);
+  const detected = detectImportKind(sheets, file.name);
   return {
     fileName: file.name.slice(0, 255),
     sizeBytes: file.size,

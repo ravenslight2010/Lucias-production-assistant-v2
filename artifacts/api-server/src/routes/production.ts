@@ -1,5 +1,6 @@
 import { and, count, desc, eq, gt, inArray, isNull, lte, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
+import { doughImportSelectionIdentity } from "../lib/dough-import-selection";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { clerkClient } from "@clerk/express";
 import {
@@ -1005,8 +1006,20 @@ router.post(
     if (!access) return;
     assertRunPermission(access.membership.role, "create");
     const normalizedKey = normalizedProfileKey(brand, flavor);
+    let doughSelection: string | null = null;
+    if (input.importKind === "dough_guide") {
+      try {
+        doughSelection = doughImportSelectionIdentity(input.productData);
+      } catch {
+        res.status(400).json({ error: "Review the dough variant, batch column, and source discrepancies before saving." });
+        return;
+      }
+    }
     const dataHash = createHash("sha256")
-      .update(JSON.stringify({ brand, flavor, kind: input.importKind, sourceHash: input.sourceHash }))
+      .update(JSON.stringify({
+        brand, flavor, kind: input.importKind, sourceHash: input.sourceHash,
+        ...(doughSelection ? { doughSelection } : {}),
+      }))
       .digest("hex");
     try {
       const result = await db.transaction(async (tx) => {

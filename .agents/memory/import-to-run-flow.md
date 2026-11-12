@@ -24,3 +24,9 @@ Keep the Kroger spec workbook's products in separate Kroger profiles, even thoug
 **Why:** The user explicitly chose separate Kroger profiles rather than sharing the matching Corner Booth brand/flavor profiles.
 
 **How to apply:** Use Kroger as the destination brand for those customer specs, preserve the original source labels, and do not automatically rename existing profiles or run snapshots.
+
+Dough discrepancy acknowledgement means the source was reviewed for reference, not that its recipe was corrected or approved for automatic calculation.
+
+**Why:** The uploaded dough procedures contain conflicting table/instruction quantities, missing weights, repeated step numbers, and alternative batch columns. Choosing a value silently could change a production recipe.
+
+**How to apply:** Preserve both source statements and review warnings in downstream run data. Do not treat an acknowledged warning as permission to invent missing quantities or automatically resolve recipe conflicts.

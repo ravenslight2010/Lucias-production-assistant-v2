@@ -1,4 +1,6 @@
 import type { ImportKind, ParsedWorkbook, WorkbookCell, WorkbookSheet } from './workbook';
+import { extractDoughDetails } from './dough.ts';
+import type { DoughDetails } from './dough';
 
 export type OperationalImportKind = Exclude<ImportKind, 'product_specs' | 'schedule'>;
 
@@ -27,6 +29,7 @@ export type OperationalRecipe = {
   equipment: string[];
   notes: string[];
   metrics: OperationalIngredient[];
+  dough?: DoughDetails;
 };
 export type OperationalProductMapping = {
   sourceRow: number;
@@ -129,7 +132,7 @@ function ingredientName(row: WorkbookCell[], nameColumn: number) {
   return '';
 }
 
-function findGeneralIngredientTable(sheet: WorkbookSheet) {
+function findGeneralIngredientTable(sheet: WorkbookSheet, preserveUnquantified = false) {
   for (let headerRow = 0; headerRow < sheet.rows.length; headerRow++) {
     const header = rowStrings(sheet.rows[headerRow]).join(' ').toLowerCase();
     const isIngredientHeader = /\bingredients?\b/.test(header) || sheet.rows[headerRow].some((value) => isUnit(cellText(value)));
@@ -166,7 +169,7 @@ function findGeneralIngredientTable(sheet: WorkbookSheet) {
     let endRow = startRow;
     for (let rowIndex = startRow; rowIndex < Math.min(sheet.rows.length, startRow + 80); rowIndex++) {
       const row = sheet.rows[rowIndex];
-      const name = ingredientName(row, nameColumn);
+      const name = preserveUnquantified ? cellText(row[nameColumn]) : ingredientName(row, nameColumn);
       if (!name) {
         if (rowIndex > startRow && rowStrings(row).length === 0) break;
         continue;
@@ -179,7 +182,7 @@ function findGeneralIngredientTable(sheet: WorkbookSheet) {
       }
       if (!amounts.length) {
         if (rowIndex > startRow && /^(?:process|instructions?|directions?)$/i.test(name)) break;
-        continue;
+        if (!preserveUnquantified) continue;
       }
       ingredients.push({ name, sourceRow: rowIndex + 1, amounts });
       endRow = rowIndex;
@@ -189,13 +192,13 @@ function findGeneralIngredientTable(sheet: WorkbookSheet) {
   return null;
 }
 
-function parseMappings(sheet: WorkbookSheet, beforeRow: number): OperationalProductMapping[] {
+function parseMappings(sheet: WorkbookSheet, beforeRow: number, dough = false): OperationalProductMapping[] {
   const mappings: OperationalProductMapping[] = [];
-  for (let rowIndex = 0; rowIndex < Math.min(beforeRow, 24); rowIndex++) {
+  for (let rowIndex = 0; rowIndex < beforeRow; rowIndex++) {
     for (const value of sheet.rows[rowIndex] ?? []) {
       const text = cellText(value);
       const match = text.match(/^([^:]{2,70}):\s*(.{2,160})$/);
-      if (!match || !/(?:mix|all|pizza|flavor|variet|crb|dough|cheese|pepperoni|chicken|jalapeno|garden)/i.test(match[2])) continue;
+      if (!match || (!dough && !/(?:mix|all|pizza|flavor|variet|crb|dough|cheese|pepperoni|chicken|jalapeno|garden)/i.test(match[2]))) continue;
       mappings.push({ sourceRow: rowIndex + 1, product: match[1].trim(), recipe: match[2].trim() });
     }
   }
@@ -242,11 +245,11 @@ function parseSteps(sheet: WorkbookSheet, afterRow: number) {
   return steps;
 }
 
-function parseGeneralRecipe(workbook: ParsedWorkbook, sheet: WorkbookSheet): OperationalSheet {
+function parseGeneralRecipe(workbook: ParsedWorkbook, sheet: WorkbookSheet, dough = false): OperationalSheet {
   const { title } = titleAndRevision(workbook, sheet);
-  const table = findGeneralIngredientTable(sheet);
+  const table = findGeneralIngredientTable(sheet, dough);
   const ingredientEndRow = table?.endRow ?? 0;
-  const mappings = parseMappings(sheet, table?.headerRow ?? sheet.rows.length);
+  const mappings = parseMappings(sheet, table?.headerRow ?? sheet.rows.length, dough);
   const equipment = parseEquipment(sheet);
   const steps = parseSteps(sheet, ingredientEndRow + 1);
   const recipe: OperationalRecipe = {
@@ -274,6 +277,18 @@ function parseGeneralRecipe(workbook: ParsedWorkbook, sheet: WorkbookSheet): Ope
     })
     .map(({ index, text }) => `Row ${index + 1}: ${text}`);
   recipe.notes = notes;
+  if (dough) {
+    if (table) {
+      for (let rowIndex = table.startRow; rowIndex <= table.endRow; rowIndex++) {
+        const rowNotes = sheet.rows[rowIndex].filter((value, column) =>
+          column !== table.nameColumn && Boolean(cellText(value)) &&
+          !amountCells(sheet, rowIndex, table.nameColumn, table.headerRow, true).some(amount => amount.column === column + 1),
+        ).map(cellText);
+        if (rowNotes.length) recipe.notes.push(`Row ${rowIndex + 1}: ${rowNotes.join(' · ')}`);
+      }
+    }
+    recipe.dough = extractDoughDetails(sheet, recipe, table?.headerRow ?? 0);
+  }
 
   const recipes = table || steps.length || equipment.length ? [recipe] : [];
   const warning: string[] = [];
@@ -479,7 +494,7 @@ export function parseOperationalWorkbook(
     if (kind === 'shipping') return parseShippingRecords(sheet);
     if (kind === 'premix') return parsePremixRecipes(sheet);
     if (kind === 'cheese') return parseCheeseRecipes(sheet);
-    return parseGeneralRecipe(workbook, sheet);
+    return parseGeneralRecipe(workbook, sheet, kind === 'dough_guide');
   });
   const warnings = sheets.flatMap((sheet) => sheet.notes.filter((note) => /no .*confidently detected|no populated/i.test(note)));
   return {

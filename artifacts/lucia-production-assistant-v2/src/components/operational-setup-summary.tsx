@@ -1,4 +1,5 @@
 import type { OperationalWorkbookData } from '../importing/operational';
+import { DoughDetailsSummary } from './dough-details-summary';
 
 type RecordValue = Record<string, unknown>;
 
@@ -72,18 +73,20 @@ function RecipeSummary({ recipe }: { recipe: unknown }) {
   const metrics = Array.isArray(recipe.metrics) ? recipe.metrics.filter(isRecord) : [];
   const notes = Array.isArray(recipe.notes) ? recipe.notes.filter((item): item is string => typeof item === 'string') : [];
   const name = asText(recipe.name) || 'Recipe';
-  return <details className="operational-recipe">
+  return <details className="operational-recipe" open={isRecord(recipe.dough)}>
     <summary>{name} <span>{ingredients.length} ingredients · {steps.length} steps</span></summary>
+    <DoughDetailsSummary data={recipe.dough} />
     {ingredients.length > 0 && <div>
       <strong>Ingredients</strong>
       <ul className="operational-items">{ingredients.map((ingredient, index) => <li key={`${asText(ingredient.sourceRow)}:${index}`}>
-        <span>{asText(ingredient.name)}</span><AmountList amounts={ingredient.amounts} />
+        <span>{asText(ingredient.name)} · source row {asText(ingredient.sourceRow)}</span><AmountList amounts={ingredient.amounts} />
+        {Array.isArray(ingredient.amounts) && ingredient.amounts.length === 0 && <span>Weight not supplied — review source</span>}
       </li>)}</ul>
     </div>}
     {isRecord(recipe.total) && <div><strong>{asText(recipe.total.name) || 'Total'}</strong><AmountList amounts={recipe.total.amounts} /></div>}
     {steps.length > 0 && <div>
       <strong>Process</strong>
-      <ol className="operational-items">{steps.map((step, index) => <li key={`${asText(step.sourceRow)}:${index}`}>{asText(step.text)}</li>)}</ol>
+      <ol className="operational-items">{steps.map((step, index) => <li value={typeof step.order === 'number' ? step.order : index + 1} key={`${asText(step.sourceRow)}:${index}`}>{asText(step.text)}</li>)}</ol>
     </div>}
     {equipment.length > 0 && <div><strong>Materials / equipment</strong><ul className="operational-items">{equipment.map((item, index) => <li key={`${index}:${item}`}>{item}</li>)}</ul></div>}
     {metrics.length > 0 && <div>

@@ -41,6 +41,7 @@ export type ParsedScheduleRun = {
 export type ScheduleParseResult = {
   runs: ParsedScheduleRun[];
   errors: Array<{ sheet: string; row: number; message: string }>;
+  ignoredPastCount: number;
 };
 
 const scheduleUnitHeaders = new Set(["units", "cases", "qty", "quantity", "cases planned"]);
@@ -62,9 +63,10 @@ function cellDate(value: WorkbookCell | undefined): string | null {
   return `${year}-${String(Number(us[1])).padStart(2, "0")}-${String(Number(us[2])).padStart(2, "0")}`;
 }
 
-export function parseScheduleWorkbook(workbook: ParsedWorkbook): ScheduleParseResult {
+export function parseScheduleWorkbook(workbook: ParsedWorkbook, importDate?: string): ScheduleParseResult {
   const runs: ParsedScheduleRun[] = [];
   const errors: ScheduleParseResult["errors"] = [];
+  let ignoredPastCount = 0;
   for (const sheet of workbook.sheets) {
     let row = 0;
     while (row < sheet.rows.length) {
@@ -93,28 +95,33 @@ export function parseScheduleWorkbook(workbook: ParsedWorkbook): ScheduleParseRe
         if (/^-?\d+(\.\d+)?$/.test(brand) || (!brand && /^-?\d+(\.\d+)?$/.test(flavor))) continue;
         const normalizedFlavor = flavor.toLowerCase().replace(/\s+/g, " ");
         if (!brand && (/^(carton |closed -|inventory|qc school)/.test(normalizedFlavor) || normalizedFlavor === "breakfast is old shells and old labels")) continue;
+        if (date && importDate && date < importDate) { ignoredPastCount++; continue; }
         if (!date) { errors.push({ sheet: sheet.name, row: next + 1, message: `${brand || flavor} has no valid day date` }); continue; }
         if (!brand) { errors.push({ sheet: sheet.name, row: next + 1, message: "Missing brand" }); continue; }
         const quantity = units === "" ? 0 : Number(units.replace(/[, ]/g, ""));
         if (!Number.isFinite(quantity) || quantity < 0) { errors.push({ sheet: sheet.name, row: next + 1, message: `Invalid units: ${units}` }); continue; }
+        const casesPlanned = Math.round(quantity);
+        if (casesPlanned < 1 || casesPlanned > 2_147_483_647) { errors.push({ sheet: sheet.name, row: next + 1, message: "Cases must be between 1 and 2,147,483,647 to create a planned run" }); continue; }
         const noteParts = [
           customerCol >= 0 ? cellText(cells[customerCol]) : "",
           poCol >= 0 && cellText(cells[poCol]) ? `PO ${cellText(cells[poCol])}` : "",
           shipCol >= 0 && cellText(cells[shipCol]) ? `Ship ${cellDate(cells[shipCol]) ?? cellText(cells[shipCol])}` : "",
         ].filter(Boolean);
+        const notes = noteParts.join(" · ");
+        if (notes.length > 500) { errors.push({ sheet: sheet.name, row: next + 1, message: "Customer, PO, and shipping notes exceed the 500-character limit" }); continue; }
         runs.push({
           date,
           brand,
           flavor,
-          casesPlanned: Math.round(quantity),
-          notes: noteParts.join(" · "),
+          casesPlanned,
+          notes,
           source: { file: workbook.fileName, sheet: sheet.name, row: next + 1 },
         });
       }
       row = next;
     }
   }
-  return { runs, errors };
+  return { runs, errors, ignoredPastCount };
 }
 
 function cellValue(value: unknown): WorkbookCell {

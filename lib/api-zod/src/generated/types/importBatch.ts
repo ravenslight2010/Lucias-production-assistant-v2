@@ -19,6 +19,12 @@ export interface ImportBatch {
   proposedFlavor: string | null;
   /** @nullable */
   profileId: string | null;
+  /**
+     * @minimum 0
+     * @maximum 5000
+     * @nullable
+     */
+  scheduleRunCount: number | null;
   createdAt: Date;
   /** @nullable */
   appliedAt: Date | null;

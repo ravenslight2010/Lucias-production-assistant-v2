@@ -55,6 +55,8 @@ import type {
   RunEnvelope,
   RunList,
   RunStationProgressList,
+  ScheduleImportInput,
+  ScheduleImportResult,
   UnauthorizedResponse,
   V2Session
 } from './api.schemas.ts';
@@ -1218,6 +1220,95 @@ export const useCreateRun = <TError = ErrorType<BadRequestResponse | Unauthorize
         TContext
       > => {
       return useMutation(getCreateRunMutationOptions(options));
+    }
+
+export const getImportScheduleUrl = () => {
+
+
+
+
+  return `/api/v2/schedule-imports`
+}
+
+/**
+ * Rows before importDate are ignored. Repeating the same schedule with identical mappings is idempotent.
+ * @summary Create planned runs from a reviewed production schedule
+ */
+export const importSchedule = async (scheduleImportInput: ScheduleImportInput, options?: Parameters<typeof customFetch>[1]): Promise<ScheduleImportResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ScheduleImportResult>(getImportScheduleUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(scheduleImportInput)
+  }
+);}
+
+
+
+
+
+export const getImportScheduleMutationKey = () => ['importSchedule'] as const;
+
+export const getImportScheduleMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importSchedule>>, TError,ImportScheduleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importSchedule>>, TError,ImportScheduleMutationVariables, TContext> => {
+
+const mutationKey = getImportScheduleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importSchedule>>, ImportScheduleMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  importSchedule(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportScheduleMutationResult = NonNullable<Awaited<ReturnType<typeof importSchedule>>>
+    export type ImportScheduleMutationBody = BodyType<ScheduleImportInput>
+    export type ImportScheduleMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | void>
+    export type ImportScheduleMutationVariables = {data: BodyType<ScheduleImportInput>}
+
+    /**
+ * @summary Create planned runs from a reviewed production schedule
+ */
+export const useImportSchedule = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importSchedule>>, TError,ImportScheduleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof importSchedule>>,
+        TError,
+        ImportScheduleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getImportScheduleMutationOptions(options));
     }
 
 export const getListProductProfilesUrl = () => {

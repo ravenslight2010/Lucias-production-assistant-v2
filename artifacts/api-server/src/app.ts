@@ -56,6 +56,7 @@ app.use((req, res, next) => {
   next();
 });
 app.use("/api/v2/product-profiles", express.json({ limit: "1mb" }));
+app.use("/api/v2/schedule-imports", express.json({ limit: "4mb" }));
 app.use(express.json({ limit: "32kb" }));
 app.use(cookieParser());
 

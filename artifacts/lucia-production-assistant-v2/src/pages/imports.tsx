@@ -9,12 +9,13 @@ import {
   getListImportBatchesQueryKey,
   getListRunsQueryKey,
   useImportProductProfile,
+  useImportSchedule,
   useListProductProfiles,
   useListImportBatches,
   useMergeProductProfile,
   useRenameProductProfile,
 } from '@workspace/api-client-react';
-import type { ProductProfile, ProductProfileImportInput } from '@workspace/api-client-react';
+import type { ProductProfile, ProductProfileImportInput, ScheduleImportInput } from '@workspace/api-client-react';
 import { IMPORT_KINDS, parseScheduleWorkbook, parseWorkbookFile, type ImportKind, type ParsedWorkbook } from '../importing/workbook';
 
 const kindLabels: Record<ImportKind, string> = {
@@ -26,6 +27,18 @@ const kindLabels: Record<ImportKind, string> = {
   dough_guide: 'Dough guide',
   schedule: 'Production schedule',
 };
+
+function localDateString(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function scheduleProductKey(brand: string, flavor: string) {
+  const normalize = (value: string) => value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+  return JSON.stringify([normalize(brand), normalize(flavor)]);
+}
 
 function errorStatus(error: unknown) {
   return error && typeof error === 'object' && 'status' in error ? (error as { status?: number }).status : undefined;
@@ -52,7 +65,7 @@ async function sha256(file: File) {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-function WorkbookReview() {
+function WorkbookReview({ profiles, profilesReady }: { profiles: ProductProfile[]; profilesReady: boolean }) {
   const [online, setOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine);
   useEffect(() => {
     const onOnline = () => setOnline(true);
@@ -74,11 +87,36 @@ function WorkbookReview() {
   const [validation, setValidation] = useState('');
   const [savedMessage, setSavedMessage] = useState('');
   const [scheduleVisibleRows, setScheduleVisibleRows] = useState(50);
+  const [scheduleImportDate, setScheduleImportDate] = useState('');
   const importer = useImportProductProfile({ request: { credentials: 'include' } });
+  const scheduleImporter = useImportSchedule({ request: { credentials: 'include' } });
   const schedulePreview = useMemo(
-    () => workbook && kind === 'schedule' ? parseScheduleWorkbook(workbook) : null,
-    [workbook, kind],
+    () => workbook && kind === 'schedule' ? parseScheduleWorkbook(workbook, scheduleImportDate) : null,
+    [workbook, kind, scheduleImportDate],
   );
+  const scheduleProducts = useMemo(() => {
+    const groups = new Map<string, { key: string; brand: string; flavor: string; rows: number }>();
+    for (const run of schedulePreview?.runs ?? []) {
+      const key = scheduleProductKey(run.brand, run.flavor);
+      const existing = groups.get(key);
+      if (existing) existing.rows++;
+      else groups.set(key, { key, brand: run.brand, flavor: run.flavor, rows: 1 });
+    }
+    return [...groups.values()].sort((a, b) => a.brand.localeCompare(b.brand) || a.flavor.localeCompare(b.flavor));
+  }, [schedulePreview]);
+  const [scheduleProfileChoices, setScheduleProfileChoices] = useState<Record<string, string>>({});
+  const activeProfileByProduct = useMemo(
+    () => new Map(profiles.map((profile) => [scheduleProductKey(profile.brand, profile.flavor), profile])),
+    [profiles],
+  );
+  const resolvedScheduleProducts = scheduleProducts.map((product) => {
+    const chosenId = scheduleProfileChoices[product.key] || activeProfileByProduct.get(product.key)?.id || '';
+    return { ...product, chosenId, selectedProfile: profiles.find((profile) => profile.id === chosenId) };
+  });
+  const hasScheduleMappings = profilesReady && resolvedScheduleProducts.length > 0 && resolvedScheduleProducts.every((product) => Boolean(product.selectedProfile));
+  const matchingProfile = profilesReady && brand.trim() && flavor.trim()
+    ? activeProfileByProduct.get(scheduleProductKey(brand, flavor))
+    : undefined;
 
   const chooseFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.currentTarget.files?.[0];
@@ -87,6 +125,8 @@ function WorkbookReview() {
     setValidation('');
     setSavedMessage('');
     setScheduleVisibleRows(50);
+    setScheduleImportDate(localDateString());
+    setScheduleProfileChoices({});
     setWorkbook(null);
     setSourceFile(file);
     try {
@@ -101,11 +141,71 @@ function WorkbookReview() {
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!workbook || !sourceFile || !kind || kind === 'schedule') return;
+    if (!workbook || !sourceFile || !kind) return;
+    if (kind === 'schedule') {
+      const importDate = localDateString();
+      setScheduleImportDate(importDate);
+      const preview = parseScheduleWorkbook(workbook, importDate);
+      if (!preview.runs.length) {
+        setValidation(`No schedule rows dated ${importDate} or later are eligible to import.`);
+        return;
+      }
+      if (!profilesReady) {
+        setValidation('Product profiles are still loading. Wait for them to load, then review the schedule mappings.');
+        return;
+      }
+      const profileByKey = new Map(profiles.map((profile) => [scheduleProductKey(profile.brand, profile.flavor), profile]));
+      const mappings = new Map<string, ProductProfile>();
+      for (const product of scheduleProducts) {
+        const id = scheduleProfileChoices[product.key] || profileByKey.get(product.key)?.id || '';
+        const profile = profiles.find((candidate) => candidate.id === id);
+        if (!profile) {
+          setValidation('Match every scheduled brand and flavor to an active product profile before importing.');
+          return;
+        }
+        mappings.set(product.key, profile);
+      }
+      setValidation('');
+      setSavedMessage('');
+      try {
+        const data: ScheduleImportInput = {
+          sourceName: workbook.fileName,
+          sourceHash: await sha256(sourceFile),
+          importDate,
+          ignoredPastCount: preview.ignoredPastCount,
+          runs: preview.runs.map((run) => ({
+            date: run.date,
+            brand: run.brand,
+            flavor: run.flavor,
+            productProfileId: mappings.get(scheduleProductKey(run.brand, run.flavor))!.id,
+            casesPlanned: run.casesPlanned,
+            notes: run.notes,
+            source: { sheet: run.source.sheet, row: run.source.row },
+          })),
+        };
+        scheduleImporter.mutate({ data }, {
+          onSuccess: (result) => {
+            setSavedMessage(result.replayed
+              ? `This schedule was already imported. ${result.importedCount} planned runs are linked to it.`
+              : `${result.importedCount} planned ${result.importedCount === 1 ? 'run was' : 'runs were'} created.${result.ignoredPastCount ? ` ${result.ignoredPastCount} past ${result.ignoredPastCount === 1 ? 'row was' : 'rows were'} ignored.` : ''}`);
+            void client.invalidateQueries({ queryKey: getListProductProfilesQueryKey() });
+            void client.invalidateQueries({ queryKey: getListImportBatchesQueryKey() });
+            void client.invalidateQueries({ queryKey: getListRunsQueryKey() });
+          },
+        });
+      } catch (error) {
+        setValidation(errorText(error, 'The schedule could not be prepared for import.'));
+      }
+      return;
+    }
     const cleanBrand = brand.trim();
     const cleanFlavor = flavor.trim();
     if (!cleanBrand || cleanBrand.length > 120 || !cleanFlavor || cleanFlavor.length > 120) {
       setValidation('Brand and flavor are required and must each be 120 characters or fewer.');
+      return;
+    }
+    if (!profilesReady) {
+      setValidation('Product profiles are still loading. Wait for them to load before importing this workbook.');
       return;
     }
     setValidation('');
@@ -124,6 +224,7 @@ function WorkbookReview() {
         sourceHash: await sha256(sourceFile),
         importKind: kind,
         productData,
+        ...(matchingProfile ? { expectedRevision: matchingProfile.revision } : {}),
       };
       const serializedRequestBytes = new TextEncoder().encode(JSON.stringify(input)).byteLength;
       if (serializedRequestBytes > 1_000_000) {
@@ -133,7 +234,9 @@ function WorkbookReview() {
       importer.mutate({ data: input }, {
         onSuccess: (result) => {
           setSavedMessage(result.imported
-            ? `${result.profile.brand} / ${result.profile.flavor} was saved as revision ${result.profile.revision}.`
+            ? matchingProfile
+              ? `${workbook.fileName} was added to ${result.profile.brand} / ${result.profile.flavor}; the profile is now revision ${result.profile.revision}. Existing run snapshots stay unchanged.`
+              : `${result.profile.brand} / ${result.profile.flavor} was saved as revision ${result.profile.revision}.`
             : 'This source is already saved. No duplicate profile was created.');
           void client.invalidateQueries({ queryKey: getListProductProfilesQueryKey() });
           void client.invalidateQueries({ queryKey: getListImportBatchesQueryKey() });
@@ -188,29 +291,55 @@ function WorkbookReview() {
             <div className="form-field"><label htmlFor="profile-brand">Brand</label><input id="profile-brand" autoComplete="organization" maxLength={120} value={brand} onChange={(event) => setBrand(event.target.value)} required /></div>
             <div className="form-field"><label htmlFor="profile-flavor">Flavor</label><input id="profile-flavor" maxLength={120} value={flavor} onChange={(event) => setFlavor(event.target.value)} required /></div>
           </div>}
+          {kind !== 'schedule' && matchingProfile && <div className="notice" role="status" data-testid="notice-existing-profile">
+            This matches active profile revision {matchingProfile.revision}. Import will add this workbook as another preserved source and create a new revision; existing run snapshots will not change.
+          </div>}
           <div className="form-field">
             <label htmlFor="workbook-kind">Workbook type</label>
             <select id="workbook-kind" data-testid="select-workbook-kind" value={kind} onChange={(event) => setKind(event.target.value as ImportKind | '')} required>
               <option value="">Select type to continue</option>
-              {IMPORT_KINDS.map((item) => <option key={item} value={item}>{kindLabels[item]}{item === 'schedule' ? ' · preview only' : ''}</option>)}
+              {IMPORT_KINDS.map((item) => <option key={item} value={item}>{kindLabels[item]}{item === 'schedule' ? ' · creates planned runs' : ''}</option>)}
             </select>
             <span className="field-help">Detected: {workbook.kind ? `${kindLabels[workbook.kind]} (${workbook.kindConfidence === 'high' ? 'high confidence' : 'review suggested'})` : 'No confident type; choose one after reviewing.'}</span>
           </div>
           {kind === 'schedule' && schedulePreview && <section className="schedule-review" aria-labelledby="schedule-preview-heading" data-testid="schedule-preview" style={{ marginTop: 16, padding: 16, border: '1px solid hsl(var(--border))', borderRadius: 12, background: 'hsl(var(--muted) / .35)' }}>
             <div className="schedule-review-head" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
               <div><div className="eyebrow">Read-only review</div><h3 id="schedule-preview-heading">Parsed production schedule</h3></div>
-              <span className="schedule-count" data-testid="text-schedule-run-count" style={{ padding: '7px 10px', borderRadius: 999, background: 'hsl(var(--primary) / .09)', color: 'hsl(var(--primary))', font: '500 11px var(--app-font-mono)' }}>{schedulePreview.runs.length} parsed {schedulePreview.runs.length === 1 ? 'row' : 'rows'}</span>
+              <span className="schedule-count" data-testid="text-schedule-run-count" style={{ padding: '7px 10px', borderRadius: 999, background: 'hsl(var(--primary) / .09)', color: 'hsl(var(--primary))', font: '500 11px var(--app-font-mono)' }}>{schedulePreview.runs.length} eligible {schedulePreview.runs.length === 1 ? 'row' : 'rows'}</span>
             </div>
-            <div className="notice" role="status"><AlertTriangle size={15} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />Preview only. These schedule rows are not saved, applied, or created as production runs.</div>
+            <div className="notice" role="status"><AlertTriangle size={15} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />Review the eligible rows and product matches below. Import creates planned runs and keeps each selected product profile as a snapshot.</div>
+            {schedulePreview.ignoredPastCount > 0 && <div className="notice" role="status" data-testid="schedule-past-rows-notice" style={{ marginTop: 10 }}>{schedulePreview.ignoredPastCount} past {schedulePreview.ignoredPastCount === 1 ? 'schedule row was' : 'schedule rows were'} ignored because the scheduled date is before the import date ({scheduleImportDate}). Rows scheduled for today are kept.</div>}
             {schedulePreview.runs.length ? <div className="schedule-table-wrap" style={{ overflowX: 'auto', border: '1px solid hsl(var(--border))', borderRadius: 9, background: 'hsl(var(--card))' }}>
-              <table className="schedule-table" style={{ width: '100%', minWidth: 550, borderCollapse: 'collapse', textAlign: 'left', fontSize: 12 }}>
-                <thead><tr>{['Date', 'Brand', 'Flavor', 'Cases', 'Source'].map((heading) => <th key={heading} scope="col" style={{ padding: '10px 12px', color: 'hsl(var(--muted-foreground))', borderBottom: '1px solid hsl(var(--border))', font: '500 10px var(--app-font-mono)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{heading}</th>)}</tr></thead>
+              <table className="schedule-table" style={{ width: '100%', minWidth: 720, borderCollapse: 'collapse', textAlign: 'left', fontSize: 12 }}>
+                <thead><tr>{['Date', 'Brand', 'Flavor', 'Cases', 'Notes', 'Source'].map((heading) => <th key={heading} scope="col" style={{ padding: '10px 12px', color: 'hsl(var(--muted-foreground))', borderBottom: '1px solid hsl(var(--border))', font: '500 10px var(--app-font-mono)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{heading}</th>)}</tr></thead>
                 <tbody>{schedulePreview.runs.slice(0, scheduleVisibleRows).map((run, index) => <tr key={`${run.source.sheet}:${run.source.row}`} data-testid={`schedule-row-${index}`}>
-                  <td style={{ padding: '11px 12px', whiteSpace: 'nowrap', borderBottom: '1px solid hsl(var(--border))', fontFamily: 'var(--app-font-mono)' }}>{run.date}</td><td style={{ padding: '11px 12px', borderBottom: '1px solid hsl(var(--border))' }}>{run.brand}</td><td style={{ padding: '11px 12px', borderBottom: '1px solid hsl(var(--border))' }}>{run.flavor || '—'}</td><td style={{ padding: '11px 12px', borderBottom: '1px solid hsl(var(--border))', fontVariantNumeric: 'tabular-nums' }}>{run.casesPlanned.toLocaleString()}</td><td style={{ padding: '11px 12px', borderBottom: '1px solid hsl(var(--border))', color: 'hsl(var(--muted-foreground))', fontFamily: 'var(--app-font-mono)' }}>{run.source.sheet} · row {run.source.row}</td>
+                  <td style={{ padding: '11px 12px', whiteSpace: 'nowrap', borderBottom: '1px solid hsl(var(--border))', fontFamily: 'var(--app-font-mono)' }}>{run.date}</td><td style={{ padding: '11px 12px', borderBottom: '1px solid hsl(var(--border))' }}>{run.brand}</td><td style={{ padding: '11px 12px', borderBottom: '1px solid hsl(var(--border))' }}>{run.flavor || '—'}</td><td style={{ padding: '11px 12px', borderBottom: '1px solid hsl(var(--border))', fontVariantNumeric: 'tabular-nums' }}>{run.casesPlanned.toLocaleString()}</td><td style={{ padding: '11px 12px', borderBottom: '1px solid hsl(var(--border))', maxWidth: 240 }}>{run.notes || '—'}</td><td style={{ padding: '11px 12px', borderBottom: '1px solid hsl(var(--border))', color: 'hsl(var(--muted-foreground))', fontFamily: 'var(--app-font-mono)' }}>{run.source.sheet} · row {run.source.row}</td>
                 </tr>)}</tbody>
               </table>
-            </div> : <div className="schedule-empty" data-testid="empty-schedule-rows">No schedule rows were recognized. Check the worksheet headers and date values.</div>}
+            </div> : <div className="schedule-empty" data-testid="empty-schedule-rows">No eligible schedule rows were found. Rows dated before {scheduleImportDate} are ignored; today and future rows can be imported.</div>}
             {schedulePreview.runs.length > scheduleVisibleRows && <div className="control-row" style={{ justifyContent: 'center', marginTop: 12 }}><button className="button button-secondary" type="button" data-testid="button-show-more-schedule-rows" onClick={() => setScheduleVisibleRows((count) => Math.min(count + 50, schedulePreview.runs.length))}>Show next {Math.min(50, schedulePreview.runs.length - scheduleVisibleRows)} rows</button></div>}
+            {scheduleProducts.length > 0 && <section aria-labelledby="schedule-mapping-heading" style={{ marginTop: 18 }}>
+              <div className="section-heading"><div><div className="eyebrow">Connect the schedule to run setup</div><h4 id="schedule-mapping-heading">Match products to active profiles</h4></div><span className="field-help">{scheduleProducts.length} product {scheduleProducts.length === 1 ? 'match' : 'matches'}</span></div>
+              <p className="field-help" style={{ marginTop: 0, marginBottom: 12 }}>Exact brand and flavor matches are selected automatically. Review or change each match before creating planned runs.</p>
+              <div className="schedule-mappings" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 10 }}>{resolvedScheduleProducts.map((product) => <div className="form-field" key={product.key}>
+                <label htmlFor={`schedule-profile-${encodeURIComponent(product.key)}`}>{product.brand} / {product.flavor || 'No flavor listed'} · {product.rows} {product.rows === 1 ? 'row' : 'rows'}</label>
+                <select id={`schedule-profile-${encodeURIComponent(product.key)}`} value={product.chosenId} onChange={(event) => setScheduleProfileChoices((current) => ({ ...current, [product.key]: event.target.value }))} disabled={!profilesReady || !profiles.length}>
+                  <option value="">Choose an active profile</option>
+                  {profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.brand} / {profile.flavor} · rev {profile.revision}</option>)}
+                </select>
+              </div>)}</div>
+              {!profilesReady && <div className="field-help" role="status">Loading active product profiles…</div>}
+              {profilesReady && profiles.length === 0 && <div className="notice" role="status">Create product profiles from product workbooks before importing a schedule.</div>}
+              {schedulePreview.runs.length > 0 && <div style={{ marginTop: 14 }}>
+                {validation && <div className="error-banner" role="alert">{validation}</div>}
+                {scheduleImporter.isError && <div className={errorStatus(scheduleImporter.error) === 409 ? 'notice' : 'error-banner'} role="alert">{errorText(scheduleImporter.error, 'Schedule import failed. No partial runs were saved.')}</div>}
+                {savedMessage && <div className="notice" role="status"><ShieldCheck size={15} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />{savedMessage}</div>}
+                <button className="button button-primary" type="submit" disabled={!online || scheduleImporter.isPending || !hasScheduleMappings} data-testid="button-import-schedule">
+                  {scheduleImporter.isPending ? <LoaderCircle size={16} className="spin" /> : <ArrowDownToLine size={16} />}
+                  {scheduleImporter.isPending ? 'Creating planned runs…' : `Import ${schedulePreview.runs.length} planned ${schedulePreview.runs.length === 1 ? 'run' : 'runs'}`}
+                </button>
+              </div>}
+            </section>}
             {schedulePreview.errors.length > 0 && <div className="notice schedule-warnings" aria-label="Parser warnings" style={{ marginTop: 14 }}>
               <strong>Parser warnings · {schedulePreview.errors.length}</strong>
               <ul style={{ margin: '8px 0 0', paddingLeft: 20, lineHeight: 1.55 }}>{schedulePreview.errors.map((warning, index) => <li key={`${warning.sheet}:${warning.row}:${index}`} data-testid={`schedule-warning-${index}`}>{warning.sheet} · row {warning.row}: {warning.message}</li>)}</ul>
@@ -222,7 +351,7 @@ function WorkbookReview() {
             {savedMessage && <div className="notice" role="status"><ShieldCheck size={15} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />{savedMessage}</div>}
             <button className="button button-primary" type="submit" disabled={!online || importer.isPending || !kind} data-testid="button-import-profile">
               {importer.isPending ? <LoaderCircle size={16} className="spin" /> : <ArrowDownToLine size={16} />}
-              {importer.isPending ? 'Saving source profile…' : 'Save product profile'}
+              {importer.isPending ? 'Saving source profile…' : matchingProfile ? 'Add workbook to profile' : 'Save product profile'}
             </button>
             {!online && <p className="field-help" style={{ marginTop: 10 }}>Offline: workbook review is available, but profiles cannot be saved.</p>}
           </>}
@@ -246,8 +375,19 @@ function ProfileCard({ profile, profiles }: { profile: ProductProfile; profiles:
   const targets = profiles.filter((item) => item.id !== profile.id && !item.mergedIntoId);
   const importedSources = useMemo(() => {
     const raw = profile.productData as Record<string, unknown>;
-    const sheets = Array.isArray(raw.sheets) ? raw.sheets.length : null;
-    return sheets === null ? 'Saved source bundle' : `${sheets} worksheet${sheets === 1 ? '' : 's'}`;
+    const sources = Array.isArray(raw.sources) ? raw.sources : [raw];
+    const countSheets = (value: unknown): number => {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return 0;
+      const record = value as Record<string, unknown>;
+      if (Array.isArray(record.sheets)) return record.sheets.length;
+      if (Array.isArray(record.sources)) return record.sources.reduce<number>((sum, item) => sum + countSheets(item), 0);
+      return countSheets(record.content) + countSheets(record.data);
+    };
+    const sheetCount = sources.reduce((sum, source) => sum + countSheets(source), 0);
+    if (Array.isArray(raw.sources)) {
+      return `${sources.length} source workbook${sources.length === 1 ? '' : 's'}${sheetCount ? ` · ${sheetCount} worksheets` : ''}`;
+    }
+    return sheetCount ? `1 source workbook · ${sheetCount} worksheet${sheetCount === 1 ? '' : 's'}` : 'Saved source bundle';
   }, [profile.productData]);
 
   const saveRename = (event: FormEvent<HTMLFormElement>) => {
@@ -361,7 +501,7 @@ export default function ImportsPage() {
       </div>
       <p className="import-intro">Profiles are shared setup references, not an archive. New runs capture an immutable product snapshot at creation; later profile edits do not rewrite existing runs.</p>
       <div className="import-layout">
-        <WorkbookReview />
+          <WorkbookReview profiles={profiles} profilesReady={Boolean(profilesQuery.data)} />
         <section aria-labelledby="profiles-heading">
           <div className="section-heading"><h2 id="profiles-heading">Active profiles</h2><span className="eyebrow">{profiles.length} saved</span></div>
           {profilesQuery.isLoading && !profilesQuery.data && <><div className="skeleton" /><div className="skeleton" /></>}
@@ -379,7 +519,7 @@ export default function ImportsPage() {
         {historyQuery.isError && historyQuery.data && <div className="error-banner" role="status">Could not refresh import history. Showing the last loaded activity.</div>}
         {historyQuery.data && (importBatches.length ? <div className="panel import-history" role="list" aria-label="Recent workbook imports">
           {importBatches.map((batch) => <article className="history-row" role="listitem" key={batch.id} data-testid={`row-import-${batch.id}`}>
-            <div className="history-file"><FileSpreadsheet size={17} aria-hidden="true" /><div><strong>{batch.sourceName}</strong><span>{kindLabels[batch.importKind]} · {batch.proposedBrand && batch.proposedFlavor ? `${batch.proposedBrand} / ${batch.proposedFlavor}` : 'No proposed profile name'}</span></div></div>
+            <div className="history-file"><FileSpreadsheet size={17} aria-hidden="true" /><div><strong>{batch.sourceName}</strong><span>{kindLabels[batch.importKind]} · {batch.importKind === 'schedule' ? `${batch.scheduleRunCount ?? 0} planned ${batch.scheduleRunCount === 1 ? 'run' : 'runs'}` : batch.proposedBrand && batch.proposedFlavor ? `${batch.proposedBrand} / ${batch.proposedFlavor}` : 'No proposed profile name'}</span></div></div>
             <div className="history-state"><span className={`import-state import-state-${batch.status}`}>{batch.status === 'applied' ? 'Applied' : 'Draft'}</span><span>{batch.status === 'applied' && batch.appliedAt ? `Applied ${new Date(batch.appliedAt).toLocaleString()}` : `Reviewed ${new Date(batch.createdAt).toLocaleString()}`}</span></div>
           </article>)}
         </div> : <div className="panel empty-state"><div className="empty-mark"><FileSpreadsheet size={20} /></div><h3>No import activity yet</h3><p>Reviewed workbook sources will appear here after the import service records them. This history contains metadata only.</p></div>)}

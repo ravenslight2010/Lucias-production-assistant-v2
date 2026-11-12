@@ -337,6 +337,8 @@ export interface ProductProfileImportInput {
   sourceHash: string;
   importKind: ProductProfileImportInputImportKind;
   productData: ProductProfileImportInputProductData;
+  /** @minimum 0 */
+  expectedRevision?: number;
 }
 
 export interface ProductProfileImportResult {
@@ -404,6 +406,12 @@ export interface ImportBatch {
   proposedFlavor: string | null;
   /** @nullable */
   profileId: string | null;
+  /**
+     * @minimum 0
+     * @maximum 5000
+     * @nullable
+     */
+  scheduleRunCount: number | null;
   createdAt: string;
   /** @nullable */
   appliedAt: string | null;
@@ -420,6 +428,23 @@ export interface PauseInterval {
   endedAt: string | null;
 }
 
+export interface ScheduleRunSource {
+  importId: string;
+  /** @maxLength 255 */
+  file: string;
+  /** @maxLength 80 */
+  sheet: string;
+  /**
+     * @minimum 1
+     * @maximum 20000
+     */
+  row: number;
+  /** @maxLength 120 */
+  brand: string;
+  /** @maxLength 120 */
+  flavor: string;
+}
+
 export interface Run {
   id: string;
   status: RunStatus;
@@ -431,6 +456,11 @@ export interface Run {
   createdAt: string;
   updatedAt: string;
   /** @nullable */
+  scheduledFor: string | null;
+  /** @nullable */
+  scheduleNotes: string | null;
+  scheduleSource: ScheduleRunSource | null;
+  /** @nullable */
   startedAt: string | null;
   /** @nullable */
   pausedAt: string | null;
@@ -441,6 +471,69 @@ export interface Run {
   setupSnapshot: RunSetup;
   productSnapshot: ProductProfile | null;
   pauseIntervals: PauseInterval[];
+}
+
+export type ScheduleImportRowSource = {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  sheet: string;
+  /**
+     * @minimum 1
+     * @maximum 20000
+     */
+  row: number;
+};
+
+export interface ScheduleImportRow {
+  date: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  brand: string;
+  /** @maxLength 120 */
+  flavor: string;
+  productProfileId: string;
+  /**
+     * @minimum 1
+     * @maximum 2147483647
+     */
+  casesPlanned: number;
+  /** @maxLength 500 */
+  notes: string;
+  source: ScheduleImportRowSource;
+}
+
+export interface ScheduleImportInput {
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  sourceName: string;
+  /** @pattern ^[a-fA-F0-9]{64}$ */
+  sourceHash: string;
+  importDate: string;
+  /**
+     * @minimum 0
+     * @maximum 500000
+     */
+  ignoredPastCount: number;
+  /**
+     * @minItems 1
+     * @maxItems 5000
+     */
+  runs: ScheduleImportRow[];
+}
+
+export interface ScheduleImportResult {
+  importId: string;
+  /** @minimum 0 */
+  importedCount: number;
+  /** @minimum 0 */
+  ignoredPastCount: number;
+  replayed: boolean;
 }
 
 export interface RunCreateInput {

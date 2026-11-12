@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import {
   check,
+  date,
   index,
   integer,
   jsonb,
@@ -126,6 +127,16 @@ export const productionRunsTable = pgTable(
     // sets "planned" when creating a new run.
     status: runStatusEnum("status").notNull().default("draft"),
     revision: integer("revision").notNull().default(0),
+    scheduledFor: date("scheduled_for", { mode: "string" }),
+    scheduleNotes: text("schedule_notes"),
+    scheduleSource: jsonb("schedule_source").$type<{
+      importId: string;
+      file: string;
+      sheet: string;
+      row: number;
+      brand: string;
+      flavor: string;
+    } | null>(),
     createdBy: text("created_by").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -147,6 +158,10 @@ export const productionRunsTable = pgTable(
       table.facilityId,
       table.status,
       table.updatedAt,
+    ),
+    index("production_runs_facility_scheduled_for_idx").on(
+      table.facilityId,
+      table.scheduledFor,
     ),
   ],
 );

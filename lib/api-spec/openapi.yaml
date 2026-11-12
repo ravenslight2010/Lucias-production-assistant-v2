@@ -370,6 +370,45 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+  /v2/schedule-imports:
+    post:
+      operationId: importSchedule
+      tags: [imports]
+      summary: Create planned runs from a reviewed production schedule
+      description: Rows before importDate are ignored. Repeating the same schedule with identical mappings is idempotent.
+      security:
+        - v2Session: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScheduleImportInput"
+      responses:
+        "201":
+          description: Schedule imported and planned runs created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduleImportResult"
+        "200":
+          description: Previously imported schedule returned after an idempotent retry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduleImportResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "413":
+          description: Schedule import request is too large
   /v2/product-profiles:
     get:
       operationId: listProductProfiles
@@ -1006,6 +1045,9 @@ components:
         productData:
           type: object
           additionalProperties: true
+        expectedRevision:
+          type: integer
+          minimum: 0
       required: [brand, flavor, sourceName, sourceHash, importKind, productData]
     ProductProfileImportResult:
       type: object
@@ -1076,13 +1118,17 @@ components:
         profileId:
           type: [string, "null"]
           format: uuid
+        scheduleRunCount:
+          type: [integer, "null"]
+          minimum: 0
+          maximum: 5000
         createdAt:
           type: string
           format: date-time
         appliedAt:
           type: [string, "null"]
           format: date-time
-      required: [id, sourceName, importKind, status, proposedBrand, proposedFlavor, profileId, createdAt, appliedAt]
+      required: [id, sourceName, importKind, status, proposedBrand, proposedFlavor, profileId, scheduleRunCount, createdAt, appliedAt]
     ImportBatchList:
       type: object
       properties:
@@ -1120,6 +1166,15 @@ components:
         updatedAt:
           type: string
           format: date-time
+        scheduledFor:
+          type: [string, "null"]
+          format: date
+        scheduleNotes:
+          type: [string, "null"]
+        scheduleSource:
+          anyOf:
+            - $ref: "#/components/schemas/ScheduleRunSource"
+            - type: "null"
         startedAt:
           type: [string, "null"]
           format: date-time
@@ -1148,6 +1203,9 @@ components:
         - revision
         - createdAt
         - updatedAt
+        - scheduledFor
+        - scheduleNotes
+        - scheduleSource
         - startedAt
         - pausedAt
         - resumedAt
@@ -1155,6 +1213,108 @@ components:
         - setupSnapshot
         - productSnapshot
         - pauseIntervals
+    ScheduleRunSource:
+      type: object
+      additionalProperties: false
+      properties:
+        importId:
+          type: string
+          format: uuid
+        file:
+          type: string
+          maxLength: 255
+        sheet:
+          type: string
+          maxLength: 80
+        row:
+          type: integer
+          minimum: 1
+          maximum: 20000
+        brand:
+          type: string
+          maxLength: 120
+        flavor:
+          type: string
+          maxLength: 120
+      required: [importId, file, sheet, row, brand, flavor]
+    ScheduleImportRow:
+      type: object
+      additionalProperties: false
+      properties:
+        date:
+          type: string
+          format: date
+        brand:
+          type: string
+          minLength: 1
+          maxLength: 120
+        flavor:
+          type: string
+          maxLength: 120
+        productProfileId:
+          type: string
+          format: uuid
+        casesPlanned:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+        notes:
+          type: string
+          maxLength: 500
+        source:
+          type: object
+          additionalProperties: false
+          properties:
+            sheet:
+              type: string
+              minLength: 1
+              maxLength: 80
+            row:
+              type: integer
+              minimum: 1
+              maximum: 20000
+          required: [sheet, row]
+      required: [date, brand, flavor, productProfileId, casesPlanned, notes, source]
+    ScheduleImportInput:
+      type: object
+      additionalProperties: false
+      properties:
+        sourceName:
+          type: string
+          minLength: 1
+          maxLength: 255
+        sourceHash:
+          type: string
+          pattern: "^[a-fA-F0-9]{64}$"
+        importDate:
+          type: string
+          format: date
+        ignoredPastCount:
+          type: integer
+          minimum: 0
+          maximum: 500000
+        runs:
+          type: array
+          minItems: 1
+          maxItems: 5000
+          items:
+            $ref: "#/components/schemas/ScheduleImportRow"
+      required: [sourceName, sourceHash, importDate, ignoredPastCount, runs]
+    ScheduleImportResult:
+      type: object
+      properties:
+        importId:
+          type: string
+          format: uuid
+        importedCount:
+          type: integer
+          minimum: 0
+        ignoredPastCount:
+          type: integer
+          minimum: 0
+        replayed:
+          type: boolean
+      required: [importId, importedCount, ignoredPastCount, replayed]
     RunCreateInput:
       type: object
       properties:

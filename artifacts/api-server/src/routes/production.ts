@@ -12,6 +12,8 @@ import {
   CreateV2SessionResponse,
   CreateRunBody,
   CreateRunResponse,
+  ImportScheduleBody,
+  ImportScheduleResponse,
   GetDashboardSummaryResponse,
   GetFacilityStationsResponse,
   GetFacilityContextResponse,
@@ -67,6 +69,7 @@ import {
 import { executeRunCommand } from "../lib/run-command-service";
 import { getRunStationProgress } from "../lib/run-station-progress-service";
 import { createPlannedRun } from "../lib/run-create-service";
+import { importSchedule } from "../lib/schedule-import-service";
 import { toContractRun } from "../lib/run-contract";
 import {
   DEFAULT_FACILITY_STATIONS,
@@ -894,6 +897,7 @@ router.get("/v2/import-batches", requireV2Session, async (req, res): Promise<voi
       proposedBrand: facilityImportBatchesTable.proposedBrand,
       proposedFlavor: facilityImportBatchesTable.proposedFlavor,
       profileId: facilityImportBatchesTable.profileId,
+      summary: facilityImportBatchesTable.summary,
       createdAt: facilityImportBatchesTable.createdAt,
       appliedAt: facilityImportBatchesTable.appliedAt,
     })
@@ -901,8 +905,69 @@ router.get("/v2/import-batches", requireV2Session, async (req, res): Promise<voi
     .where(eq(facilityImportBatchesTable.facilityId, access.membership.facilityId))
     .orderBy(desc(facilityImportBatchesTable.createdAt))
     .limit(100);
-  res.json(ListImportBatchesResponse.parse({ imports: rows }));
+  const imports = rows.map(({ summary, ...row }) => {
+    const storedCount = summary && typeof summary === "object" && !Array.isArray(summary)
+      ? (summary as Record<string, unknown>).importedCount
+      : null;
+    return {
+      ...row,
+      scheduleRunCount: row.importKind === "schedule" &&
+        typeof storedCount === "number" && Number.isSafeInteger(storedCount) && storedCount >= 0
+        ? storedCount
+        : null,
+    };
+  });
+  res.json(ListImportBatchesResponse.parse({ imports }));
 });
+
+router.post(
+  "/v2/schedule-imports",
+  requireV2Session,
+  requireV2Csrf,
+  mutationRateLimit,
+  async (req, res): Promise<void> => {
+    const parsed = ImportScheduleBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Review the schedule rows and profile mappings before importing." });
+      return;
+    }
+    const access = await membershipOrRespond(req, res);
+    if (!access) return;
+    assertRunPermission(access.membership.role, "create");
+
+    const importDate = parsed.data.importDate.toISOString().slice(0, 10);
+    const runs = parsed.data.runs.map((run) => ({
+      ...run,
+      date: run.date.toISOString().slice(0, 10),
+    }));
+    try {
+      const result = await importSchedule({
+        ...parsed.data,
+        facilityId: access.membership.facilityId,
+        actorUserId: access.actorId,
+        sourceHash: parsed.data.sourceHash.toLowerCase(),
+        importDate,
+        runs,
+      });
+      const response = ImportScheduleResponse.parse(result);
+      res.status(response.replayed ? 200 : 201).json(response);
+      req.log.info({
+        importId: response.importId,
+        importedCount: response.importedCount,
+        ignoredPastCount: response.ignoredPastCount,
+        replayed: response.replayed,
+        facilityId: access.membership.facilityId,
+      }, "Production schedule import processed");
+    } catch (error) {
+      if (error instanceof HttpError) {
+        res.status(error.statusCode).json({ error: error.message });
+        return;
+      }
+      req.log.error({ err: error, facilityId: access.membership.facilityId }, "Production schedule import failed");
+      res.status(500).json({ error: "The schedule could not be imported. No partial runs were saved." });
+    }
+  },
+);
 
 router.post(
   "/v2/product-profiles",
@@ -952,14 +1017,68 @@ router.post(
           if (previousProfile) return { profile: previousProfile, batch: previousBatch, imported: false };
         }
         const [existing] = await tx
-          .select({ id: facilityProductProfilesTable.id })
+          .select()
           .from(facilityProductProfilesTable)
           .where(and(
             eq(facilityProductProfilesTable.facilityId, access.membership.facilityId),
             eq(facilityProductProfilesTable.normalizedKey, normalizedKey),
           ))
           .limit(1);
-        if (existing) throw new HttpError(409, "A profile with this brand and flavor already exists. Rename it or merge it from the import review.");
+        if (existing) {
+          if (input.expectedRevision === undefined || existing.revision !== input.expectedRevision) {
+            throw new HttpError(409, "This brand and flavor already has a profile. Refresh it, then add the workbook to its current revision.");
+          }
+          const sourceBundle = {
+            profileId: existing.id,
+            brand,
+            flavor,
+            importKind: input.importKind,
+            sourceName,
+            sourceHash: input.sourceHash.toLowerCase(),
+            content: input.productData,
+          };
+          const sources = [...profileSourceEntries(existing), sourceBundle];
+          if (!safeJsonPayload({ sources })) {
+            throw new HttpError(413, "The combined profile source data exceeds the facility profile limit.");
+          }
+          const [profile] = await tx
+            .update(facilityProductProfilesTable)
+            .set({
+              productData: { sources },
+              revision: sql`${facilityProductProfilesTable.revision} + 1`,
+              updatedAt: new Date(),
+            })
+            .where(and(
+              eq(facilityProductProfilesTable.id, existing.id),
+              eq(facilityProductProfilesTable.facilityId, access.membership.facilityId),
+              eq(facilityProductProfilesTable.revision, input.expectedRevision),
+            ))
+            .returning();
+          if (!profile) {
+            throw new HttpError(409, "This profile changed on another device. Refresh and review the latest revision.");
+          }
+          const [batch] = await tx
+            .insert(facilityImportBatchesTable)
+            .values({
+              facilityId: access.membership.facilityId,
+              sourceName,
+              sourceHash: dataHash,
+              importKind: input.importKind,
+              status: "applied",
+              proposedBrand: brand,
+              proposedFlavor: flavor,
+              workbookData: { sourceHash: input.sourceHash.toLowerCase(), profileId: profile.id },
+              summary: { profileId: profile.id, addedSource: true, revision: profile.revision },
+              profileId: profile.id,
+              createdBy: access.actorId,
+              appliedAt: new Date(),
+            })
+            .returning();
+          return { profile, batch, imported: true };
+        }
+        if (input.expectedRevision !== undefined) {
+          throw new HttpError(409, "This profile changed on another device. Refresh the profile list before importing.");
+        }
         const [profile] = await tx
           .insert(facilityProductProfilesTable)
           .values({

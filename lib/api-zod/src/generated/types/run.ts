@@ -9,6 +9,7 @@ import type { PauseInterval } from './pauseInterval.ts';
 import type { ProductProfile } from './productProfile.ts';
 import type { RunSetup } from './runSetup.ts';
 import type { RunStatus } from './runStatus.ts';
+import type { ScheduleRunSource } from './scheduleRunSource.ts';
 
 export interface Run {
   id: string;
@@ -20,6 +21,11 @@ export interface Run {
   revision: number;
   createdAt: Date;
   updatedAt: Date;
+  /** @nullable */
+  scheduledFor: Date | null;
+  /** @nullable */
+  scheduleNotes: string | null;
+  scheduleSource: ScheduleRunSource | null;
   /** @nullable */
   startedAt: Date | null;
   /** @nullable */

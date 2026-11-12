@@ -270,6 +270,16 @@ export const ListRunsQueryParams = zod.object({
 export const listRunsResponseRunsItemRevisionMin = 0;
 export const listRunsResponseRunsItemRevisionMax = 9007199254740991;
 
+export const listRunsResponseRunsItemScheduleSourceOneFileMax = 255;
+
+export const listRunsResponseRunsItemScheduleSourceOneSheetMax = 80;
+
+export const listRunsResponseRunsItemScheduleSourceOneRowMax = 20000;
+
+export const listRunsResponseRunsItemScheduleSourceOneBrandMax = 120;
+
+export const listRunsResponseRunsItemScheduleSourceOneFlavorMax = 120;
+
 export const listRunsResponseRunsItemSetupSnapshotLabelMax = 120;
 
 export const listRunsResponseRunsItemSetupSnapshotTargetCasesMax = 9007199254740991;
@@ -283,6 +293,16 @@ export const ListRunsResponse = zod.object({
   "revision": zod.number().int().min(listRunsResponseRunsItemRevisionMin).max(listRunsResponseRunsItemRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
+  "scheduledFor": zod.coerce.date().nullable(),
+  "scheduleNotes": zod.string().nullable(),
+  "scheduleSource": zod.union([zod.object({
+  "importId": zod.string().uuid(),
+  "file": zod.string().max(listRunsResponseRunsItemScheduleSourceOneFileMax),
+  "sheet": zod.string().max(listRunsResponseRunsItemScheduleSourceOneSheetMax),
+  "row": zod.number().int().min(1).max(listRunsResponseRunsItemScheduleSourceOneRowMax),
+  "brand": zod.string().max(listRunsResponseRunsItemScheduleSourceOneBrandMax),
+  "flavor": zod.string().max(listRunsResponseRunsItemScheduleSourceOneFlavorMax)
+}),zod.null()]),
   "startedAt": zod.coerce.date().nullable(),
   "pausedAt": zod.coerce.date().nullable(),
   "resumedAt": zod.coerce.date().nullable(),
@@ -336,6 +356,16 @@ export const CreateRunBody = zod.object({
 export const createRunResponseRunRevisionMin = 0;
 export const createRunResponseRunRevisionMax = 9007199254740991;
 
+export const createRunResponseRunScheduleSourceOneFileMax = 255;
+
+export const createRunResponseRunScheduleSourceOneSheetMax = 80;
+
+export const createRunResponseRunScheduleSourceOneRowMax = 20000;
+
+export const createRunResponseRunScheduleSourceOneBrandMax = 120;
+
+export const createRunResponseRunScheduleSourceOneFlavorMax = 120;
+
 export const createRunResponseRunSetupSnapshotLabelMax = 120;
 
 export const createRunResponseRunSetupSnapshotTargetCasesMax = 9007199254740991;
@@ -351,6 +381,16 @@ export const CreateRunResponse = zod.object({
   "revision": zod.number().int().min(createRunResponseRunRevisionMin).max(createRunResponseRunRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
+  "scheduledFor": zod.coerce.date().nullable(),
+  "scheduleNotes": zod.string().nullable(),
+  "scheduleSource": zod.union([zod.object({
+  "importId": zod.string().uuid(),
+  "file": zod.string().max(createRunResponseRunScheduleSourceOneFileMax),
+  "sheet": zod.string().max(createRunResponseRunScheduleSourceOneSheetMax),
+  "row": zod.number().int().min(1).max(createRunResponseRunScheduleSourceOneRowMax),
+  "brand": zod.string().max(createRunResponseRunScheduleSourceOneBrandMax),
+  "flavor": zod.string().max(createRunResponseRunScheduleSourceOneFlavorMax)
+}),zod.null()]),
   "startedAt": zod.coerce.date().nullable(),
   "pausedAt": zod.coerce.date().nullable(),
   "resumedAt": zod.coerce.date().nullable(),
@@ -375,6 +415,69 @@ export const CreateRunResponse = zod.object({
   "endedAt": zod.coerce.date().nullable()
 }))
 })
+})
+
+
+/**
+ * Rows before importDate are ignored. Repeating the same schedule with identical mappings is idempotent.
+ * @summary Create planned runs from a reviewed production schedule
+ */
+export const ImportScheduleHeader = zod.object({
+  "X-CSRF-Token": zod.string()
+})
+
+export const importScheduleBodySourceNameMax = 255;
+
+export const importScheduleBodySourceHashRegExp = new RegExp('^[a-fA-F0-9]{64}$');
+export const importScheduleBodyIgnoredPastCountMin = 0;
+export const importScheduleBodyIgnoredPastCountMax = 500000;
+
+export const importScheduleBodyRunsItemBrandMax = 120;
+
+export const importScheduleBodyRunsItemFlavorMax = 120;
+
+export const importScheduleBodyRunsItemCasesPlannedMax = 2147483647;
+
+export const importScheduleBodyRunsItemNotesMax = 500;
+
+export const importScheduleBodyRunsItemSourceSheetMax = 80;
+
+export const importScheduleBodyRunsItemSourceRowMax = 20000;
+
+export const importScheduleBodyRunsMax = 5000;
+
+
+
+export const ImportScheduleBody = zod.object({
+  "sourceName": zod.string().min(1).max(importScheduleBodySourceNameMax),
+  "sourceHash": zod.string().regex(importScheduleBodySourceHashRegExp),
+  "importDate": zod.coerce.date(),
+  "ignoredPastCount": zod.number().int().min(importScheduleBodyIgnoredPastCountMin).max(importScheduleBodyIgnoredPastCountMax),
+  "runs": zod.array(zod.object({
+  "date": zod.coerce.date(),
+  "brand": zod.string().min(1).max(importScheduleBodyRunsItemBrandMax),
+  "flavor": zod.string().max(importScheduleBodyRunsItemFlavorMax),
+  "productProfileId": zod.string().uuid(),
+  "casesPlanned": zod.number().int().min(1).max(importScheduleBodyRunsItemCasesPlannedMax),
+  "notes": zod.string().max(importScheduleBodyRunsItemNotesMax),
+  "source": zod.object({
+  "sheet": zod.string().min(1).max(importScheduleBodyRunsItemSourceSheetMax),
+  "row": zod.number().int().min(1).max(importScheduleBodyRunsItemSourceRowMax)
+})
+})).min(1).max(importScheduleBodyRunsMax)
+})
+
+export const importScheduleResponseImportedCountMin = 0;
+
+export const importScheduleResponseIgnoredPastCountMin = 0;
+
+
+
+export const ImportScheduleResponse = zod.object({
+  "importId": zod.string().uuid(),
+  "importedCount": zod.number().int().min(importScheduleResponseImportedCountMin),
+  "ignoredPastCount": zod.number().int().min(importScheduleResponseIgnoredPastCountMin),
+  "replayed": zod.boolean()
 })
 
 
@@ -411,6 +514,8 @@ export const importProductProfileBodySourceNameMax = 255;
 export const importProductProfileBodySourceHashMin = 64;
 export const importProductProfileBodySourceHashMax = 64;
 
+export const importProductProfileBodyExpectedRevisionMin = 0;
+
 
 
 export const ImportProductProfileBody = zod.object({
@@ -419,7 +524,8 @@ export const ImportProductProfileBody = zod.object({
   "sourceName": zod.string().min(1).max(importProductProfileBodySourceNameMax),
   "sourceHash": zod.string().min(importProductProfileBodySourceHashMin).max(importProductProfileBodySourceHashMax),
   "importKind": zod.enum(['product_specs', 'premix', 'cheese', 'shipping', 'sauce_guide', 'dough_guide', 'schedule']),
-  "productData": zod.record(zod.string(), zod.unknown())
+  "productData": zod.record(zod.string(), zod.unknown()),
+  "expectedRevision": zod.number().int().min(importProductProfileBodyExpectedRevisionMin).optional()
 })
 
 export const ImportProductProfileResponse = zod.object({
@@ -440,6 +546,9 @@ export const ImportProductProfileResponse = zod.object({
 /**
  * @summary List recent workbook imports for the authenticated facility
  */
+export const listImportBatchesResponseImportsItemScheduleRunCountMin = 0;
+export const listImportBatchesResponseImportsItemScheduleRunCountMax = 5000;
+
 export const listImportBatchesResponseImportsMax = 100;
 
 
@@ -453,6 +562,7 @@ export const ListImportBatchesResponse = zod.object({
   "proposedBrand": zod.string().nullable(),
   "proposedFlavor": zod.string().nullable(),
   "profileId": zod.string().uuid().nullable(),
+  "scheduleRunCount": zod.number().int().min(listImportBatchesResponseImportsItemScheduleRunCountMin).max(listImportBatchesResponseImportsItemScheduleRunCountMax).nullable(),
   "createdAt": zod.coerce.date(),
   "appliedAt": zod.coerce.date().nullable()
 })).max(listImportBatchesResponseImportsMax)
@@ -555,6 +665,16 @@ export const GetRunParams = zod.object({
 export const getRunResponseRunRevisionMin = 0;
 export const getRunResponseRunRevisionMax = 9007199254740991;
 
+export const getRunResponseRunScheduleSourceOneFileMax = 255;
+
+export const getRunResponseRunScheduleSourceOneSheetMax = 80;
+
+export const getRunResponseRunScheduleSourceOneRowMax = 20000;
+
+export const getRunResponseRunScheduleSourceOneBrandMax = 120;
+
+export const getRunResponseRunScheduleSourceOneFlavorMax = 120;
+
 export const getRunResponseRunSetupSnapshotLabelMax = 120;
 
 export const getRunResponseRunSetupSnapshotTargetCasesMax = 9007199254740991;
@@ -568,6 +688,16 @@ export const GetRunResponse = zod.object({
   "revision": zod.number().int().min(getRunResponseRunRevisionMin).max(getRunResponseRunRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
+  "scheduledFor": zod.coerce.date().nullable(),
+  "scheduleNotes": zod.string().nullable(),
+  "scheduleSource": zod.union([zod.object({
+  "importId": zod.string().uuid(),
+  "file": zod.string().max(getRunResponseRunScheduleSourceOneFileMax),
+  "sheet": zod.string().max(getRunResponseRunScheduleSourceOneSheetMax),
+  "row": zod.number().int().min(1).max(getRunResponseRunScheduleSourceOneRowMax),
+  "brand": zod.string().max(getRunResponseRunScheduleSourceOneBrandMax),
+  "flavor": zod.string().max(getRunResponseRunScheduleSourceOneFlavorMax)
+}),zod.null()]),
   "startedAt": zod.coerce.date().nullable(),
   "pausedAt": zod.coerce.date().nullable(),
   "resumedAt": zod.coerce.date().nullable(),
@@ -625,6 +755,16 @@ export const ApplyRunCommandBody = zod.object({
 export const applyRunCommandResponseRunRevisionMin = 0;
 export const applyRunCommandResponseRunRevisionMax = 9007199254740991;
 
+export const applyRunCommandResponseRunScheduleSourceOneFileMax = 255;
+
+export const applyRunCommandResponseRunScheduleSourceOneSheetMax = 80;
+
+export const applyRunCommandResponseRunScheduleSourceOneRowMax = 20000;
+
+export const applyRunCommandResponseRunScheduleSourceOneBrandMax = 120;
+
+export const applyRunCommandResponseRunScheduleSourceOneFlavorMax = 120;
+
 export const applyRunCommandResponseRunSetupSnapshotLabelMax = 120;
 
 export const applyRunCommandResponseRunSetupSnapshotTargetCasesMax = 9007199254740991;
@@ -641,6 +781,16 @@ export const ApplyRunCommandResponse = zod.object({
   "revision": zod.number().int().min(applyRunCommandResponseRunRevisionMin).max(applyRunCommandResponseRunRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
+  "scheduledFor": zod.coerce.date().nullable(),
+  "scheduleNotes": zod.string().nullable(),
+  "scheduleSource": zod.union([zod.object({
+  "importId": zod.string().uuid(),
+  "file": zod.string().max(applyRunCommandResponseRunScheduleSourceOneFileMax),
+  "sheet": zod.string().max(applyRunCommandResponseRunScheduleSourceOneSheetMax),
+  "row": zod.number().int().min(1).max(applyRunCommandResponseRunScheduleSourceOneRowMax),
+  "brand": zod.string().max(applyRunCommandResponseRunScheduleSourceOneBrandMax),
+  "flavor": zod.string().max(applyRunCommandResponseRunScheduleSourceOneFlavorMax)
+}),zod.null()]),
   "startedAt": zod.coerce.date().nullable(),
   "pausedAt": zod.coerce.date().nullable(),
   "resumedAt": zod.coerce.date().nullable(),
@@ -713,12 +863,32 @@ export const GetRunStationProgressResponse = zod.object({
 export const getDashboardSummaryResponseActiveRunsItemRevisionMin = 0;
 export const getDashboardSummaryResponseActiveRunsItemRevisionMax = 9007199254740991;
 
+export const getDashboardSummaryResponseActiveRunsItemScheduleSourceOneFileMax = 255;
+
+export const getDashboardSummaryResponseActiveRunsItemScheduleSourceOneSheetMax = 80;
+
+export const getDashboardSummaryResponseActiveRunsItemScheduleSourceOneRowMax = 20000;
+
+export const getDashboardSummaryResponseActiveRunsItemScheduleSourceOneBrandMax = 120;
+
+export const getDashboardSummaryResponseActiveRunsItemScheduleSourceOneFlavorMax = 120;
+
 export const getDashboardSummaryResponseActiveRunsItemSetupSnapshotLabelMax = 120;
 
 export const getDashboardSummaryResponseActiveRunsItemSetupSnapshotTargetCasesMax = 9007199254740991;
 
 export const getDashboardSummaryResponseRecentRunsItemRevisionMin = 0;
 export const getDashboardSummaryResponseRecentRunsItemRevisionMax = 9007199254740991;
+
+export const getDashboardSummaryResponseRecentRunsItemScheduleSourceOneFileMax = 255;
+
+export const getDashboardSummaryResponseRecentRunsItemScheduleSourceOneSheetMax = 80;
+
+export const getDashboardSummaryResponseRecentRunsItemScheduleSourceOneRowMax = 20000;
+
+export const getDashboardSummaryResponseRecentRunsItemScheduleSourceOneBrandMax = 120;
+
+export const getDashboardSummaryResponseRecentRunsItemScheduleSourceOneFlavorMax = 120;
 
 export const getDashboardSummaryResponseRecentRunsItemSetupSnapshotLabelMax = 120;
 
@@ -743,6 +913,16 @@ export const GetDashboardSummaryResponse = zod.object({
   "revision": zod.number().int().min(getDashboardSummaryResponseActiveRunsItemRevisionMin).max(getDashboardSummaryResponseActiveRunsItemRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
+  "scheduledFor": zod.coerce.date().nullable(),
+  "scheduleNotes": zod.string().nullable(),
+  "scheduleSource": zod.union([zod.object({
+  "importId": zod.string().uuid(),
+  "file": zod.string().max(getDashboardSummaryResponseActiveRunsItemScheduleSourceOneFileMax),
+  "sheet": zod.string().max(getDashboardSummaryResponseActiveRunsItemScheduleSourceOneSheetMax),
+  "row": zod.number().int().min(1).max(getDashboardSummaryResponseActiveRunsItemScheduleSourceOneRowMax),
+  "brand": zod.string().max(getDashboardSummaryResponseActiveRunsItemScheduleSourceOneBrandMax),
+  "flavor": zod.string().max(getDashboardSummaryResponseActiveRunsItemScheduleSourceOneFlavorMax)
+}),zod.null()]),
   "startedAt": zod.coerce.date().nullable(),
   "pausedAt": zod.coerce.date().nullable(),
   "resumedAt": zod.coerce.date().nullable(),
@@ -773,6 +953,16 @@ export const GetDashboardSummaryResponse = zod.object({
   "revision": zod.number().int().min(getDashboardSummaryResponseRecentRunsItemRevisionMin).max(getDashboardSummaryResponseRecentRunsItemRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
+  "scheduledFor": zod.coerce.date().nullable(),
+  "scheduleNotes": zod.string().nullable(),
+  "scheduleSource": zod.union([zod.object({
+  "importId": zod.string().uuid(),
+  "file": zod.string().max(getDashboardSummaryResponseRecentRunsItemScheduleSourceOneFileMax),
+  "sheet": zod.string().max(getDashboardSummaryResponseRecentRunsItemScheduleSourceOneSheetMax),
+  "row": zod.number().int().min(1).max(getDashboardSummaryResponseRecentRunsItemScheduleSourceOneRowMax),
+  "brand": zod.string().max(getDashboardSummaryResponseRecentRunsItemScheduleSourceOneBrandMax),
+  "flavor": zod.string().max(getDashboardSummaryResponseRecentRunsItemScheduleSourceOneFlavorMax)
+}),zod.null()]),
   "startedAt": zod.coerce.date().nullable(),
   "pausedAt": zod.coerce.date().nullable(),
   "resumedAt": zod.coerce.date().nullable(),

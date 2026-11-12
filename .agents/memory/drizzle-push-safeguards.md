@@ -16,3 +16,9 @@ The standalone push script must import the same complete schema barrel as `drizz
 **Why:** An incomplete schema import treated a valid station-layout table as a table to drop, and the setup runner did not recognize the successful no-op message.
 
 **How to apply:** Keep the push script's schema source aligned with the database package barrel, verify it with a fresh-install schema test, and update the post-merge success matcher if the push script's success messages change. Preserve strict confirmation; do not globally set `DRIZZLE_PUSH_STRICT=false`.
+
+The standalone push command has also failed during Drizzle introspection with PostgreSQL's `there is no parameter $1` error, before it reported any schema statements. A failed command does not prove whether the development schema changed.
+
+**Why:** This occurred while applying additive scheduled-run columns; the repository's push script did not complete its initial schema pull.
+
+**How to apply:** If this exact error recurs, inspect the development schema read-only before deciding what remains; never retry with confirmation disabled or target production outside Publish.

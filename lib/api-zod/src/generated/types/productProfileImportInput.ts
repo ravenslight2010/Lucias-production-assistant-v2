@@ -31,4 +31,6 @@ export interface ProductProfileImportInput {
   sourceHash: string;
   importKind: ProductProfileImportInputImportKind;
   productData: ProductProfileImportInputProductData;
+  /** @minimum 0 */
+  expectedRevision?: number;
 }

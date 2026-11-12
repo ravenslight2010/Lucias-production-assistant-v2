@@ -360,7 +360,7 @@ function Stat({ label, value, detail, icon }: { label: string; value: number; de
 function RunRow({ run }: { run: Run }) {
   return (
     <Link href={`/runs/${encodeURIComponent(run.id)}`} className="run-row" data-testid={`link-run-${run.id}`}>
-      <div><div className="run-name">{run.setupSnapshot.label}</div><div className="run-meta">{run.setupSnapshot.targetCases} target cases · REV {String(run.revision).padStart(2, '0')} <span aria-hidden="true">·</span> Updated {formatTime(run.updatedAt)}</div></div>
+      <div><div className="run-name">{run.setupSnapshot.label}</div><div className="run-meta">{run.setupSnapshot.targetCases} target cases{run.scheduledFor ? ` · Scheduled ${run.scheduledFor}` : ''} · REV {String(run.revision).padStart(2, '0')} <span aria-hidden="true">·</span> Updated {formatTime(run.updatedAt)}</div></div>
       <div className="run-row-end"><Status status={run.status} /><ChevronRight size={16} aria-hidden="true" /></div>
     </Link>
   );
@@ -562,7 +562,9 @@ function RunDetailPage() {
         {runQuery.isError && !run && <DataError message={getErrorMessage(runQuery.error, 'This run could not be loaded.')} onRetry={() => void runQuery.refetch()} />}
         {runQuery.isError && run && <div className="error-banner" role="status">Could not refresh. Showing the last saved run state.</div>}
         {run && <>
-          <div className="page-head"><div><div className="eyebrow">Run detail · revision {run.revision}</div><h1 data-testid={`text-run-name-${run.id}`}>{run.setupSnapshot.label}</h1><p className="page-subtitle">{run.setupSnapshot.targetCases} target cases · Last updated {formatDateTime(run.updatedAt)}</p></div><Status status={run.status} /></div>
+          <div className="page-head"><div><div className="eyebrow">Run detail · revision {run.revision}</div><h1 data-testid={`text-run-name-${run.id}`}>{run.setupSnapshot.label}</h1><p className="page-subtitle">{run.setupSnapshot.targetCases} target cases{run.scheduledFor ? ` · Scheduled ${run.scheduledFor}` : ''} · Last updated {formatDateTime(run.updatedAt)}</p></div><Status status={run.status} /></div>
+          {run.scheduleNotes && <div className="notice" role="note" aria-label="Schedule notes" style={{ marginBottom: 16 }}>{run.scheduleNotes}</div>}
+          {run.scheduleSource && <p className="field-help" style={{ marginBottom: 16 }}>Imported from {run.scheduleSource.file} · {run.scheduleSource.sheet}, row {run.scheduleSource.row} · listed as {run.scheduleSource.brand}{run.scheduleSource.flavor ? ` / ${run.scheduleSource.flavor}` : ''}</p>}
           {(conflict || command.isError) && <div className={getErrorStatus(command.error) === 409 || conflict ? 'notice' : 'error-banner'} role="status" data-testid="status-command-feedback">{conflict || getErrorMessage(command.error, 'The command could not be saved. Check your connection and retry.')}</div>}
           <div className="detail-grid">
             <section className="panel detail-main">
@@ -587,6 +589,7 @@ function RunDetailPage() {
               <Property label="Status" value={<Status status={run.status} />} />
               <Property label="Revision" value={<span className="mono">#{run.revision}</span>} />
               <Property label="Created" value={formatDateTime(run.createdAt)} />
+              <Property label="Scheduled for" value={run.scheduledFor ?? 'Not scheduled'} />
               <Property label="Started" value={run.startedAt ? formatDateTime(run.startedAt) : 'Not started'} />
               <Property label="Paused" value={run.pausedAt ? formatDateTime(run.pausedAt) : '—'} />
               <Property label="Resumed" value={run.resumedAt ? formatDateTime(run.resumedAt) : '—'} />

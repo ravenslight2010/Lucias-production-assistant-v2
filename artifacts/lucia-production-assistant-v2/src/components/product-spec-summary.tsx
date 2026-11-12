@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import { parsePreservedProductSpec } from "../importing/product-spec";
 import type { ProductSpecData, ProductSpecSectionData } from "../importing/product-spec";
+import type { NameResolution } from "@workspace/api-client-react";
+import { ResolvedName } from "./resolved-name";
 
 type RecordValue = Record<string, unknown>;
 
@@ -44,36 +46,36 @@ function isProductSpecData(value: unknown): value is ProductSpecData {
     isStringArray(value.warnings);
 }
 
-function findProductSpecData(value: unknown): ProductSpecData[] {
-  const found: ProductSpecData[] = [];
+function findProductSpecData(value: unknown, brand?: string): (ProductSpecData & { sourceBrand?: string })[] {
+  const found: (ProductSpecData & { sourceBrand?: string })[] = [];
   const seen = new Set<object>();
   let inspected = 0;
-  const visit = (current: unknown, depth: number) => {
+  const visit = (current: unknown, depth: number, scope?: string) => {
     if (depth > 12 || inspected >= 500 || !current || typeof current !== "object" || seen.has(current)) return;
     inspected++;
     seen.add(current);
     if (isProductSpecData(current)) {
-      found.push(current);
+      found.push({ ...current, sourceBrand: scope });
       return;
     }
     if (isRecord(current) && !isProductSpecData(current.structured)) {
       const preserved = parsePreservedProductSpec(current);
       if (preserved) {
-        found.push(preserved);
+        found.push({ ...preserved, sourceBrand: scope });
         return;
       }
     }
     if (Array.isArray(current)) {
-      current.slice(0, 100).forEach((entry) => visit(entry, depth + 1));
+      current.slice(0, 100).forEach((entry) => visit(entry, depth + 1, scope));
       return;
     }
     if (isRecord(current)) {
       for (const key of ["structured", "content", "sources", "data"]) {
-        if (key in current) visit(current[key], depth + 1);
+        if (key in current) visit(current[key], depth + 1, typeof current.brand === "string" ? current.brand : scope);
       }
     }
   };
-  visit(value, 0);
+  visit(value, 0, brand);
   return found;
 }
 
@@ -90,14 +92,16 @@ export function ProductSpecSummary({
   defaultOpen = false,
   brand,
   flavor,
+  nameResolution,
 }: {
   data: unknown;
   title?: string;
   defaultOpen?: boolean;
   brand?: string;
   flavor?: string;
+  nameResolution?: NameResolution;
 }) {
-  const productSpecs = useMemo(() => findProductSpecData(data), [data]);
+  const productSpecs = useMemo(() => findProductSpecData(data, brand), [data, brand]);
   if (!productSpecs.length) return null;
   const sectionCount = productSpecs.reduce((sum, item) => sum + item.sections.length, 0);
   const ingredientCount = productSpecs.reduce((sum, item) => sum + amountCount(item), 0);
@@ -143,7 +147,7 @@ export function ProductSpecSummary({
                     <ul className="product-spec-ingredients">
                       {section.ingredients.map((ingredient, index) => (
                         <li key={`${ingredient.sourceRow}:${index}`}>
-                          <span>{ingredient.name}</span>
+                          <ResolvedName name={ingredient.name} kind="spec" brand={spec.sourceBrand || brand || spec.brand} rules={nameResolution?.rules} />
                           {ingredient.amounts.length > 0 && (
                             <small>{ingredient.amounts.map((amount) => `${amount.value} (${amount.column}${section.unit ? ` ${section.unit}` : ""})`).join(" · ")}</small>
                           )}

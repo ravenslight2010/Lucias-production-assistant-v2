@@ -1,6 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db, facilityProductProfilesTable, profileNameAliasesTable } from "@workspace/db";
 import { HttpError } from "./http-error";
+import { loadNameResolution, resolutionForProfile, resolvedProduct } from "./name-resolution";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Profile = typeof facilityProductProfilesTable.$inferSelect;
@@ -44,6 +45,14 @@ export async function profileForName(tx: Transaction, facilityId: string, key: s
   return alias ? activeProfile(tx, facilityId, alias.profileId) : undefined;
 }
 
+export async function profileForImportedName(tx: Transaction, facilityId: string, brand: string, flavor: string) {
+  const original = await profileForName(tx, facilityId, normalizedProfileKey(brand, flavor));
+  if (original) return original;
+  const resolution = await loadNameResolution(tx, facilityId);
+  const names = resolvedProduct(brand, flavor, resolution.rules);
+  return profileForName(tx, facilityId, normalizedProfileKey(names.brand, names.flavor));
+}
+
 export async function rememberProfileName(tx: Transaction, profile: Profile, targetId = profile.id) {
   const key = normalizedProfileKey(profile.brand, profile.flavor);
   const [alias] = await tx.select().from(profileNameAliasesTable).where(and(
@@ -84,6 +93,7 @@ export async function listProfileNames(facilityId: string) {
     await lockProfileNames(tx, facilityId);
     const all = await tx.select().from(facilityProductProfilesTable).where(eq(facilityProductProfilesTable.facilityId, facilityId));
     const aliases = await tx.select().from(profileNameAliasesTable).where(eq(profileNameAliasesTable.facilityId, facilityId));
+    const referenceNames = await loadNameResolution(tx, facilityId);
     const byId = new Map(all.map(profile => [profile.id, profile]));
     const mappings = new Map<string, { brand: string; flavor: string; profileId: string }>();
     const candidates = [
@@ -101,8 +111,10 @@ export async function listProfileNames(facilityId: string) {
       mappings.set(normalizedProfileKey(alias.brand, alias.flavor), { brand: alias.brand, flavor: alias.flavor, profileId: profile.id });
     }
     return {
-      profiles: all.filter(p => !p.mergedIntoId).sort((a, b) => a.brand.localeCompare(b.brand) || a.flavor.localeCompare(b.flavor)),
+      profiles: all.filter(p => !p.mergedIntoId).sort((a, b) => a.brand.localeCompare(b.brand) || a.flavor.localeCompare(b.flavor))
+        .map(p => ({ ...p, ...(referenceNames.rules.length ? { nameResolution: resolutionForProfile(p, referenceNames) } : {}) })),
       nameMappings: [...mappings.values()],
+      referenceNames,
     };
   });
 }
@@ -115,6 +127,10 @@ export async function renameProfile(input: {
   if (!brand || !flavor || brand.length > 120 || flavor.length > 120) throw new HttpError(400, "Enter a valid brand and flavor.");
   return db.transaction(async tx => {
     await lockProfileNames(tx, input.facilityId);
+    const names = resolvedProduct(brand, flavor, (await loadNameResolution(tx, input.facilityId)).rules);
+    if (names.brand !== brand || names.flavor !== flavor) {
+      throw new HttpError(409, "This brand or flavor is a remembered name. Use its canonical name from the name library.");
+    }
     const source = await activeProfile(tx, input.facilityId, input.profileId);
     if (source.id !== input.profileId || source.revision !== input.expectedRevision) {
       throw new HttpError(409, "This profile changed on another device. Refresh and review the rename again.");
@@ -148,9 +164,16 @@ export async function renameProfile(input: {
 export async function mergeProfiles(input: {
   facilityId: string; sourceId: string; targetId: string; expectedSourceRevision: number; expectedTargetRevision: number;
 }) {
-  if (input.sourceId === input.targetId) throw new HttpError(400, "Choose two different product profiles to merge.");
   return db.transaction(async tx => {
     await lockProfileNames(tx, input.facilityId);
+    return mergeProfilesInTransaction(tx, input);
+  });
+}
+
+export async function mergeProfilesInTransaction(tx: Transaction, input: {
+  facilityId: string; sourceId: string; targetId: string; expectedSourceRevision: number; expectedTargetRevision: number;
+}) {
+    if (input.sourceId === input.targetId) throw new HttpError(400, "Choose two different product profiles to merge.");
     const source = await activeProfile(tx, input.facilityId, input.sourceId);
     const target = await activeProfile(tx, input.facilityId, input.targetId);
     if (source.id !== input.sourceId || target.id !== input.targetId ||
@@ -179,5 +202,4 @@ export async function mergeProfiles(input: {
     )).returning();
     if (!profile || !retired) throw new HttpError(409, "A profile changed on another device. Neither profile was changed.");
     return { profile, mergedProfileId: retired.id };
-  });
 }

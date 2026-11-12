@@ -38,7 +38,9 @@ import type {
   HealthStatus,
   ImportBatchList,
   InvalidTransition,
+  LibraryNameChange,
   ListRunsParams,
+  NameLibrary,
   NotFoundResponse,
   ProductProfileEnvelope,
   ProductProfileImportInput,
@@ -1292,6 +1294,166 @@ export const useImportSchedule = <TError = ErrorType<BadRequestResponse | Unauth
         TContext
       > => {
       return useMutation(getImportScheduleMutationOptions(options));
+    }
+
+export const getGetNameLibraryUrl = () => {
+
+
+
+
+  return `/api/v2/name-library`
+}
+
+/**
+ * @summary List facility names, explicit aliases, and source usage
+ */
+export const getNameLibrary = async ( options?: Parameters<typeof customFetch>[1]): Promise<NameLibrary> => {
+
+  return customFetch<NameLibrary>(getGetNameLibraryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetNameLibraryQueryKey = () => {
+    return [
+    `/api/v2/name-library`
+    ] as const;
+    }
+
+
+export const getGetNameLibraryQueryOptions = <TData = Awaited<ReturnType<typeof getNameLibrary>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getNameLibrary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetNameLibraryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getNameLibrary>>> = ({ signal }) => getNameLibrary({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getNameLibrary>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetNameLibraryQueryResult = NonNullable<Awaited<ReturnType<typeof getNameLibrary>>>
+export type GetNameLibraryQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/** @summary List facility names, explicit aliases, and source usage */
+export function useGetNameLibrary<TData = Awaited<ReturnType<typeof getNameLibrary>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getNameLibrary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetNameLibraryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getChangeLibraryNameUrl = () => {
+
+
+
+
+  return `/api/v2/name-library`
+}
+
+/**
+ * @summary Rename or merge an explicitly reviewed name without changing formulas
+ */
+export const changeLibraryName = async (libraryNameChange: LibraryNameChange, options?: Parameters<typeof customFetch>[1]): Promise<NameLibrary> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<NameLibrary>(getChangeLibraryNameUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(libraryNameChange)
+  }
+);}
+
+
+
+
+
+export const getChangeLibraryNameMutationKey = () => ['changeLibraryName'] as const;
+
+export const getChangeLibraryNameMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeLibraryName>>, TError,ChangeLibraryNameMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeLibraryName>>, TError,ChangeLibraryNameMutationVariables, TContext> => {
+
+const mutationKey = getChangeLibraryNameMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeLibraryName>>, ChangeLibraryNameMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  changeLibraryName(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeLibraryNameMutationResult = NonNullable<Awaited<ReturnType<typeof changeLibraryName>>>
+    export type ChangeLibraryNameMutationBody = BodyType<LibraryNameChange>
+    export type ChangeLibraryNameMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | void>
+    export type ChangeLibraryNameMutationVariables = {data: BodyType<LibraryNameChange>}
+
+    /** @summary Rename or merge an explicitly reviewed name without changing formulas */
+export const useChangeLibraryName = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeLibraryName>>, TError,ChangeLibraryNameMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof changeLibraryName>>,
+        TError,
+        ChangeLibraryNameMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChangeLibraryNameMutationOptions(options));
     }
 
 export const getListProductProfilesUrl = () => {

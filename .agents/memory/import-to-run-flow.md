@@ -66,3 +66,9 @@ Remember names explicitly renamed or merged by the user so future workbook and s
 **Why:** The user said, “Remember what names got renamed or merged together, so that we don't have to do it every time.”
 
 **How to apply:** Treat these as exact, facility-scoped name mappings created by explicit rename/merge actions, not inferred recipe aliases. Keep original workbook labels and existing run snapshots unchanged; carry remembered names through later merges.
+
+Do not resolve recipe, ingredient, or flavor aliases by searching all historical brands that now share a canonical brand. Follow the exact original namespace and explicit brand redirects; carry alias decisions onto a renamed namespace deliberately.
+
+**Why:** Merging brands can otherwise make an old flavor alias from one brand rename an unrelated flavor in the destination brand merely because their labels match. Brand prefixes exist to prevent that confusion.
+
+**How to apply:** Preserve original brand context on imported sources, distinguish brand rename from brand merge, and check chains of flavor rename, brand merge, and later brand rename. Keep the destination's existing canonical names authoritative and retain the old source namespace for future imports.

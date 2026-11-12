@@ -87,6 +87,12 @@ test(
             updated_at timestamptz NOT NULL DEFAULT now(),
             created_at timestamptz NOT NULL DEFAULT now()
           );
+          CREATE TABLE facility_name_libraries (
+            facility_id uuid PRIMARY KEY REFERENCES facilities(id) ON DELETE CASCADE,
+            revision integer NOT NULL DEFAULT 0,
+            rules jsonb NOT NULL DEFAULT '[]',
+            updated_at timestamptz NOT NULL DEFAULT now()
+          );
           CREATE TABLE facility_import_batches (
             id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
             facility_id uuid NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,

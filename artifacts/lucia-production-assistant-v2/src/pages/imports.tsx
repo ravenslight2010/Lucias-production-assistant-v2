@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle, ArrowDownToLine, ChevronDown, CircleAlert, FileSpreadsheet,
   GitMerge, LoaderCircle, Pencil, RefreshCw, ShieldCheck, Upload,
 } from 'lucide-react';
 import {
   getListProductProfilesQueryKey,
+  getGetNameLibraryQueryKey,
   getListImportBatchesQueryKey,
   getListRunsQueryKey,
   useImportProductProfile,
@@ -15,8 +16,10 @@ import {
   useMergeProductProfile,
   useRenameProductProfile,
 } from '@workspace/api-client-react';
-import type { ProductProfile, ProductProfileNameMapping, ProductProfileImportInput, ScheduleImportInput } from '@workspace/api-client-react';
+import type { NameResolution, ProductProfile, ProductProfileNameMapping, ProductProfileImportInput, ScheduleImportInput } from '@workspace/api-client-react';
+import { NameLibraryPanel } from '../components/name-library';
 import { indexProductNames, productNameKey as scheduleProductKey } from '../importing/product-names';
+import { resolveReferenceName } from '../importing/reference-names';
 import { OperationalSetupSummary } from '../components/operational-setup-summary';
 import { ProductSpecSummary } from '../components/product-spec-summary';
 import {
@@ -315,6 +318,11 @@ function toProductSpecData(workbook: ParsedWorkbook, draft: ProductSpecDraft) {
   };
 }
 
+function refreshProfileLibraries(client: QueryClient) {
+  void client.invalidateQueries({ queryKey: getListProductProfilesQueryKey() });
+  void client.invalidateQueries({ queryKey: getGetNameLibraryQueryKey() });
+}
+
 async function sha256(file: File) {
   const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
@@ -323,12 +331,14 @@ async function sha256(file: File) {
 function WorkbookReview({
   profiles,
   nameMappings = [],
+  referenceNames,
   profilesReady,
   previewMode = false,
   initialWorkbook,
 }: {
   profiles: ProductProfile[];
   nameMappings?: ProductProfileNameMapping[];
+  referenceNames?: NameResolution;
   profilesReady: boolean;
   previewMode?: boolean;
   initialWorkbook?: ParsedWorkbook;
@@ -456,21 +466,24 @@ function WorkbookReview({
   );
   const [scheduleProfileChoices, setScheduleProfileChoices] = useState<Record<string, string>>({});
   const activeProfileByProduct = useMemo(
-    () => indexProductNames(profiles, nameMappings),
-    [profiles, nameMappings],
+    () => indexProductNames(profiles, nameMappings, referenceNames?.rules),
+    [profiles, nameMappings, referenceNames],
   );
   const availableShippingChoices = useMemo(() => operationalPreview && kind === 'shipping' ? shippingChoices(operationalPreview) : [], [operationalPreview, kind]);
+  const shippingBrandKey = (name: string) => normalizeShippingBrand(resolveReferenceName(
+    { kind: 'brand', brand: '', name }, referenceNames?.rules ?? [],
+  ).name);
   const shippingProfileRows = useMemo(() => {
     if (kind !== 'shipping' || !operationalPreview) return [];
     return profiles
       .filter((profile) => !profile.mergedIntoId)
       .map(profile => {
-        const brands = new Set([profile.brand, ...nameMappings.filter(mapping => mapping.profileId === profile.id).map(mapping => mapping.brand)].map(normalizeShippingBrand));
-        const exact = availableShippingChoices.filter(c => brands.has(normalizeShippingBrand(c.record.brand)));
+        const brands = new Set([profile.brand, ...nameMappings.filter(mapping => mapping.profileId === profile.id).map(mapping => mapping.brand)].map(shippingBrandKey));
+        const exact = availableShippingChoices.filter(c => brands.has(shippingBrandKey(c.record.brand)));
         const key = shippingProfileChoices[profile.id] ?? (exact.length === 1 ? exact[0].key : '');
         return { profile, key, choice: availableShippingChoices.find(c => c.key === key) };
       });
-  }, [kind, operationalPreview, profiles, nameMappings, availableShippingChoices, shippingProfileChoices]);
+  }, [kind, operationalPreview, profiles, nameMappings, referenceNames, availableShippingChoices, shippingProfileChoices]);
   const shippingTargets = shippingProfileRows.filter(row => row.choice);
   const shippingPendingCount = shippingTargets.filter(
     ({ profile }) => shippingImportStates[profile.id]?.status !== 'saved',
@@ -491,11 +504,11 @@ function WorkbookReview({
     }
     return [...brands.values()].filter((shippingBrand) =>
       !profiles.some((profile) => !profile.mergedIntoId && (
-        normalizeShippingBrand(profile.brand) === normalizeShippingBrand(shippingBrand.brand) ||
-        nameMappings.some(mapping => mapping.profileId === profile.id && normalizeShippingBrand(mapping.brand) === normalizeShippingBrand(shippingBrand.brand))
+        shippingBrandKey(profile.brand) === shippingBrandKey(shippingBrand.brand) ||
+        nameMappings.some(mapping => mapping.profileId === profile.id && shippingBrandKey(mapping.brand) === shippingBrandKey(shippingBrand.brand))
       )),
     );
-  }, [kind, operationalPreview, profiles, nameMappings]);
+  }, [kind, operationalPreview, profiles, nameMappings, referenceNames]);
   const resolvedScheduleProducts = scheduleProducts.map((product) => {
     const chosenId = scheduleProfileChoices[product.key] ?? activeProfileByProduct.get(product.key)?.id ?? '';
     return { ...product, chosenId, selectedProfile: profiles.find((profile) => profile.id === chosenId) };
@@ -564,7 +577,7 @@ function WorkbookReview({
         setValidation('Product profiles are still loading. Wait for them to load, then review the schedule mappings.');
         return;
       }
-      const profileByKey = indexProductNames(profiles, nameMappings);
+      const profileByKey = indexProductNames(profiles, nameMappings, referenceNames?.rules);
       const mappings = new Map<string, ProductProfile>();
       for (const run of preview.runs) {
         const product = { key: scheduleProductKey(run.brand, run.flavor) };
@@ -599,7 +612,7 @@ function WorkbookReview({
             setSavedMessage(result.replayed
               ? `This schedule was already imported. ${result.importedCount} planned runs are linked to it.`
               : `${result.importedCount} planned ${result.importedCount === 1 ? 'run was' : 'runs were'} created.${result.ignoredPastCount ? ` ${result.ignoredPastCount} past ${result.ignoredPastCount === 1 ? 'row was' : 'rows were'} ignored.` : ''}`);
-            void client.invalidateQueries({ queryKey: getListProductProfilesQueryKey() });
+            refreshProfileLibraries(client);
             void client.invalidateQueries({ queryKey: getListImportBatchesQueryKey() });
             void client.invalidateQueries({ queryKey: getListRunsQueryKey() });
           },
@@ -712,7 +725,7 @@ function WorkbookReview({
         setSavedMessage(
           `${savedCount} of ${pendingDrafts.length} profiles saved${savedDetails ? ` (${savedDetails})` : ''}.${failedCount ? ` ${failedCount} failed; successful profiles will not be duplicated if you retry.` : ''}`,
         );
-        void client.invalidateQueries({ queryKey: getListProductProfilesQueryKey() });
+        refreshProfileLibraries(client);
         void client.invalidateQueries({ queryKey: getListImportBatchesQueryKey() });
       } catch (error) {
         setValidation(errorText(error, 'The workbook source could not be prepared.'));
@@ -805,7 +818,7 @@ function WorkbookReview({
         setSavedMessage(
           `${savedCount} of ${pendingTargets.length} matching profiles saved${savedDetails ? ` (${savedDetails})` : ''}.${failedCount ? ` ${failedCount} failed; successful profiles will not be duplicated if you retry.` : ''}`,
         );
-        void client.invalidateQueries({ queryKey: getListProductProfilesQueryKey() });
+        refreshProfileLibraries(client);
         void client.invalidateQueries({ queryKey: getListImportBatchesQueryKey() });
       } catch (error) {
         setValidation(errorText(error, 'The shipping workbook source could not be prepared.'));
@@ -892,7 +905,7 @@ function WorkbookReview({
               ? `${workbook.fileName} was added to ${result.profile.brand} / ${result.profile.flavor}; the profile is now revision ${result.profile.revision}. Existing run snapshots stay unchanged.`
               : `${result.profile.brand} / ${result.profile.flavor} was saved as revision ${result.profile.revision}.`
             : 'This source and selection are already saved. No duplicate source or new profile revision was created.');
-          void client.invalidateQueries({ queryKey: getListProductProfilesQueryKey() });
+          refreshProfileLibraries(client);
           void client.invalidateQueries({ queryKey: getListImportBatchesQueryKey() });
         },
       });
@@ -1111,6 +1124,7 @@ function WorkbookReview({
             </div>
           </div>}
           {operationalPreview && <OperationalSetupSummary
+            brand={brand} nameResolution={referenceNames}
             data={operationalPreview}
             title={`Normalized ${isOperationalKind(kind) ? kindLabels[kind] : 'workbook'} preview`}
             defaultOpen
@@ -1178,6 +1192,7 @@ function WorkbookReview({
                     Original workbook brand: {draft.sourceBrand}. This customer workbook uses separate Kroger profiles; the source cells are unchanged.
                   </p>}
                   {draft.extracted && <ProductSpecSummary
+                    nameResolution={referenceNames}
                     data={draft.extracted}
                     title="Extracted spec preview"
                     brand={draft.brand}
@@ -1314,7 +1329,7 @@ function ProfileCard({ profile, profiles, nameMappings, onMerged }: {
       onSuccess: (result) => {
         setEditing(false);
         setFeedback(`Renamed at revision ${result.profile.revision}.`);
-        void client.invalidateQueries({ queryKey: getListProductProfilesQueryKey() });
+        refreshProfileLibraries(client);
       },
       onError: (error) => {
         setFeedback(errorStatus(error) === 409
@@ -1335,7 +1350,7 @@ function ProfileCard({ profile, profiles, nameMappings, onMerged }: {
       onSuccess: (result) => {
         setConfirmMerge(false);
         onMerged(`Merged ${profile.brand} / ${profile.flavor} into ${result.profile.brand} / ${result.profile.flavor}. Source data and remembered names were preserved.`);
-        void client.invalidateQueries({ queryKey: getListProductProfilesQueryKey() });
+        refreshProfileLibraries(client);
         void client.invalidateQueries({ queryKey: getListRunsQueryKey() });
       },
       onError: (error) => {
@@ -1356,8 +1371,8 @@ function ProfileCard({ profile, profiles, nameMappings, onMerged }: {
         </div>
         <span className="status status-running">Active profile</span>
       </div>
-      <OperationalSetupSummary data={profile.productData} title="Recipe and process details" />
-      <ProductSpecSummary data={profile.productData} title="Product specification details" />
+      <OperationalSetupSummary data={profile.productData} brand={profile.brand} nameResolution={profile.nameResolution} title="Recipe and process details" />
+      <ProductSpecSummary data={profile.productData} brand={profile.brand} flavor={profile.flavor} nameResolution={profile.nameResolution} title="Product specification details" />
       {rememberedNames.length > 0 && <details className="profile-bundle" data-testid={`remembered-names-${profile.id}`}>
         <summary>Remembered import names ({rememberedNames.length})</summary>
         <p>Workbooks using these brand/flavor names match this profile automatically. Original source labels and existing run snapshots stay unchanged.</p>
@@ -1418,10 +1433,11 @@ export default function ImportsPage() {
     <main className="workspace">
       <div className="page-head">
         <div><div className="eyebrow">Facility setup library</div><h1>Product profiles</h1><p className="page-subtitle">Approved workbook source data used to set up new production runs.</p></div>
+        <a href="#nl-title" className="button button-secondary">Manage names</a>
       </div>
       <p className="import-intro">Profiles are shared setup references, not an archive. New runs capture an immutable product snapshot at creation; later profile edits do not rewrite existing runs.</p>
       <div className="import-layout">
-          <WorkbookReview profiles={profiles} nameMappings={nameMappings} profilesReady={Boolean(profilesQuery.data)} />
+          <WorkbookReview profiles={profiles} nameMappings={nameMappings} referenceNames={profilesQuery.data?.referenceNames} profilesReady={Boolean(profilesQuery.data)} />
         <section aria-labelledby="profiles-heading">
           <div className="section-heading"><h2 id="profiles-heading">Active profiles</h2><span className="eyebrow">{profiles.length} saved</span></div>
           {profileFeedback && <div className="notice" role="status">{profileFeedback}</div>}
@@ -1433,6 +1449,7 @@ export default function ImportsPage() {
             : <div className="panel empty-state"><div className="empty-mark"><FileSpreadsheet size={21} /></div><h3>No approved profiles yet</h3><p>Review a product or process workbook to create the facility’s first run setup profile. Nothing is imported automatically.</p></div>)}
         </section>
       </div>
+      <NameLibraryPanel />
       <section className="import-history-section" aria-labelledby="import-history-heading">
         <div className="section-heading"><div><div className="eyebrow">Source activity</div><h2 id="import-history-heading">Recent imports</h2></div><span className="field-help">Metadata only · workbook contents are not available here</span></div>
         {historyQuery.isLoading && !historyQuery.data && <div className="history-loading" aria-label="Loading recent imports"><div className="skeleton" /><div className="skeleton" /></div>}

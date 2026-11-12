@@ -277,6 +277,68 @@ export interface RunSetup {
   productProfileId?: string | null;
 }
 
+export type NameReferenceKind = typeof NameReferenceKind[keyof typeof NameReferenceKind];
+
+
+export const NameReferenceKind = {
+  brand: 'brand',
+  flavor: 'flavor',
+  recipe: 'recipe',
+  ingredient: 'ingredient',
+} as const;
+
+export interface NameReference {
+  kind: NameReferenceKind;
+  /** @maxLength 120 */
+  brand: string;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  name: string;
+}
+
+export interface NameRule {
+  source: NameReference;
+  target: NameReference;
+}
+
+export interface NameResolution {
+  revision: number;
+  rules: NameRule[];
+}
+
+export interface LibraryNameEntry {
+  reference: NameReference;
+  aliases: NameReference[];
+  profileIds: string[];
+  formulaCount: number;
+  specReferenceCount: number;
+  ingredientReferenceCount: number;
+}
+
+export interface NameLibrary {
+  version: string;
+  resolution: NameResolution;
+  entries: LibraryNameEntry[];
+}
+
+export type LibraryNameChangeOperation = typeof LibraryNameChangeOperation[keyof typeof LibraryNameChangeOperation];
+
+
+export const LibraryNameChangeOperation = {
+  rename: 'rename',
+  merge: 'merge',
+} as const;
+
+export interface LibraryNameChange {
+  operation: LibraryNameChangeOperation;
+  source: NameReference;
+  target: NameReference;
+  /** @pattern ^[a-f0-9]{64}$ */
+  expectedVersion: string;
+}
+
 export type ProductProfileProductData = { [key: string]: unknown };
 
 export interface ProductProfile {
@@ -285,6 +347,7 @@ export interface ProductProfile {
   flavor: string;
   revision: number;
   productData: ProductProfileProductData;
+  nameResolution?: NameResolution;
   createdAt: string;
   updatedAt: string;
   /** @nullable */
@@ -301,6 +364,7 @@ export interface ProductProfileList {
   profiles: ProductProfile[];
   /** Names explicitly renamed or merged, resolved to active facility profiles. */
   nameMappings: ProductProfileNameMapping[];
+  referenceNames: NameResolution;
 }
 
 export interface ProductProfileEnvelope {

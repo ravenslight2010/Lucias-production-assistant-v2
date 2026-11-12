@@ -8,6 +8,8 @@ import {
 } from "@workspace/db";
 import { HttpError } from "./http-error";
 import { toContractRun } from "./run-contract";
+import { lockProfileNames } from "./profile-names";
+import { loadNameResolution, resolutionForProfile } from "./name-resolution";
 
 export interface RunSetupSnapshot {
   label: string;
@@ -73,6 +75,7 @@ export async function createPlannedRun(input: {
 
   try {
     return await db.transaction(async (tx) => {
+      await lockProfileNames(tx, input.facilityId);
       const profileId = input.setupSnapshot.productProfileId ?? null;
       const [productProfile] = profileId
         ? await tx.select().from(facilityProductProfilesTable).where(and(
@@ -83,6 +86,8 @@ export async function createPlannedRun(input: {
       if (profileId && !productProfile) {
         throw new HttpError(404, "The selected product profile is no longer available.");
       }
+      if (productProfile?.mergedIntoId) throw new HttpError(409, "This product profile was merged. Refresh and review the surviving product before creating a run.");
+      const nameResolution = productProfile ? resolutionForProfile(productProfile, await loadNameResolution(tx, input.facilityId)) : undefined;
       const productSnapshot = productProfile
         ? {
             id: productProfile.id,
@@ -93,6 +98,7 @@ export async function createPlannedRun(input: {
             createdAt: productProfile.createdAt,
             updatedAt: productProfile.updatedAt,
             mergedIntoId: productProfile.mergedIntoId,
+            ...(nameResolution ? { nameResolution } : {}),
           }
         : null;
       const [run] = await tx

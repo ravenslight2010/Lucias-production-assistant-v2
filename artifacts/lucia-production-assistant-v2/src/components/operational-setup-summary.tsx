@@ -1,6 +1,8 @@
 import type { OperationalWorkbookData } from '../importing/operational';
 import { DoughDetailsSummary } from './dough-details-summary';
 import { CheeseDetailsSummary } from './cheese-details-summary';
+import type { NameResolution, NameRule } from '@workspace/api-client-react';
+import { ResolvedName } from './resolved-name';
 
 type RecordValue = Record<string, unknown>;
 
@@ -19,29 +21,29 @@ function isOperationalWorkbookData(value: unknown): value is OperationalWorkbook
   );
 }
 
-function findOperationalData(value: unknown): OperationalWorkbookData[] {
-  const found: OperationalWorkbookData[] = [];
+function findOperationalData(value: unknown, brand?: string): (OperationalWorkbookData & { sourceBrand?: string })[] {
+  const found: (OperationalWorkbookData & { sourceBrand?: string })[] = [];
   const seen = new Set<object>();
   let inspected = 0;
-  const visit = (current: unknown, depth: number) => {
+  const visit = (current: unknown, depth: number, scope?: string) => {
     if (depth > 12 || inspected >= 500 || !current || typeof current !== 'object' || seen.has(current)) return;
     inspected++;
     seen.add(current);
     if (isOperationalWorkbookData(current)) {
-      found.push(current);
+      found.push({ ...current, sourceBrand: scope });
       return;
     }
     if (Array.isArray(current)) {
-      current.slice(0, 100).forEach((entry) => visit(entry, depth + 1));
+      current.slice(0, 100).forEach((entry) => visit(entry, depth + 1, scope));
       return;
     }
     if (isRecord(current)) {
       for (const key of ['structured', 'content', 'sources', 'data']) {
-        if (key in current) visit(current[key], depth + 1);
+        if (key in current) visit(current[key], depth + 1, typeof current.brand === 'string' ? current.brand : scope);
       }
     }
   };
-  visit(value, 0);
+  visit(value, 0, brand);
   return found;
 }
 
@@ -66,7 +68,7 @@ function AmountList({ amounts }: { amounts: unknown }) {
   </ul>;
 }
 
-function RecipeSummary({ recipe }: { recipe: unknown }) {
+function RecipeSummary({ recipe, brand, rules }: { recipe: unknown; brand?: string; rules?: NameRule[] }) {
   if (!isRecord(recipe)) return null;
   const ingredients = Array.isArray(recipe.ingredients) ? recipe.ingredients.filter(isRecord) : [];
   const steps = Array.isArray(recipe.steps) ? recipe.steps.filter(isRecord) : [];
@@ -80,12 +82,12 @@ function RecipeSummary({ recipe }: { recipe: unknown }) {
   const premixIssues = premix && Array.isArray(premix.issues) ? premix.issues.filter(isRecord) : [];
   const pullInstructions = premix && Array.isArray(premix.pullInstructions) ? premix.pullInstructions.filter(isRecord) : [];
   return <details className="operational-recipe" open={isRecord(recipe.dough) || isRecord(recipe.cheese) || Boolean(sauce) || Boolean(premix)}>
-    <summary>{name} <span>{ingredients.length} ingredients · {steps.length} steps</span></summary>
+    <summary><ResolvedName name={name} kind="recipe" brand={brand} rules={rules} /> <span>{ingredients.length} ingredients · {steps.length} steps</span></summary>
     <DoughDetailsSummary data={recipe.dough} />
     <CheeseDetailsSummary data={recipe.cheese} />
     {premix && <div className="field-help">
       <p>Customer: {asText(premix.sourceBrand)} · Original heading: {asText(premix.originalName)} · {asText(premix.section)} reference</p>
-      <p>Saved workbook planning values are not current-run calculations. No aliases, cross-brand merges, or quantity corrections were applied.</p>
+      <p>Saved workbook planning values are not current-run calculations. Remembered names do not approve formulas or correct source quantities.</p>
       {pullInstructions.length > 0 && <div><strong>Pull-ahead instructions</strong><ul className="operational-items">
         {pullInstructions.map((pull, index) => <li key={index}>{asText(pull.text)} · source row {asText(pull.sourceRow)}
           {typeof pull.daysEarly === 'number' && ` · ${pull.daysEarly} days early`}
@@ -106,7 +108,7 @@ function RecipeSummary({ recipe }: { recipe: unknown }) {
     {ingredients.length > 0 && <div>
       <strong>Ingredients</strong>
       <ul className="operational-items">{ingredients.map((ingredient, index) => <li key={`${asText(ingredient.sourceRow)}:${index}`}>
-        <span>{asText(ingredient.name)} · source row {asText(ingredient.sourceRow)}</span><AmountList amounts={ingredient.amounts} />
+        <span><ResolvedName name={asText(ingredient.name)} kind="ingredient" brand={brand} rules={rules} /> · source row {asText(ingredient.sourceRow)}</span><AmountList amounts={ingredient.amounts} />
         {Array.isArray(ingredient.amounts) && ingredient.amounts.length === 0 && <span>Weight not supplied — review source</span>}
       </li>)}</ul>
     </div>}
@@ -130,12 +132,16 @@ export function OperationalSetupSummary({
   data,
   title = 'Operational recipe and process data',
   defaultOpen = false,
+  brand,
+  nameResolution,
 }: {
   data: unknown;
   title?: string;
   defaultOpen?: boolean;
+  brand?: string;
+  nameResolution?: NameResolution;
 }) {
-  const workbooks = findOperationalData(data);
+  const workbooks = findOperationalData(data, brand);
   if (!workbooks.length) return null;
   const recipeCount = workbooks.reduce((sum, workbook) => sum + recipeCounts(workbook).recipes, 0);
   const shipmentCount = workbooks.reduce((sum, workbook) => sum + recipeCounts(workbook).shipments, 0);
@@ -167,10 +173,10 @@ export function OperationalSetupSummary({
         {workbook.sheets.map((sheet, sheetIndex) => <div className="operational-sheet" key={`${sheet.name}:${sheetIndex}`}>
           <strong>{sheet.name}</strong>
           {sheet.notes.length > 0 && <ul className="operational-items">{sheet.notes.map((note, index) => <li key={index}>{note}</li>)}</ul>}
-          {sheet.recipes.map((recipe, index) => <RecipeSummary recipe={recipe} key={`${sheet.name}:${index}`} />)}
+          {sheet.recipes.map((recipe, index) => <RecipeSummary recipe={recipe} brand={workbook.sourceBrand || brand} rules={nameResolution?.rules} key={`${sheet.name}:${index}`} />)}
           {sheet.productMappings.length > 0 && <p className="field-help">
             {workbook.importKind === 'cheese' ? 'Source product/recipe references (not automatically applied): ' : 'Applies to: '}
-            {sheet.productMappings.map((mapping) => `${mapping.product}: ${mapping.recipe}`).join(' · ')}
+            {sheet.productMappings.map((mapping, i) => <span key={i}>{i > 0 ? ' · ' : ''}{mapping.product}: <ResolvedName name={mapping.recipe} kind="recipe" brand={workbook.sourceBrand || brand} rules={nameResolution?.rules} /></span>)}
           </p>}
           {sheet.shippingRecords.length > 0 && <div className="operational-shipping-list">
             {sheet.shippingRecords.filter(isRecord).map((record, index) => <div key={`${asText(record.sourceRow)}:${index}`}>

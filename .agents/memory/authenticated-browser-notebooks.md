@@ -19,3 +19,17 @@ authenticated notebook. Convert generated workbook byte arrays using the
 notebook's Buffer at the Playwright upload boundary; browser-targeted spreadsheet
 bundles may return a typed array instead. Never persist authentication material
 to make this bridge work.
+
+Keep the browser's in-memory CSRF token aligned with its V2 session cookie after
+API-based test setup. A helper that issues a new V2 session rotates the cookie
+and its paired token; reload the app after that setup before exercising UI
+writes, and avoid issuing another session through the helper mid-journey.
+
+**Why:** A signed-in browser test's saves returned the generic origin-verification
+403 after API setup. Reloading restored the UI writes without relaxing any
+authentication or origin checks.
+
+**How to apply:** Let the app bootstrap finish after seeding, use ordinary
+authenticated GETs for read-back, and do not print cookies or CSRF values while
+diagnosing a mismatch. Do not weaken security middleware to accommodate test
+setup.

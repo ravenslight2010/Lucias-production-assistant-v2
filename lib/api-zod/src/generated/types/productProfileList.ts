@@ -5,6 +5,7 @@
  * Run-control API for Lucia's Production Assistant V2
  * OpenAPI spec version: 0.1.0
  */
+import type { NameResolution } from './nameResolution.ts';
 import type { ProductProfile } from './productProfile.ts';
 import type { ProductProfileNameMapping } from './productProfileNameMapping.ts';
 
@@ -12,4 +13,5 @@ export interface ProductProfileList {
   profiles: ProductProfile[];
   /** Names explicitly renamed or merged, resolved to active facility profiles. */
   nameMappings: ProductProfileNameMapping[];
+  referenceNames: NameResolution;
 }

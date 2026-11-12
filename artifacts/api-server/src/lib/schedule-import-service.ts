@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, facilityImportBatchesTable, facilityProductProfilesTable, productionRunsTable } from "@workspace/db";
 import { HttpError } from "./http-error";
+import { lockProfileNames } from "./profile-names";
+import { loadNameResolution, resolutionForProfile } from "./name-resolution";
 
 export type ScheduleImportRow = {
   date: string;
@@ -108,6 +110,7 @@ export async function importSchedule(input: ScheduleImportInput & {
   const expectedHash = requestHash(normalizedInput, canonicalRows, ignoredPastCount);
 
   return db.transaction(async (tx) => {
+    await lockProfileNames(tx, input.facilityId);
     // Serializes retries of the same file so a concurrent upload cannot create duplicate runs.
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${input.facilityId}), hashtext(${normalizedInput.sourceHash}))`);
     const [previousBatch] = await tx
@@ -136,8 +139,10 @@ export async function importSchedule(input: ScheduleImportInput & {
       throw new HttpError(409, "One or more selected product profiles changed. Refresh profiles and review the schedule mapping.");
     }
 
+    const resolution = await loadNameResolution(tx, input.facilityId);
     const runValues = normalizedRows.map((row) => {
       const profile = profileById.get(row.productProfileId)!;
+      const nameResolution = resolutionForProfile(profile, resolution);
       return {
         id: stableUuid("scheduled-run", input.facilityId, normalizedInput.sourceHash, row.source.sheet, String(row.source.row)),
         facilityId: input.facilityId,
@@ -152,6 +157,7 @@ export async function importSchedule(input: ScheduleImportInput & {
           createdAt: profile.createdAt,
           updatedAt: profile.updatedAt,
           mergedIntoId: profile.mergedIntoId,
+          ...(nameResolution ? { nameResolution } : {}),
         },
         targetCases: row.casesPlanned,
         status: "planned" as const,

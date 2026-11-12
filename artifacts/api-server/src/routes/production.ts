@@ -16,6 +16,9 @@ import {
   CreateV2SessionResponse,
   CreateRunBody,
   CreateRunResponse,
+  GetNameLibraryResponse,
+  ChangeLibraryNameBody,
+  ChangeLibraryNameResponse,
   ImportScheduleBody,
   ImportScheduleResponse,
   GetDashboardSummaryResponse,
@@ -76,8 +79,10 @@ import { createPlannedRun } from "../lib/run-create-service";
 import { importSchedule } from "../lib/schedule-import-service";
 import {
   activeProfile, listProfileNames, lockProfileNames, mergeProfiles, normalizedProfileKey,
-  profileForName, profileSourceEntries, renameProfile, safeProfilePayload as safeJsonPayload,
+  profileForImportedName, profileSourceEntries, renameProfile, safeProfilePayload as safeJsonPayload,
 } from "../lib/profile-names";
+import { changeLibraryName, getNameLibrary } from "../lib/name-library";
+import { loadNameResolution, resolvedProduct } from "../lib/name-resolution";
 import { shippingDataMatchesBrand, shippingSelectionIdentity } from "../lib/shipping-import-validation";
 import { toContractRun } from "../lib/run-contract";
 import {
@@ -843,6 +848,24 @@ router.put(
   },
 );
 
+router.get("/v2/name-library", requireV2Session, async (req, res): Promise<void> => {
+  const access = await membershipOrRespond(req, res);
+  if (!access) return;
+  res.json(GetNameLibraryResponse.parse(await getNameLibrary(access.membership.facilityId)));
+});
+
+router.patch("/v2/name-library", requireV2Session, requireV2Csrf, mutationRateLimit, async (req, res): Promise<void> => {
+  const parsed = ChangeLibraryNameBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Review the name, brand, and selected destination." }); return; }
+  const access = await membershipOrRespond(req, res);
+  if (!access) return;
+  assertRunPermission(access.membership.role, "create");
+  const result = await changeLibraryName({ ...parsed.data, facilityId: access.membership.facilityId });
+  req.log.info({ facilityId: access.membership.facilityId, operation: parsed.data.operation, kind: parsed.data.source.kind,
+    revision: result.resolution.revision }, "Facility name library changed");
+  res.json(ChangeLibraryNameResponse.parse(result));
+});
+
 router.get("/v2/product-profiles", requireV2Session, async (req, res): Promise<void> => {
   const access = await membershipOrRespond(req, res);
   if (!access) return;
@@ -967,7 +990,6 @@ router.post(
     const access = await membershipOrRespond(req, res);
     if (!access) return;
     assertRunPermission(access.membership.role, "create");
-    const normalizedKey = normalizedProfileKey(brand, flavor);
     let doughSelection: string | null = null;
     let cheeseSelection: string | null = null;
     let sauceSelection: string | null = null;
@@ -1032,7 +1054,7 @@ router.post(
           )).limit(1);
           if (previousProfile) return { profile: await activeProfile(tx, access.membership.facilityId, previousProfile.id), batch: previousBatch, imported: false };
         }
-        const existing = await profileForName(tx, access.membership.facilityId, normalizedKey);
+        const existing = await profileForImportedName(tx, access.membership.facilityId, brand, flavor);
         if (existing) {
           if (input.expectedRevision === undefined || existing.revision !== input.expectedRevision) {
             throw new HttpError(409, "This brand and flavor already has a profile. Refresh it, then add the workbook to its current revision.");
@@ -1088,15 +1110,17 @@ router.post(
         if (input.expectedRevision !== undefined) {
           throw new HttpError(409, "This profile changed on another device. Refresh the profile list before importing.");
         }
+        const canonical = resolvedProduct(brand, flavor, (await loadNameResolution(tx, access.membership.facilityId)).rules);
         const [profile] = await tx
           .insert(facilityProductProfilesTable)
           .values({
             facilityId: access.membership.facilityId,
-            brand,
-            flavor,
-            normalizedKey,
+            ...canonical,
+            normalizedKey: normalizedProfileKey(canonical.brand, canonical.flavor),
             revision: 0,
             productData: {
+              brand,
+              flavor,
               importKind: input.importKind,
               sourceName,
               sourceHash: input.sourceHash,

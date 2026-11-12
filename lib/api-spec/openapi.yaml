@@ -409,6 +409,53 @@ paths:
           $ref: "#/components/responses/Conflict"
         "413":
           description: Schedule import request is too large
+  /v2/name-library:
+    get:
+      operationId: getNameLibrary
+      tags: [product-profiles]
+      summary: List facility names, explicit aliases, and source usage
+      security:
+        - v2Session: []
+      responses:
+        "200":
+          description: Name library
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NameLibrary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    patch:
+      operationId: changeLibraryName
+      tags: [product-profiles]
+      summary: Rename or merge an explicitly reviewed name without changing formulas
+      security:
+        - v2Session: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LibraryNameChange"
+      responses:
+        "200":
+          description: Updated library
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NameLibrary"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "413":
+          description: Name library limit exceeded; no changes applied
   /v2/product-profiles:
     get:
       operationId: listProductProfiles
@@ -981,6 +1028,88 @@ components:
           type: [string, "null"]
           format: uuid
       required: [label, targetCases]
+    NameReference:
+      type: object
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          enum: [brand, flavor, recipe, ingredient]
+        brand:
+          type: string
+          maxLength: 120
+        name:
+          type: string
+          minLength: 1
+          maxLength: 300
+      required: [kind, brand, name]
+    NameRule:
+      type: object
+      additionalProperties: false
+      properties:
+        source:
+          $ref: "#/components/schemas/NameReference"
+        target:
+          $ref: "#/components/schemas/NameReference"
+      required: [source, target]
+    NameResolution:
+      type: object
+      properties:
+        revision:
+          type: integer
+        rules:
+          type: array
+          items:
+            $ref: "#/components/schemas/NameRule"
+      required: [revision, rules]
+    LibraryNameEntry:
+      type: object
+      properties:
+        reference:
+          $ref: "#/components/schemas/NameReference"
+        aliases:
+          type: array
+          items:
+            $ref: "#/components/schemas/NameReference"
+        profileIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        formulaCount:
+          type: integer
+        specReferenceCount:
+          type: integer
+        ingredientReferenceCount:
+          type: integer
+      required: [reference, aliases, profileIds, formulaCount, specReferenceCount, ingredientReferenceCount]
+    NameLibrary:
+      type: object
+      properties:
+        version:
+          type: string
+        resolution:
+          $ref: "#/components/schemas/NameResolution"
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/LibraryNameEntry"
+      required: [version, resolution, entries]
+    LibraryNameChange:
+      type: object
+      additionalProperties: false
+      properties:
+        operation:
+          type: string
+          enum: [rename, merge]
+        source:
+          $ref: "#/components/schemas/NameReference"
+        target:
+          $ref: "#/components/schemas/NameReference"
+        expectedVersion:
+          type: string
+          pattern: "^[a-f0-9]{64}$"
+      required: [operation, source, target, expectedVersion]
     ProductProfile:
       type: object
       additionalProperties: false
@@ -997,6 +1126,8 @@ components:
         productData:
           type: object
           additionalProperties: true
+        nameResolution:
+          $ref: "#/components/schemas/NameResolution"
         createdAt:
           type: string
           format: date-time
@@ -1019,7 +1150,9 @@ components:
           description: Names explicitly renamed or merged, resolved to active facility profiles.
           items:
             $ref: "#/components/schemas/ProductProfileNameMapping"
-      required: [profiles, nameMappings]
+        referenceNames:
+          $ref: "#/components/schemas/NameResolution"
+      required: [profiles, nameMappings, referenceNames]
     ProductProfileNameMapping:
       type: object
       properties:

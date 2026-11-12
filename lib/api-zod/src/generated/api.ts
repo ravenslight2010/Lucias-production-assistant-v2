@@ -284,6 +284,14 @@ export const listRunsResponseRunsItemSetupSnapshotLabelMax = 120;
 
 export const listRunsResponseRunsItemSetupSnapshotTargetCasesMax = 9007199254740991;
 
+export const listRunsResponseRunsItemProductSnapshotOneNameResolutionRulesItemSourceBrandMax = 120;
+
+export const listRunsResponseRunsItemProductSnapshotOneNameResolutionRulesItemSourceNameMax = 300;
+
+export const listRunsResponseRunsItemProductSnapshotOneNameResolutionRulesItemTargetBrandMax = 120;
+
+export const listRunsResponseRunsItemProductSnapshotOneNameResolutionRulesItemTargetNameMax = 300;
+
 
 
 export const ListRunsResponse = zod.object({
@@ -318,6 +326,21 @@ export const ListRunsResponse = zod.object({
   "flavor": zod.string(),
   "revision": zod.number().int(),
   "productData": zod.record(zod.string(), zod.unknown()),
+  "nameResolution": zod.object({
+  "revision": zod.number().int(),
+  "rules": zod.array(zod.object({
+  "source": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(listRunsResponseRunsItemProductSnapshotOneNameResolutionRulesItemSourceBrandMax),
+  "name": zod.string().min(1).max(listRunsResponseRunsItemProductSnapshotOneNameResolutionRulesItemSourceNameMax)
+}),
+  "target": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(listRunsResponseRunsItemProductSnapshotOneNameResolutionRulesItemTargetBrandMax),
+  "name": zod.string().min(1).max(listRunsResponseRunsItemProductSnapshotOneNameResolutionRulesItemTargetNameMax)
+})
+}))
+}).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "mergedIntoId": zod.string().uuid().nullable()
@@ -370,6 +393,14 @@ export const createRunResponseRunSetupSnapshotLabelMax = 120;
 
 export const createRunResponseRunSetupSnapshotTargetCasesMax = 9007199254740991;
 
+export const createRunResponseRunProductSnapshotOneNameResolutionRulesItemSourceBrandMax = 120;
+
+export const createRunResponseRunProductSnapshotOneNameResolutionRulesItemSourceNameMax = 300;
+
+export const createRunResponseRunProductSnapshotOneNameResolutionRulesItemTargetBrandMax = 120;
+
+export const createRunResponseRunProductSnapshotOneNameResolutionRulesItemTargetNameMax = 300;
+
 
 
 export const CreateRunResponse = zod.object({
@@ -406,6 +437,21 @@ export const CreateRunResponse = zod.object({
   "flavor": zod.string(),
   "revision": zod.number().int(),
   "productData": zod.record(zod.string(), zod.unknown()),
+  "nameResolution": zod.object({
+  "revision": zod.number().int(),
+  "rules": zod.array(zod.object({
+  "source": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(createRunResponseRunProductSnapshotOneNameResolutionRulesItemSourceBrandMax),
+  "name": zod.string().min(1).max(createRunResponseRunProductSnapshotOneNameResolutionRulesItemSourceNameMax)
+}),
+  "target": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(createRunResponseRunProductSnapshotOneNameResolutionRulesItemTargetBrandMax),
+  "name": zod.string().min(1).max(createRunResponseRunProductSnapshotOneNameResolutionRulesItemTargetNameMax)
+})
+}))
+}).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "mergedIntoId": zod.string().uuid().nullable()
@@ -482,8 +528,166 @@ export const ImportScheduleResponse = zod.object({
 
 
 /**
+ * @summary List facility names, explicit aliases, and source usage
+ */
+export const getNameLibraryResponseResolutionRulesItemSourceBrandMax = 120;
+
+export const getNameLibraryResponseResolutionRulesItemSourceNameMax = 300;
+
+export const getNameLibraryResponseResolutionRulesItemTargetBrandMax = 120;
+
+export const getNameLibraryResponseResolutionRulesItemTargetNameMax = 300;
+
+export const getNameLibraryResponseEntriesItemReferenceBrandMax = 120;
+
+export const getNameLibraryResponseEntriesItemReferenceNameMax = 300;
+
+export const getNameLibraryResponseEntriesItemAliasesItemBrandMax = 120;
+
+export const getNameLibraryResponseEntriesItemAliasesItemNameMax = 300;
+
+
+
+export const GetNameLibraryResponse = zod.object({
+  "version": zod.string(),
+  "resolution": zod.object({
+  "revision": zod.number().int(),
+  "rules": zod.array(zod.object({
+  "source": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(getNameLibraryResponseResolutionRulesItemSourceBrandMax),
+  "name": zod.string().min(1).max(getNameLibraryResponseResolutionRulesItemSourceNameMax)
+}),
+  "target": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(getNameLibraryResponseResolutionRulesItemTargetBrandMax),
+  "name": zod.string().min(1).max(getNameLibraryResponseResolutionRulesItemTargetNameMax)
+})
+}))
+}),
+  "entries": zod.array(zod.object({
+  "reference": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(getNameLibraryResponseEntriesItemReferenceBrandMax),
+  "name": zod.string().min(1).max(getNameLibraryResponseEntriesItemReferenceNameMax)
+}),
+  "aliases": zod.array(zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(getNameLibraryResponseEntriesItemAliasesItemBrandMax),
+  "name": zod.string().min(1).max(getNameLibraryResponseEntriesItemAliasesItemNameMax)
+})),
+  "profileIds": zod.array(zod.string().uuid()),
+  "formulaCount": zod.number().int(),
+  "specReferenceCount": zod.number().int(),
+  "ingredientReferenceCount": zod.number().int()
+}))
+})
+
+
+/**
+ * @summary Rename or merge an explicitly reviewed name without changing formulas
+ */
+export const changeLibraryNameBodySourceBrandMax = 120;
+
+export const changeLibraryNameBodySourceNameMax = 300;
+
+export const changeLibraryNameBodyTargetBrandMax = 120;
+
+export const changeLibraryNameBodyTargetNameMax = 300;
+
+export const changeLibraryNameBodyExpectedVersionRegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const ChangeLibraryNameBody = zod.object({
+  "operation": zod.enum(['rename', 'merge']),
+  "source": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(changeLibraryNameBodySourceBrandMax),
+  "name": zod.string().min(1).max(changeLibraryNameBodySourceNameMax)
+}),
+  "target": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(changeLibraryNameBodyTargetBrandMax),
+  "name": zod.string().min(1).max(changeLibraryNameBodyTargetNameMax)
+}),
+  "expectedVersion": zod.string().regex(changeLibraryNameBodyExpectedVersionRegExp)
+})
+
+export const changeLibraryNameResponseResolutionRulesItemSourceBrandMax = 120;
+
+export const changeLibraryNameResponseResolutionRulesItemSourceNameMax = 300;
+
+export const changeLibraryNameResponseResolutionRulesItemTargetBrandMax = 120;
+
+export const changeLibraryNameResponseResolutionRulesItemTargetNameMax = 300;
+
+export const changeLibraryNameResponseEntriesItemReferenceBrandMax = 120;
+
+export const changeLibraryNameResponseEntriesItemReferenceNameMax = 300;
+
+export const changeLibraryNameResponseEntriesItemAliasesItemBrandMax = 120;
+
+export const changeLibraryNameResponseEntriesItemAliasesItemNameMax = 300;
+
+
+
+export const ChangeLibraryNameResponse = zod.object({
+  "version": zod.string(),
+  "resolution": zod.object({
+  "revision": zod.number().int(),
+  "rules": zod.array(zod.object({
+  "source": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(changeLibraryNameResponseResolutionRulesItemSourceBrandMax),
+  "name": zod.string().min(1).max(changeLibraryNameResponseResolutionRulesItemSourceNameMax)
+}),
+  "target": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(changeLibraryNameResponseResolutionRulesItemTargetBrandMax),
+  "name": zod.string().min(1).max(changeLibraryNameResponseResolutionRulesItemTargetNameMax)
+})
+}))
+}),
+  "entries": zod.array(zod.object({
+  "reference": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(changeLibraryNameResponseEntriesItemReferenceBrandMax),
+  "name": zod.string().min(1).max(changeLibraryNameResponseEntriesItemReferenceNameMax)
+}),
+  "aliases": zod.array(zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(changeLibraryNameResponseEntriesItemAliasesItemBrandMax),
+  "name": zod.string().min(1).max(changeLibraryNameResponseEntriesItemAliasesItemNameMax)
+})),
+  "profileIds": zod.array(zod.string().uuid()),
+  "formulaCount": zod.number().int(),
+  "specReferenceCount": zod.number().int(),
+  "ingredientReferenceCount": zod.number().int()
+}))
+})
+
+
+/**
  * @summary List product profiles for the authenticated facility
  */
+export const listProductProfilesResponseProfilesItemNameResolutionRulesItemSourceBrandMax = 120;
+
+export const listProductProfilesResponseProfilesItemNameResolutionRulesItemSourceNameMax = 300;
+
+export const listProductProfilesResponseProfilesItemNameResolutionRulesItemTargetBrandMax = 120;
+
+export const listProductProfilesResponseProfilesItemNameResolutionRulesItemTargetNameMax = 300;
+
+export const listProductProfilesResponseReferenceNamesRulesItemSourceBrandMax = 120;
+
+export const listProductProfilesResponseReferenceNamesRulesItemSourceNameMax = 300;
+
+export const listProductProfilesResponseReferenceNamesRulesItemTargetBrandMax = 120;
+
+export const listProductProfilesResponseReferenceNamesRulesItemTargetNameMax = 300;
+
+
+
 export const ListProductProfilesResponse = zod.object({
   "profiles": zod.array(zod.object({
   "id": zod.string().uuid(),
@@ -491,6 +695,21 @@ export const ListProductProfilesResponse = zod.object({
   "flavor": zod.string(),
   "revision": zod.number().int(),
   "productData": zod.record(zod.string(), zod.unknown()),
+  "nameResolution": zod.object({
+  "revision": zod.number().int(),
+  "rules": zod.array(zod.object({
+  "source": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(listProductProfilesResponseProfilesItemNameResolutionRulesItemSourceBrandMax),
+  "name": zod.string().min(1).max(listProductProfilesResponseProfilesItemNameResolutionRulesItemSourceNameMax)
+}),
+  "target": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(listProductProfilesResponseProfilesItemNameResolutionRulesItemTargetBrandMax),
+  "name": zod.string().min(1).max(listProductProfilesResponseProfilesItemNameResolutionRulesItemTargetNameMax)
+})
+}))
+}).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "mergedIntoId": zod.string().uuid().nullable()
@@ -499,7 +718,22 @@ export const ListProductProfilesResponse = zod.object({
   "brand": zod.string(),
   "flavor": zod.string(),
   "profileId": zod.string().uuid()
-})).describe('Names explicitly renamed or merged, resolved to active facility profiles.')
+})).describe('Names explicitly renamed or merged, resolved to active facility profiles.'),
+  "referenceNames": zod.object({
+  "revision": zod.number().int(),
+  "rules": zod.array(zod.object({
+  "source": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(listProductProfilesResponseReferenceNamesRulesItemSourceBrandMax),
+  "name": zod.string().min(1).max(listProductProfilesResponseReferenceNamesRulesItemSourceNameMax)
+}),
+  "target": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(listProductProfilesResponseReferenceNamesRulesItemTargetBrandMax),
+  "name": zod.string().min(1).max(listProductProfilesResponseReferenceNamesRulesItemTargetNameMax)
+})
+}))
+})
 })
 
 
@@ -533,6 +767,16 @@ export const ImportProductProfileBody = zod.object({
   "expectedRevision": zod.number().int().min(importProductProfileBodyExpectedRevisionMin).optional()
 })
 
+export const importProductProfileResponseProfileNameResolutionRulesItemSourceBrandMax = 120;
+
+export const importProductProfileResponseProfileNameResolutionRulesItemSourceNameMax = 300;
+
+export const importProductProfileResponseProfileNameResolutionRulesItemTargetBrandMax = 120;
+
+export const importProductProfileResponseProfileNameResolutionRulesItemTargetNameMax = 300;
+
+
+
 export const ImportProductProfileResponse = zod.object({
   "profile": zod.object({
   "id": zod.string().uuid(),
@@ -540,6 +784,21 @@ export const ImportProductProfileResponse = zod.object({
   "flavor": zod.string(),
   "revision": zod.number().int(),
   "productData": zod.record(zod.string(), zod.unknown()),
+  "nameResolution": zod.object({
+  "revision": zod.number().int(),
+  "rules": zod.array(zod.object({
+  "source": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(importProductProfileResponseProfileNameResolutionRulesItemSourceBrandMax),
+  "name": zod.string().min(1).max(importProductProfileResponseProfileNameResolutionRulesItemSourceNameMax)
+}),
+  "target": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(importProductProfileResponseProfileNameResolutionRulesItemTargetBrandMax),
+  "name": zod.string().min(1).max(importProductProfileResponseProfileNameResolutionRulesItemTargetNameMax)
+})
+}))
+}).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "mergedIntoId": zod.string().uuid().nullable()
@@ -602,6 +861,16 @@ export const RenameProductProfileBody = zod.object({
   "expectedRevision": zod.number().int().min(renameProductProfileBodyExpectedRevisionMin)
 })
 
+export const renameProductProfileResponseProfileNameResolutionRulesItemSourceBrandMax = 120;
+
+export const renameProductProfileResponseProfileNameResolutionRulesItemSourceNameMax = 300;
+
+export const renameProductProfileResponseProfileNameResolutionRulesItemTargetBrandMax = 120;
+
+export const renameProductProfileResponseProfileNameResolutionRulesItemTargetNameMax = 300;
+
+
+
 export const RenameProductProfileResponse = zod.object({
   "profile": zod.object({
   "id": zod.string().uuid(),
@@ -609,6 +878,21 @@ export const RenameProductProfileResponse = zod.object({
   "flavor": zod.string(),
   "revision": zod.number().int(),
   "productData": zod.record(zod.string(), zod.unknown()),
+  "nameResolution": zod.object({
+  "revision": zod.number().int(),
+  "rules": zod.array(zod.object({
+  "source": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(renameProductProfileResponseProfileNameResolutionRulesItemSourceBrandMax),
+  "name": zod.string().min(1).max(renameProductProfileResponseProfileNameResolutionRulesItemSourceNameMax)
+}),
+  "target": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(renameProductProfileResponseProfileNameResolutionRulesItemTargetBrandMax),
+  "name": zod.string().min(1).max(renameProductProfileResponseProfileNameResolutionRulesItemTargetNameMax)
+})
+}))
+}).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "mergedIntoId": zod.string().uuid().nullable()
@@ -642,6 +926,16 @@ export const MergeProductProfileBody = zod.object({
   "expectedTargetRevision": zod.number().int().min(mergeProductProfileBodyExpectedTargetRevisionMin)
 })
 
+export const mergeProductProfileResponseProfileNameResolutionRulesItemSourceBrandMax = 120;
+
+export const mergeProductProfileResponseProfileNameResolutionRulesItemSourceNameMax = 300;
+
+export const mergeProductProfileResponseProfileNameResolutionRulesItemTargetBrandMax = 120;
+
+export const mergeProductProfileResponseProfileNameResolutionRulesItemTargetNameMax = 300;
+
+
+
 export const MergeProductProfileResponse = zod.object({
   "profile": zod.object({
   "id": zod.string().uuid(),
@@ -649,6 +943,21 @@ export const MergeProductProfileResponse = zod.object({
   "flavor": zod.string(),
   "revision": zod.number().int(),
   "productData": zod.record(zod.string(), zod.unknown()),
+  "nameResolution": zod.object({
+  "revision": zod.number().int(),
+  "rules": zod.array(zod.object({
+  "source": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(mergeProductProfileResponseProfileNameResolutionRulesItemSourceBrandMax),
+  "name": zod.string().min(1).max(mergeProductProfileResponseProfileNameResolutionRulesItemSourceNameMax)
+}),
+  "target": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(mergeProductProfileResponseProfileNameResolutionRulesItemTargetBrandMax),
+  "name": zod.string().min(1).max(mergeProductProfileResponseProfileNameResolutionRulesItemTargetNameMax)
+})
+}))
+}).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "mergedIntoId": zod.string().uuid().nullable()
@@ -684,6 +993,14 @@ export const getRunResponseRunSetupSnapshotLabelMax = 120;
 
 export const getRunResponseRunSetupSnapshotTargetCasesMax = 9007199254740991;
 
+export const getRunResponseRunProductSnapshotOneNameResolutionRulesItemSourceBrandMax = 120;
+
+export const getRunResponseRunProductSnapshotOneNameResolutionRulesItemSourceNameMax = 300;
+
+export const getRunResponseRunProductSnapshotOneNameResolutionRulesItemTargetBrandMax = 120;
+
+export const getRunResponseRunProductSnapshotOneNameResolutionRulesItemTargetNameMax = 300;
+
 
 
 export const GetRunResponse = zod.object({
@@ -718,6 +1035,21 @@ export const GetRunResponse = zod.object({
   "flavor": zod.string(),
   "revision": zod.number().int(),
   "productData": zod.record(zod.string(), zod.unknown()),
+  "nameResolution": zod.object({
+  "revision": zod.number().int(),
+  "rules": zod.array(zod.object({
+  "source": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(getRunResponseRunProductSnapshotOneNameResolutionRulesItemSourceBrandMax),
+  "name": zod.string().min(1).max(getRunResponseRunProductSnapshotOneNameResolutionRulesItemSourceNameMax)
+}),
+  "target": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(getRunResponseRunProductSnapshotOneNameResolutionRulesItemTargetBrandMax),
+  "name": zod.string().min(1).max(getRunResponseRunProductSnapshotOneNameResolutionRulesItemTargetNameMax)
+})
+}))
+}).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "mergedIntoId": zod.string().uuid().nullable()
@@ -774,6 +1106,14 @@ export const applyRunCommandResponseRunSetupSnapshotLabelMax = 120;
 
 export const applyRunCommandResponseRunSetupSnapshotTargetCasesMax = 9007199254740991;
 
+export const applyRunCommandResponseRunProductSnapshotOneNameResolutionRulesItemSourceBrandMax = 120;
+
+export const applyRunCommandResponseRunProductSnapshotOneNameResolutionRulesItemSourceNameMax = 300;
+
+export const applyRunCommandResponseRunProductSnapshotOneNameResolutionRulesItemTargetBrandMax = 120;
+
+export const applyRunCommandResponseRunProductSnapshotOneNameResolutionRulesItemTargetNameMax = 300;
+
 
 
 export const ApplyRunCommandResponse = zod.object({
@@ -811,6 +1151,21 @@ export const ApplyRunCommandResponse = zod.object({
   "flavor": zod.string(),
   "revision": zod.number().int(),
   "productData": zod.record(zod.string(), zod.unknown()),
+  "nameResolution": zod.object({
+  "revision": zod.number().int(),
+  "rules": zod.array(zod.object({
+  "source": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(applyRunCommandResponseRunProductSnapshotOneNameResolutionRulesItemSourceBrandMax),
+  "name": zod.string().min(1).max(applyRunCommandResponseRunProductSnapshotOneNameResolutionRulesItemSourceNameMax)
+}),
+  "target": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(applyRunCommandResponseRunProductSnapshotOneNameResolutionRulesItemTargetBrandMax),
+  "name": zod.string().min(1).max(applyRunCommandResponseRunProductSnapshotOneNameResolutionRulesItemTargetNameMax)
+})
+}))
+}).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "mergedIntoId": zod.string().uuid().nullable()
@@ -882,6 +1237,14 @@ export const getDashboardSummaryResponseActiveRunsItemSetupSnapshotLabelMax = 12
 
 export const getDashboardSummaryResponseActiveRunsItemSetupSnapshotTargetCasesMax = 9007199254740991;
 
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneNameResolutionRulesItemSourceBrandMax = 120;
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneNameResolutionRulesItemSourceNameMax = 300;
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneNameResolutionRulesItemTargetBrandMax = 120;
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneNameResolutionRulesItemTargetNameMax = 300;
+
 export const getDashboardSummaryResponseRecentRunsItemRevisionMin = 0;
 export const getDashboardSummaryResponseRecentRunsItemRevisionMax = 9007199254740991;
 
@@ -898,6 +1261,14 @@ export const getDashboardSummaryResponseRecentRunsItemScheduleSourceOneFlavorMax
 export const getDashboardSummaryResponseRecentRunsItemSetupSnapshotLabelMax = 120;
 
 export const getDashboardSummaryResponseRecentRunsItemSetupSnapshotTargetCasesMax = 9007199254740991;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneNameResolutionRulesItemSourceBrandMax = 120;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneNameResolutionRulesItemSourceNameMax = 300;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneNameResolutionRulesItemTargetBrandMax = 120;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneNameResolutionRulesItemTargetNameMax = 300;
 
 
 
@@ -943,6 +1314,21 @@ export const GetDashboardSummaryResponse = zod.object({
   "flavor": zod.string(),
   "revision": zod.number().int(),
   "productData": zod.record(zod.string(), zod.unknown()),
+  "nameResolution": zod.object({
+  "revision": zod.number().int(),
+  "rules": zod.array(zod.object({
+  "source": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneNameResolutionRulesItemSourceBrandMax),
+  "name": zod.string().min(1).max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneNameResolutionRulesItemSourceNameMax)
+}),
+  "target": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneNameResolutionRulesItemTargetBrandMax),
+  "name": zod.string().min(1).max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneNameResolutionRulesItemTargetNameMax)
+})
+}))
+}).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "mergedIntoId": zod.string().uuid().nullable()
@@ -983,6 +1369,21 @@ export const GetDashboardSummaryResponse = zod.object({
   "flavor": zod.string(),
   "revision": zod.number().int(),
   "productData": zod.record(zod.string(), zod.unknown()),
+  "nameResolution": zod.object({
+  "revision": zod.number().int(),
+  "rules": zod.array(zod.object({
+  "source": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneNameResolutionRulesItemSourceBrandMax),
+  "name": zod.string().min(1).max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneNameResolutionRulesItemSourceNameMax)
+}),
+  "target": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneNameResolutionRulesItemTargetBrandMax),
+  "name": zod.string().min(1).max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneNameResolutionRulesItemTargetNameMax)
+})
+}))
+}).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "mergedIntoId": zod.string().uuid().nullable()

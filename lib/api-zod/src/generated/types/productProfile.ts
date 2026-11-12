@@ -5,6 +5,7 @@
  * Run-control API for Lucia's Production Assistant V2
  * OpenAPI spec version: 0.1.0
  */
+import type { NameResolution } from './nameResolution.ts';
 import type { ProductProfileProductData } from './productProfileProductData.ts';
 
 export interface ProductProfile {
@@ -13,6 +14,7 @@ export interface ProductProfile {
   flavor: string;
   revision: number;
   productData: ProductProfileProductData;
+  nameResolution?: NameResolution;
   createdAt: Date;
   updatedAt: Date;
   /** @nullable */

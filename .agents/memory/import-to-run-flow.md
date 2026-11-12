@@ -49,7 +49,13 @@ Treat shipping guide labels as possible packaging variants, not reliable aliases
 
 **How to apply:** Keep original guide labels and source coordinates. Let the reviewer choose one row for each product; do not infer fuzzy aliases or apply every related variant to every flavor. Preserve uncertain grip-sheet placement and missing pallet heights rather than filling them in.
 
-Remember brand/flavor pairs explicitly renamed or merged by the user so future workbook and schedule imports match the surviving product without repeating the same cleanup.
+Name management must cover recipes, ingredients, brands, and flavors, not only whole product profiles. Different source labels can refer to the same recipe; the user gave “lucias sauce” versus “lucias style” as an example to merge into one recipe name.
+
+**Why:** The user clarified that rename/merge applies to these individual names throughout the importing system, not just brand/flavor pairs.
+
+**How to apply:** Trace source labels and their references across workbook types and downstream run setup. Do not report product-profile-only rename/merge as completion of this broader requirement. Preserve original source data and existing run snapshots.
+
+Remember names explicitly renamed or merged by the user so future workbook and schedule imports match the surviving identity without repeating the same cleanup.
 
 **Why:** The user said, “Remember what names got renamed or merged together, so that we don't have to do it every time.”
 

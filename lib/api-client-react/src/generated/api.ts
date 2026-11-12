@@ -145,9 +145,9 @@ export type HealthCheckQueryError = ErrorType<unknown>
 
 
 /**
+ * Returns server health status
  * @summary Health check
  */
-
 export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
@@ -221,10 +221,7 @@ export type GetFacilityContextQueryResult = NonNullable<Awaited<ReturnType<typeo
 export type GetFacilityContextQueryError = ErrorType<UnauthorizedResponse>
 
 
-/**
- * @summary Get the signed-in user's facility
- */
-
+/** @summary Get the signed-in user's facility */
 export function useGetFacilityContext<TData = Awaited<ReturnType<typeof getFacilityContext>>, TError = ErrorType<UnauthorizedResponse>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFacilityContext>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
@@ -305,6 +302,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
     /**
+ * Issues a separate short-lived V2 cookie bound to the verified Clerk user and session. V1 cookies and credentials are never accepted.
  * @summary Create an API session from the current Clerk session
  */
 export const useCreateV2Session = <TError = ErrorType<UnauthorizedResponse>,
@@ -378,9 +376,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type DeleteV2SessionMutationError = ErrorType<UnauthorizedResponse>
 
 
-    /**
- * @summary Revoke the current API session
- */
+    /** @summary Revoke the current API session */
 export const useDeleteV2Session = <TError = ErrorType<UnauthorizedResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteV2Session>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
@@ -466,9 +462,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateFacilityMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ConflictResponse>
     export type CreateFacilityMutationVariables = {data: BodyType<FacilityInput>}
 
-    /**
- * @summary Create a facility for the signed-in user
- */
+    /** @summary Create a facility for the signed-in user */
 export const useCreateFacility = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFacility>>, TError,CreateFacilityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
@@ -535,10 +529,7 @@ export type ListFacilityMembersQueryResult = NonNullable<Awaited<ReturnType<type
 export type ListFacilityMembersQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
 
 
-/**
- * @summary List facility members for an owner
- */
-
+/** @summary List facility members for an owner */
 export function useListFacilityMembers<TData = Awaited<ReturnType<typeof listFacilityMembers>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFacilityMembers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
@@ -633,6 +624,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type InviteFacilityMemberMutationVariables = {data: BodyType<FacilityMemberInput>}
 
     /**
+ * Existing accounts are added immediately; new accounts receive a Clerk invitation with the selected facility role.
  * @summary Add or invite a facility member
  */
 export const useInviteFacilityMember = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>,
@@ -721,9 +713,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateFacilityMemberMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
     export type UpdateFacilityMemberMutationVariables = {memberId: string;data: BodyType<FacilityMemberUpdate>}
 
-    /**
- * @summary Change a facility member role
- */
+    /** @summary Change a facility member role */
 export const useUpdateFacilityMember = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFacilityMember>>, TError,UpdateFacilityMemberMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
@@ -795,9 +785,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type RemoveFacilityMemberMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
     export type RemoveFacilityMemberMutationVariables = {memberId: string}
 
-    /**
- * @summary Remove a facility member
- */
+    /** @summary Remove a facility member */
 export const useRemoveFacilityMember = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeFacilityMember>>, TError,RemoveFacilityMemberMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
@@ -869,9 +857,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CancelFacilityInvitationMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ErrorResponse>
     export type CancelFacilityInvitationMutationVariables = {invitationId: string}
 
-    /**
- * @summary Cancel a pending facility invitation
- */
+    /** @summary Cancel a pending facility invitation */
 export const useCancelFacilityInvitation = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | ErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelFacilityInvitation>>, TError,CancelFacilityInvitationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
@@ -938,10 +924,7 @@ export type GetFacilityStationsQueryResult = NonNullable<Awaited<ReturnType<type
 export type GetFacilityStationsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
 
 
-/**
- * @summary Get the facility's production station lineup
- */
-
+/** @summary Get the facility's production station lineup */
 export function useGetFacilityStations<TData = Awaited<ReturnType<typeof getFacilityStations>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFacilityStations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
@@ -1036,6 +1019,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateFacilityStationsMutationVariables = {data: BodyType<FacilityStationLayoutUpdate>}
 
     /**
+ * Owners and managers can rename, reorder, archive, or add stations. Existing station identities must be retained. A stale revision returns the current lineup.
  * @summary Update the facility's production station lineup
  */
 export const useUpdateFacilityStations = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | FacilityStationLayoutConflict>,
@@ -1111,10 +1095,7 @@ export type ListRunsQueryResult = NonNullable<Awaited<ReturnType<typeof listRuns
 export type ListRunsQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>
 
 
-/**
- * @summary List runs for the authenticated facility
- */
-
+/** @summary List runs for the authenticated facility */
 export function useListRuns<TData = Awaited<ReturnType<typeof listRuns>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>>(
  params?: ListRunsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRuns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
@@ -1209,6 +1190,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateRunMutationVariables = {data: BodyType<RunCreateInput>}
 
     /**
+ * Reusing requestId with identical setup returns the original run; reusing it with different setup returns 409.
  * @summary Create a planned run
  */
 export const useCreateRun = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>,
@@ -1298,6 +1280,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ImportScheduleMutationVariables = {data: BodyType<ScheduleImportInput>}
 
     /**
+ * Rows before importDate are ignored. Repeating the same schedule with identical mappings is idempotent.
  * @summary Create planned runs from a reviewed production schedule
  */
 export const useImportSchedule = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | void>,
@@ -1366,10 +1349,7 @@ export type ListProductProfilesQueryResult = NonNullable<Awaited<ReturnType<type
 export type ListProductProfilesQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
 
 
-/**
- * @summary List product profiles for the authenticated facility
- */
-
+/** @summary List product profiles for the authenticated facility */
 export function useListProductProfiles<TData = Awaited<ReturnType<typeof listProductProfiles>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProductProfiles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
@@ -1462,9 +1442,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ImportProductProfileMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>
     export type ImportProductProfileMutationVariables = {data: BodyType<ProductProfileImportInput>}
 
-    /**
- * @summary Save a reviewed workbook as facility product data
- */
+    /** @summary Save a reviewed workbook as facility product data */
 export const useImportProductProfile = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importProductProfile>>, TError,ImportProductProfileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
@@ -1531,10 +1509,7 @@ export type ListImportBatchesQueryResult = NonNullable<Awaited<ReturnType<typeof
 export type ListImportBatchesQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
 
 
-/**
- * @summary List recent workbook imports for the authenticated facility
- */
-
+/** @summary List recent workbook imports for the authenticated facility */
 export function useListImportBatches<TData = Awaited<ReturnType<typeof listImportBatches>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listImportBatches>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
@@ -1628,9 +1603,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type RenameProductProfileMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
     export type RenameProductProfileMutationVariables = {profileId: string;data: BodyType<ProductProfileRenameInput>}
 
-    /**
- * @summary Rename an imported product profile
- */
+    /** @summary Rename an imported product profile */
 export const useRenameProductProfile = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameProductProfile>>, TError,RenameProductProfileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
@@ -1717,9 +1690,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type MergeProductProfileMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
     export type MergeProductProfileMutationVariables = {profileId: string;data: BodyType<ProductProfileMergeInput>}
 
-    /**
- * @summary Preserve a product profile inside another profile
- */
+    /** @summary Preserve a product profile inside another profile */
 export const useMergeProductProfile = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeProductProfile>>, TError,MergeProductProfileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
@@ -1786,10 +1757,7 @@ export type GetRunQueryResult = NonNullable<Awaited<ReturnType<typeof getRun>>>
 export type GetRunQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
 
 
-/**
- * @summary Get a run from the authenticated facility
- */
-
+/** @summary Get a run from the authenticated facility */
 export function useGetRun<TData = Awaited<ReturnType<typeof getRun>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
  runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRun>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
@@ -1883,9 +1851,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ApplyRunCommandMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | RunConflict | InvalidTransition>
     export type ApplyRunCommandMutationVariables = {runId: string;data: BodyType<RunCommandRequest>}
 
-    /**
- * @summary Apply a revision-guarded run lifecycle command
- */
+    /** @summary Apply a revision-guarded run lifecycle command */
 export const useApplyRunCommand = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | RunConflict | InvalidTransition>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyRunCommand>>, TError,ApplyRunCommandMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
@@ -1954,9 +1920,9 @@ export type GetRunStationProgressQueryError = ErrorType<UnauthorizedResponse | F
 
 
 /**
+ * Station timers follow the production line timer. Starting, pausing, resuming, or completing a run updates every station in the saved lineup together.
  * @summary Get station progress for a run
  */
-
 export function useGetRunStationProgress<TData = Awaited<ReturnType<typeof getRunStationProgress>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
  runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRunStationProgress>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
@@ -2030,10 +1996,7 @@ export type GetDashboardSummaryQueryResult = NonNullable<Awaited<ReturnType<type
 export type GetDashboardSummaryQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
 
 
-/**
- * @summary Get the facility's run summary and recent activity
- */
-
+/** @summary Get the facility's run summary and recent activity */
 export function useGetDashboardSummary<TData = Awaited<ReturnType<typeof getDashboardSummary>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDashboardSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 

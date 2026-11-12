@@ -893,7 +893,7 @@ test("independent signed-in sessions share canonical revisions and safe retries"
       actorUserId: "legacy-owner",
       requestId: "60000000-0000-4000-8000-000000000001",
       requestHash:
-        "bdb6e37d45b375fa4d9a9215a7352b1fd4b60d4ac35824f0c4db2833f1797355",
+        "488e49dfb13955da2f90e119cf91185174b8f9b1acad295ad59dc662bbec3541",
       runId: "20000000-0000-4000-8000-000000000001",
       createdAt: "2024-01-31T07:00:00.000Z",
     },
@@ -1021,6 +1021,7 @@ test("independent signed-in sessions share canonical revisions and safe retries"
   assert.deepEqual(created.run.setupSnapshot, {
     label: "Synthetic run",
     targetCases: 24,
+    productProfileId: null,
   });
 
   const replayedCreate = await createPlannedRun({

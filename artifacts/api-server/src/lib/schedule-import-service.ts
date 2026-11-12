@@ -1,9 +1,11 @@
 import { createHash } from "node:crypto";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, facilityImportBatchesTable, facilityProductProfilesTable, productionRunsTable } from "@workspace/db";
+import type { RunPlanningReview, RunRequirementsPlan } from "@workspace/api-zod";
 import { HttpError } from "./http-error";
 import { lockProfileNames } from "./profile-names";
 import { loadNameResolution, resolutionForProfile } from "./name-resolution";
+import { buildRunRequirements } from "./run-requirements";
 
 export type ScheduleImportRow = {
   date: string;
@@ -21,6 +23,7 @@ export type ScheduleImportInput = {
   importDate: string;
   ignoredPastCount: number;
   runs: ScheduleImportRow[];
+  planningByProfile: { productProfileId: string; review: RunPlanningReview }[];
 };
 
 function stableUuid(...parts: string[]) {
@@ -39,6 +42,9 @@ function requestHash(input: ScheduleImportInput, rows: ScheduleImportRow[], igno
       importDate: input.importDate,
       ignoredPastCount,
       runs: rows,
+      planningByProfile: [...input.planningByProfile].sort((a, b) =>
+        a.productProfileId.localeCompare(b.productProfileId),
+      ),
     }))
     .digest("hex");
 }
@@ -57,7 +63,8 @@ function previousImportResult(
   }
   if (
     typeof record.importedCount !== "number" ||
-    typeof record.ignoredPastCount !== "number"
+    typeof record.ignoredPastCount !== "number" ||
+    typeof record.needsReviewRunCount !== "number"
   ) {
     throw new HttpError(409, "This schedule import record is incomplete and cannot be replayed.");
   }
@@ -65,6 +72,7 @@ function previousImportResult(
     importId,
     importedCount: record.importedCount,
     ignoredPastCount: record.ignoredPastCount,
+    needsReviewRunCount: record.needsReviewRunCount,
     replayed: true,
   };
 }
@@ -140,9 +148,55 @@ export async function importSchedule(input: ScheduleImportInput & {
     }
 
     const resolution = await loadNameResolution(tx, input.facilityId);
+    const planningByProfile = new Map<string, RunPlanningReview>();
+    for (const selection of input.planningByProfile) {
+      if (planningByProfile.has(selection.productProfileId)) {
+        throw new HttpError(400, "Review each scheduled product profile exactly once before importing.");
+      }
+      planningByProfile.set(selection.productProfileId, selection.review);
+    }
+    if (
+      planningByProfile.size !== profileIds.length ||
+      profileIds.some((profileId) => !planningByProfile.has(profileId))
+    ) {
+      throw new HttpError(400, "Review every scheduled product profile before importing.");
+    }
+
+    for (const profileId of profileIds) {
+      const profile = profileById.get(profileId)!;
+      const review = planningByProfile.get(profileId)!;
+      if (
+        review.expectedProfileRevision !== profile.revision ||
+        review.expectedNameRevision !== resolution.revision
+      ) {
+        throw new HttpError(409, "A product profile or remembered name changed after its requirements were reviewed. Refresh and review the schedule again.");
+      }
+    }
+
+    const planCache = new Map<string, RunRequirementsPlan>();
     const runValues = normalizedRows.map((row) => {
       const profile = profileById.get(row.productProfileId)!;
       const nameResolution = resolutionForProfile(profile, resolution);
+      const review = planningByProfile.get(profile.id)!;
+      const planKey = JSON.stringify([
+        profile.id,
+        profile.revision,
+        resolution.revision,
+        row.casesPlanned,
+        review.options,
+      ]);
+      let runRequirements = planCache.get(planKey);
+      if (!runRequirements) {
+        if (planCache.size >= 500) {
+          throw new HttpError(413, "This schedule has too many distinct run sizes to calculate safely. Split it into smaller imports.");
+        }
+        runRequirements = buildRunRequirements(
+          { ...profile, ...(nameResolution ? { nameResolution } : {}) },
+          row.casesPlanned,
+          review.options,
+        );
+        planCache.set(planKey, runRequirements);
+      }
       return {
         id: stableUuid("scheduled-run", input.facilityId, normalizedInput.sourceHash, row.source.sheet, String(row.source.row)),
         facilityId: input.facilityId,
@@ -158,6 +212,7 @@ export async function importSchedule(input: ScheduleImportInput & {
           updatedAt: profile.updatedAt,
           mergedIntoId: profile.mergedIntoId,
           ...(nameResolution ? { nameResolution } : {}),
+          runRequirements,
         },
         targetCases: row.casesPlanned,
         status: "planned" as const,
@@ -186,11 +241,15 @@ export async function importSchedule(input: ScheduleImportInput & {
       insertedRuns.push(...inserted.map((run) => run.id));
     }
 
+    const needsReviewRunCount = runValues.filter(
+      (run) => run.productSnapshot?.runRequirements.status === "needs_review",
+    ).length;
     const summary = {
       requestHash: expectedHash,
       importDate: input.importDate,
       importedCount: insertedRuns.length,
       ignoredPastCount,
+      needsReviewRunCount,
     };
     const [batch] = await tx
       .insert(facilityImportBatchesTable)

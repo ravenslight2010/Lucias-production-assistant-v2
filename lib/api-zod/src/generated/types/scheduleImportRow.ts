@@ -19,7 +19,7 @@ export interface ScheduleImportRow {
   productProfileId: string;
   /**
      * @minimum 1
-     * @maximum 2147483647
+     * @maximum 1000000
      */
   casesPlanned: number;
   /** @maxLength 500 */

@@ -105,7 +105,22 @@ export async function verifyScheduleImport(page, baseURL, resumeAfterImport = nu
     await enabled(page.getByTestId('button-import-schedule'), false);
     await alias.selectOption(profiles[1].id);
     await exact.selectOption(profiles[0].id);
-    await enabled(page.getByTestId('button-import-schedule'), true);
+    await enabled(page.getByTestId('button-import-schedule'), false);
+    for (const [index, profile] of profiles.entries()) {
+      const card = page.getByTestId(`schedule-plan-product-${profile.id}`);
+      const totalCases = profile.flavor === 'Cheese' ? 153 : 75;
+      const runCount = profile.flavor === 'Cheese' ? 2 : 1;
+      await visibleText(card, `${totalCases} cases across ${runCount} scheduled ${runCount === 1 ? 'run' : 'runs'}`);
+      await card.getByTestId(`button-review-schedule-profile-${profile.id}`).click();
+      const editor = card.getByTestId('run-requirements-editor');
+      await editor.waitFor();
+      assert.equal(await editor.getByTestId('text-rr-cases').innerText(), String(totalCases));
+      await editor.getByTestId('input-rr-units-per-case').fill('8');
+      const recipe = editor.locator('select[data-testid^="select-rr-recipe-"]').first();
+      if (await recipe.count()) await recipe.selectOption('__direct__');
+      await visibleText(editor.getByTestId('status-rr-phase'), 'Preview current');
+      await enabled(page.getByTestId('button-import-schedule'), index === profiles.length - 1);
+    }
   };
   const submit = async () => {
     const response = page.waitForResponse((r) => r.url().endsWith('/api/v2/schedule-imports') && r.request().method() === 'POST');
@@ -129,13 +144,14 @@ export async function verifyScheduleImport(page, baseURL, resumeAfterImport = nu
   assert.equal(first.replayed, false);
   assert.equal(first.importedCount, 3);
   assert.equal(first.ignoredPastCount, 1);
-  if (!resumeAfterImport) await visibleText(page.getByTestId('schedule-preview'), '3 planned runs were created. 1 past row was ignored.');
+  if (!resumeAfterImport) await visibleText(page.getByTestId('schedule-preview'), '3 planned runs were created with saved requirements. 1 past row was ignored.');
   const history = page.getByTestId(`row-import-${first.importId}`);
   await visibleText(history, fixture.name);
   await visibleText(history, 'Production schedule · 3 planned runs');
   await visibleText(history, 'Applied');
   const runs = (await api('/api/v2/runs')).runs;
   assert.equal(runs.length, 3);
+  assert.equal(first.needsReviewRunCount, runs.filter((run) => run.productSnapshot?.runRequirements?.status === 'needs_review').length);
   const verifyRuns = async () => {
     await go('/runs');
     for (const expected of fixture.expected) {
@@ -146,7 +162,9 @@ export async function verifyScheduleImport(page, baseURL, resumeAfterImport = nu
       assert.equal(scheduledDate(run.scheduledFor), expected.date);
       assert.equal(run.setupSnapshot.targetCases, expected.casesPlanned);
       assert.equal(run.setupSnapshot.productProfileId, profile.id);
-      assert.deepEqual(run.productSnapshot, profile);
+      assert.deepEqual(run.productSnapshot.productData, profile.productData);
+      assert.equal(run.productSnapshot.runRequirements.targetCases, expected.casesPlanned);
+      assert.ok(['ready', 'needs_review'].includes(run.productSnapshot.runRequirements.status));
       assert.equal(run.scheduleNotes, expected.notes || null);
       assert.deepEqual(run.scheduleSource, {
         importId: first.importId, file: fixture.name, ...expected.source,
@@ -171,6 +189,7 @@ export async function verifyScheduleImport(page, baseURL, resumeAfterImport = nu
   assert.equal(replay.importId, first.importId);
   assert.equal(replay.importedCount, 3);
   assert.equal(replay.ignoredPastCount, 1);
+  assert.equal(replay.needsReviewRunCount, first.needsReviewRunCount);
   await visibleText(page.getByTestId('schedule-preview'), 'This schedule was already imported. 3 planned runs are linked to it.');
   const after = (await api('/api/v2/runs')).runs;
   assert.deepEqual(after, runs, 'Replay must leave all run IDs, snapshots, revisions and source data unchanged');

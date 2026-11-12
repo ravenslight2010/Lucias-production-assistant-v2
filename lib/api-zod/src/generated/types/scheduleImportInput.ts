@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ScheduleImportRow } from './scheduleImportRow.ts';
+import type { ScheduleProductPlanning } from './scheduleProductPlanning.ts';
 
 export interface ScheduleImportInput {
   /**
@@ -26,4 +27,9 @@ export interface ScheduleImportInput {
      * @maxItems 5000
      */
   runs: ScheduleImportRow[];
+  /**
+     * @minItems 1
+     * @maxItems 100
+     */
+  planningByProfile: ScheduleProductPlanning[];
 }

@@ -974,6 +974,7 @@ router.post(
         importId: response.importId,
         importedCount: response.importedCount,
         ignoredPastCount: response.ignoredPastCount,
+        needsReviewRunCount: response.needsReviewRunCount,
         replayed: response.replayed,
         facilityId: access.membership.facilityId,
       }, "Production schedule import processed");

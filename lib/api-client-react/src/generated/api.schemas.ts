@@ -745,12 +745,17 @@ export interface ScheduleImportRow {
   productProfileId: string;
   /**
      * @minimum 1
-     * @maximum 2147483647
+     * @maximum 1000000
      */
   casesPlanned: number;
   /** @maxLength 500 */
   notes: string;
   source: ScheduleImportRowSource;
+}
+
+export interface ScheduleProductPlanning {
+  productProfileId: string;
+  review: RunPlanningReview;
 }
 
 export interface ScheduleImportInput {
@@ -772,6 +777,11 @@ export interface ScheduleImportInput {
      * @maxItems 5000
      */
   runs: ScheduleImportRow[];
+  /**
+     * @minItems 1
+     * @maxItems 100
+     */
+  planningByProfile: ScheduleProductPlanning[];
 }
 
 export interface ScheduleImportResult {
@@ -780,6 +790,8 @@ export interface ScheduleImportResult {
   importedCount: number;
   /** @minimum 0 */
   ignoredPastCount: number;
+  /** @minimum 0 */
+  needsReviewRunCount: number;
   replayed: boolean;
 }
 

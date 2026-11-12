@@ -1,0 +1,62 @@
+.schedule-planning-section {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.schedule-planning-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.schedule-planning-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 10px;
+  background: hsl(var(--card));
+}
+
+.schedule-planning-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.schedule-planning-card-head h5 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+
+.schedule-planning-card-head p {
+  margin: 5px 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.schedule-planning-card-head .field-help {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.schedule-planning-toggle {
+  min-height: 44px;
+  width: 100%;
+  margin-top: 12px;
+  justify-content: center;
+}
+
+.schedule-planning-card .rr-editor {
+  margin-top: 14px;
+}
+
+@media (min-width: 760px) {
+  .schedule-planning-toggle {
+    width: auto;
+  }
+}

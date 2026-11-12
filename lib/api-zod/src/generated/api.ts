@@ -1006,7 +1006,7 @@ export const importScheduleBodyRunsItemBrandMax = 120;
 
 export const importScheduleBodyRunsItemFlavorMax = 120;
 
-export const importScheduleBodyRunsItemCasesPlannedMax = 2147483647;
+export const importScheduleBodyRunsItemCasesPlannedMax = 1000000;
 
 export const importScheduleBodyRunsItemNotesMax = 500;
 
@@ -1015,6 +1015,26 @@ export const importScheduleBodyRunsItemSourceSheetMax = 80;
 export const importScheduleBodyRunsItemSourceRowMax = 20000;
 
 export const importScheduleBodyRunsMax = 5000;
+
+export const importScheduleBodyPlanningByProfileItemReviewExpectedProfileRevisionMin = 0;
+
+export const importScheduleBodyPlanningByProfileItemReviewExpectedNameRevisionMin = 0;
+
+export const importScheduleBodyPlanningByProfileItemReviewOptionsUnitsPerCaseMax = 1000;
+
+export const importScheduleBodyPlanningByProfileItemReviewOptionsSectionIdMax = 200;
+
+export const importScheduleBodyPlanningByProfileItemReviewOptionsLinksItemItemIdMax = 200;
+
+export const importScheduleBodyPlanningByProfileItemReviewOptionsLinksItemRecipeIdMax = 200;
+
+export const importScheduleBodyPlanningByProfileItemReviewOptionsLinksItemAmountColumnMax = 100;
+
+export const importScheduleBodyPlanningByProfileItemReviewOptionsLinksItemBatchColumnMax = 10000;
+
+export const importScheduleBodyPlanningByProfileItemReviewOptionsLinksMax = 200;
+
+export const importScheduleBodyPlanningByProfileMax = 100;
 
 
 
@@ -1034,12 +1054,33 @@ export const ImportScheduleBody = zod.object({
   "sheet": zod.string().min(1).max(importScheduleBodyRunsItemSourceSheetMax),
   "row": zod.number().int().min(1).max(importScheduleBodyRunsItemSourceRowMax)
 })
-})).min(1).max(importScheduleBodyRunsMax)
+})).min(1).max(importScheduleBodyRunsMax),
+  "planningByProfile": zod.array(zod.object({
+  "productProfileId": zod.string().uuid(),
+  "review": zod.object({
+  "expectedProfileRevision": zod.number().int().min(importScheduleBodyPlanningByProfileItemReviewExpectedProfileRevisionMin),
+  "expectedNameRevision": zod.number().int().min(importScheduleBodyPlanningByProfileItemReviewExpectedNameRevisionMin),
+  "options": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(importScheduleBodyPlanningByProfileItemReviewOptionsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(importScheduleBodyPlanningByProfileItemReviewOptionsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(importScheduleBodyPlanningByProfileItemReviewOptionsLinksItemItemIdMax),
+  "recipeId": zod.string().max(importScheduleBodyPlanningByProfileItemReviewOptionsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(importScheduleBodyPlanningByProfileItemReviewOptionsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(importScheduleBodyPlanningByProfileItemReviewOptionsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(importScheduleBodyPlanningByProfileItemReviewOptionsLinksMax).optional()
+})
+})
+})).min(1).max(importScheduleBodyPlanningByProfileMax)
 })
 
 export const importScheduleResponseImportedCountMin = 0;
 
 export const importScheduleResponseIgnoredPastCountMin = 0;
+
+export const importScheduleResponseNeedsReviewRunCountMin = 0;
 
 
 
@@ -1047,6 +1088,7 @@ export const ImportScheduleResponse = zod.object({
   "importId": zod.string().uuid(),
   "importedCount": zod.number().int().min(importScheduleResponseImportedCountMin),
   "ignoredPastCount": zod.number().int().min(importScheduleResponseIgnoredPastCountMin),
+  "needsReviewRunCount": zod.number().int().min(importScheduleResponseNeedsReviewRunCountMin),
   "replayed": zod.boolean()
 })
 

@@ -36,13 +36,13 @@ test('fractional Excel times stay on their production day and today is eligible'
 });
 
 test('case quantities never silently round, accept malformed grouping, or use numeric code notation', () => {
-  const invalid = [1.5, -1, 0, '', '1e3', '0x10', '12,3', '1 2', 2_147_483_648];
+  const invalid = [1.5, -1, 0, '', '1e3', '0x10', '12,3', '1 2', 1_000_001, 2_147_483_648];
   const parsed = parseScheduleWorkbook(schedule('2026-11-12',
     [...invalid.map(n => ['Example', `Invalid ${String(n)}`, n]),
       ['Example', 'Grouped', '1,200'], ['Example', 'Whole decimal', '12.0']]), '2026-11-12');
   assert.equal(parsed.errors.length, invalid.length);
   assert.deepEqual(parsed.runs.map(r => r.casesPlanned), [1200, 12]);
-  assert.deepEqual(parsed.runs.map(r => r.source.row), [11, 12]);
+  assert.deepEqual(parsed.runs.map(r => r.source.row), [12, 13]);
 });
 
 test('past rows are excluded before quantity validation without hiding current-day errors', () => {

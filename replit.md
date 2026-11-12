@@ -47,11 +47,29 @@ Details: `docs/replit-github-sync.md`.
 - Clerk remains the V2 sign-in provider. The API issues a short-lived `v2_session` bound to the currently verified Clerk user and session; run requests still resolve facility membership and role from PostgreSQL on every request. Never accept or transfer V1 cookies, sessions, or credentials.
 - A lifecycle change, its receipt, audit event, and outbox event are committed in one database transaction.
 - V1 historical runs are not imported; opening inventory at cutover must come from a new physical count.
-- The separate-project Reserved VM pilot is not yet complete: confirm the VM configuration, verify a compute restart and harmless published update, and measure the database connection peak during an instrumented overlap. The pilot is a gate before more feature work. Use only a disposable V2 database and synthetic data; never test against V1.
+- The separate-project Reserved VM pilot remains unverified. Feature work may continue with a disposable V2 database and synthetic data, but do not claim operational readiness or perform production cutover until the VM configuration, compute restart, harmless published update, and instrumented connection-overlap check are verified. Never test against V1.
 
 ## Product
 
-The current slice supports facility setup, draft run creation, run listing, and start/pause/resume/complete controls. Facility members can view the V1-map station lineup; owners and managers can edit it with revision checks. Dashboard, run list, and run detail refresh periodically while online; offline views are read-only. Station-level production operations, imports and synchronization, automatic tracking, and inventory workflows are not implemented yet.
+Lucia's Production Assistant is for pizza-line production planning, scheduling, and inventory for floor staff. V2 is a purpose-first rebuild, not a feature-for-feature V1 clone. Keep the V2 facility, revision, idempotency, and transaction model; never restore V1 credentials, databases, or synchronization stacks.
+
+### Current capabilities and gaps
+
+- Facility identity, membership, invitations, revision-safe run lifecycle, run history, dashboard summaries, and editable facility station lineups are implemented.
+- Station status and elapsed timers follow the production-line timer. Per-station counts, pulls, and stage confirmation are still incomplete.
+- Workbook import supports product profiles, name cleanup, and schedule-created planned runs. Schedule runs now carry reviewed, separately calculated requirement snapshots, but the real-workbook-to-floor day-plan path remains partial and must be verified before calling V2 purpose-complete.
+- The run-requirements planner is pre-run calculation and source review. It is not the live station production calculator.
+- Inventory deduction from confirmed production and minimal run-tied quality checks are not implemented.
+- The separate-project Reserved VM pilot is still unverified; continue using only synthetic data in the disposable V2 database.
+
+### Purpose-first build order
+
+1. Harden the day-plan import path from real workbooks into runs and station preparation. Keep the user's workbook-family priority in the V1 import-to-run memory.
+2. Complete station execution: progress, counts, and preparation pulls against the facility lineup, while every station continues to follow the line timer.
+3. Build trusted live production math on the V2 run and station state; do not port the V1 sync engine.
+4. Deduct inventory from confirmed run or station events; use a new physical count for any inventory cutover.
+5. Add only minimal quality checks tied to a run.
+6. Defer templates, broad multi-day lookahead, advanced shipping/allergen programs, and AI diagnostics until a full day can run on V2.
 
 ## User preferences
 

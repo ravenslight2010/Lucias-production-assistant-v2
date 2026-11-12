@@ -16,8 +16,9 @@ import {
   useMergeProductProfile,
   useRenameProductProfile,
 } from '@workspace/api-client-react';
-import type { NameResolution, ProductProfile, ProductProfileNameMapping, ProductProfileImportInput, ScheduleImportInput } from '@workspace/api-client-react';
+import type { NameResolution, ProductProfile, ProductProfileNameMapping, ProductProfileImportInput, RunPlanningReview, RunRequirementsPlan, ScheduleImportInput } from '@workspace/api-client-react';
 import { NameLibraryPanel } from '../components/name-library';
+import { RunRequirementsEditor } from '../components/run-requirements';
 import { indexProductNames, productNameKey as scheduleProductKey } from '../importing/product-names';
 import { resolveReferenceName } from '../importing/reference-names';
 import { OperationalSetupSummary } from '../components/operational-setup-summary';
@@ -43,6 +44,7 @@ import {
   type ParsedWorkbook,
   type ProductSpecProfileCandidate,
 } from '../importing/workbook';
+import './imports.css';
 
 const kindLabels: Record<ImportKind, string> = {
   product_specs: 'Product specifications',
@@ -128,6 +130,12 @@ type ProductSpecDraft = ProductSpecProfileCandidate & {
   extracted?: ProductSpecData;
   saveState?: 'saving' | 'saved' | 'failed';
   saveError?: string;
+};
+
+type SchedulePlanningReview = {
+  targetCases: number;
+  review: RunPlanningReview;
+  status: RunRequirementsPlan['status'];
 };
 
 function prepareProductSpecDrafts(workbook: ParsedWorkbook): ProductSpecDraft[] {
@@ -465,6 +473,8 @@ function WorkbookReview({
     [workbook],
   );
   const [scheduleProfileChoices, setScheduleProfileChoices] = useState<Record<string, string>>({});
+  const [schedulePlanningReviews, setSchedulePlanningReviews] = useState<Record<string, SchedulePlanningReview>>({});
+  const [schedulePlanningOpenProfileId, setSchedulePlanningOpenProfileId] = useState<string | null>(null);
   const activeProfileByProduct = useMemo(
     () => indexProductNames(profiles, nameMappings, referenceNames?.rules),
     [profiles, nameMappings, referenceNames],
@@ -514,6 +524,54 @@ function WorkbookReview({
     return { ...product, chosenId, selectedProfile: profiles.find((profile) => profile.id === chosenId) };
   });
   const hasScheduleMappings = profilesReady && resolvedScheduleProducts.length > 0 && resolvedScheduleProducts.every((product) => Boolean(product.selectedProfile));
+  const schedulePlanningGroups = (() => {
+    const profileByProduct = new Map(
+      resolvedScheduleProducts.flatMap((product) => product.selectedProfile
+        ? [[product.key, product.selectedProfile] as const]
+        : []),
+    );
+    const groups = new Map<string, {
+      profile: ProductProfile;
+      cases: number;
+      runs: number;
+      sourceProducts: Set<string>;
+    }>();
+    for (const run of schedulePreview?.runs ?? []) {
+      const profile = profileByProduct.get(scheduleProductKey(run.brand, run.flavor));
+      if (!profile) continue;
+      const group = groups.get(profile.id) ?? {
+        profile,
+        cases: 0,
+        runs: 0,
+        sourceProducts: new Set<string>(),
+      };
+      group.cases += run.casesPlanned;
+      group.runs++;
+      group.sourceProducts.add(`${run.brand} / ${run.flavor || 'No flavor listed'}`);
+      groups.set(profile.id, group);
+    }
+    return [...groups.values()].map((group) => ({
+      ...group,
+      sourceProducts: [...group.sourceProducts].sort((a, b) => a.localeCompare(b)),
+    })).sort((a, b) =>
+      a.profile.brand.localeCompare(b.profile.brand) || a.profile.flavor.localeCompare(b.profile.flavor),
+    );
+  })();
+  const hasCurrentScheduleReview = (profile: ProductProfile, cases: number) => {
+    const saved = schedulePlanningReviews[profile.id];
+    return saved?.targetCases === Math.min(cases, 1_000_000) &&
+      saved.review.expectedProfileRevision === profile.revision &&
+      saved.review.expectedNameRevision === (referenceNames?.revision ?? 0);
+  };
+  const hasSchedulePlanning = schedulePlanningGroups.length > 0 &&
+    schedulePlanningGroups.length <= 100 &&
+    schedulePlanningGroups.every((group) => {
+      const saved = schedulePlanningReviews[group.profile.id];
+      return group.cases <= 1_000_000 &&
+        saved?.targetCases === group.cases &&
+        saved.review.expectedProfileRevision === group.profile.revision &&
+        saved.review.expectedNameRevision === (referenceNames?.revision ?? 0);
+    });
   const hasProductSpecDrafts = kind === 'product_specs' && productSpecDrafts.length > 0;
   const unsavedProductSpecCount = productSpecDrafts.filter((draft) => draft.saveState !== 'saved').length;
   const profileBrand = brand;
@@ -533,6 +591,8 @@ function WorkbookReview({
     setScheduleVisibleRows(50);
     setScheduleImportDate(localDateString());
     setScheduleProfileChoices({});
+    setSchedulePlanningReviews({});
+    setSchedulePlanningOpenProfileId(null);
     setProductSpecDrafts([]);
     setDoughPortionKey('');
     setDoughBatchColumn(0);
@@ -563,6 +623,13 @@ function WorkbookReview({
     if (previewMode || !workbook || !sourceFile || !kind) return;
     if (kind === 'schedule') {
       const importDate = localDateString();
+      if (scheduleImportDate !== importDate) {
+        setScheduleImportDate(importDate);
+        setSchedulePlanningReviews({});
+        setSchedulePlanningOpenProfileId(null);
+        setValidation('The import date changed after this schedule was reviewed. Review the updated rows and requirements before importing.');
+        return;
+      }
       setScheduleImportDate(importDate);
       const preview = parseScheduleWorkbook(workbook, importDate);
       if (preview.errors.length) {
@@ -589,6 +656,32 @@ function WorkbookReview({
         }
         mappings.set(product.key, profile);
       }
+      const casesByProfile = new Map<string, number>();
+      for (const run of preview.runs) {
+        const profile = mappings.get(scheduleProductKey(run.brand, run.flavor))!;
+        casesByProfile.set(profile.id, (casesByProfile.get(profile.id) ?? 0) + run.casesPlanned);
+      }
+      const planningByProfile: ScheduleImportInput['planningByProfile'] = [];
+      for (const [profileId, cases] of casesByProfile) {
+        const profile = profiles.find((candidate) => candidate.id === profileId);
+        const saved = schedulePlanningReviews[profileId];
+        if (
+          !profile ||
+          !saved ||
+          saved.targetCases !== Math.min(cases, 1_000_000) ||
+          saved.review.expectedProfileRevision !== profile.revision ||
+          saved.review.expectedNameRevision !== (referenceNames?.revision ?? 0)
+        ) {
+          setSchedulePlanningOpenProfileId(profileId);
+          setValidation('Review the requirements for every mapped product again before importing. Product or name changes invalidate an older review.');
+          return;
+        }
+        planningByProfile.push({ productProfileId: profileId, review: saved.review });
+      }
+      if (planningByProfile.length === 0 || planningByProfile.length > 100) {
+        setValidation('Review up to 100 distinct product profiles per schedule import. Split larger schedules into smaller imports.');
+        return;
+      }
       setValidation('');
       setSavedMessage('');
       try {
@@ -597,6 +690,7 @@ function WorkbookReview({
           sourceHash: await sha256(sourceFile),
           importDate,
           ignoredPastCount: preview.ignoredPastCount,
+          planningByProfile,
           runs: preview.runs.map((run) => ({
             date: run.date,
             brand: run.brand,
@@ -611,7 +705,7 @@ function WorkbookReview({
           onSuccess: (result) => {
             setSavedMessage(result.replayed
               ? `This schedule was already imported. ${result.importedCount} planned runs are linked to it.`
-              : `${result.importedCount} planned ${result.importedCount === 1 ? 'run was' : 'runs were'} created.${result.ignoredPastCount ? ` ${result.ignoredPastCount} past ${result.ignoredPastCount === 1 ? 'row was' : 'rows were'} ignored.` : ''}`);
+              : `${result.importedCount} planned ${result.importedCount === 1 ? 'run was' : 'runs were'} created with saved requirements.${result.needsReviewRunCount ? ` ${result.needsReviewRunCount} ${result.needsReviewRunCount === 1 ? 'run has' : 'runs have'} unresolved source items to review.` : ''}${result.ignoredPastCount ? ` ${result.ignoredPastCount} past ${result.ignoredPastCount === 1 ? 'row was' : 'rows were'} ignored.` : ''}`);
             refreshProfileLibraries(client);
             void client.invalidateQueries({ queryKey: getListImportBatchesQueryKey() });
             void client.invalidateQueries({ queryKey: getListRunsQueryKey() });
@@ -1239,15 +1333,90 @@ function WorkbookReview({
                   {profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.brand} / {profile.flavor} · rev {profile.revision}</option>)}
                 </select>
               </div>)}</div>
+              <section className="schedule-planning-section" aria-labelledby="schedule-planning-heading" data-testid="schedule-planning-review">
+                <div className="section-heading">
+                  <div><div className="eyebrow">Before creating runs</div><h4 id="schedule-planning-heading">Review product requirements</h4></div>
+                  <span className="field-help" data-testid="text-schedule-planning-progress">
+                    {schedulePlanningGroups.filter((group) => hasCurrentScheduleReview(group.profile, group.cases)).length} of {schedulePlanningGroups.length} products reviewed
+                  </span>
+                </div>
+                <p className="field-help">
+                  Review source choices once for each selected product profile. Each schedule row will still become its own planned run with requirements recalculated for that row’s case count.
+                </p>
+                {schedulePlanningGroups.length > 100 && <div className="notice" role="alert">This schedule maps to more than 100 product profiles. Split it into smaller imports to review each product safely.</div>}
+                <div className="schedule-planning-list">
+                  {schedulePlanningGroups.map((group) => {
+                    const current = hasCurrentScheduleReview(group.profile, group.cases);
+                    const saved = schedulePlanningReviews[group.profile.id];
+                    const expanded = schedulePlanningOpenProfileId === group.profile.id;
+                    const sourceLabels = group.sourceProducts.slice(0, 3).join(' · ');
+                    const moreSources = group.sourceProducts.length - 3;
+                    return (
+                      <article className="schedule-planning-card" key={group.profile.id} data-testid={`schedule-plan-product-${group.profile.id}`}>
+                        <div className="schedule-planning-card-head">
+                          <div>
+                            <h5>{group.profile.brand} / {group.profile.flavor}</h5>
+                            <p>{group.cases.toLocaleString()} cases across {group.runs.toLocaleString()} scheduled {group.runs === 1 ? 'run' : 'runs'}</p>
+                            <span className="field-help">Schedule labels: {sourceLabels}{moreSources > 0 ? ` · +${moreSources} more` : ''}</span>
+                          </div>
+                          <span className={`rr-chip ${current && saved?.status === 'ready' ? 'rr-chip-ok' : 'rr-chip-review'}`} data-testid={`status-schedule-plan-${group.profile.id}`}>
+                            {current ? saved?.status === 'ready' ? 'Requirements ready' : 'Unresolved source items' : 'Review required'}
+                          </span>
+                        </div>
+                        <button
+                          className="button button-secondary schedule-planning-toggle"
+                          type="button"
+                          aria-expanded={expanded}
+                          aria-controls={`schedule-planning-editor-${group.profile.id}`}
+                          data-testid={`button-review-schedule-profile-${group.profile.id}`}
+                          disabled={!online || scheduleImporter.isPending}
+                          onClick={() => setSchedulePlanningOpenProfileId(expanded ? null : group.profile.id)}
+                        >
+                          {expanded ? 'Hide requirements review' : current ? 'Reopen requirements review' : 'Review requirements'}
+                        </button>
+                        <div id={`schedule-planning-editor-${group.profile.id}`} hidden={!expanded}>
+                          {expanded && <RunRequirementsEditor
+                            key={`${group.profile.id}:${Math.min(group.cases, 1_000_000)}:${group.profile.revision}:${referenceNames?.revision ?? 0}`}
+                            profileId={group.profile.id}
+                            targetCases={Math.min(group.cases, 1_000_000)}
+                            online={online}
+                            heading="Confirm this product’s source formulas"
+                            description={group.cases > 1_000_000
+                              ? 'This source-choice preview is capped at 1,000,000 cases. Each scheduled row is calculated separately using its own case count.'
+                              : 'This review covers the scheduled cases mapped here so you can confirm the source and recipe choices. Each scheduled row is calculated separately using its own case count.'}
+                            previewLabel={group.cases > 1_000_000
+                              ? 'Source-choice preview capped at 1,000,000 cases'
+                              : 'Selection preview · runs calculated separately'}
+                            onReviewChange={(review, plan) => {
+                              setSchedulePlanningReviews((currentReviews) => {
+                                if (!review || !plan) {
+                                  if (!currentReviews[group.profile.id]) return currentReviews;
+                                  const nextReviews = { ...currentReviews };
+                                  delete nextReviews[group.profile.id];
+                                  return nextReviews;
+                                }
+                                return {
+                                  ...currentReviews,
+                                  [group.profile.id]: { targetCases: Math.min(group.cases, 1_000_000), review, status: plan.status },
+                                };
+                              });
+                            }}
+                          />}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
               {!profilesReady && <div className="field-help" role="status">Loading active product profiles…</div>}
               {profilesReady && profiles.length === 0 && <div className="notice" role="status">Create product profiles from product workbooks before importing a schedule.</div>}
               {schedulePreview.runs.length > 0 && <div style={{ marginTop: 14 }}>
                 {validation && <div className="error-banner" role="alert">{validation}</div>}
                 {scheduleImporter.isError && <div className={errorStatus(scheduleImporter.error) === 409 ? 'notice' : 'error-banner'} role="alert">{errorText(scheduleImporter.error, 'Schedule import failed. No partial runs were saved.')}</div>}
                 {savedMessage && <div className="notice" role="status"><ShieldCheck size={15} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />{savedMessage}</div>}
-                <button className="button button-primary" type="submit" disabled={previewMode || !online || scheduleImporter.isPending || !hasScheduleMappings || schedulePreview.errors.length > 0} data-testid="button-import-schedule">
+                <button className="button button-primary" type="submit" disabled={previewMode || !online || scheduleImporter.isPending || !hasScheduleMappings || !hasSchedulePlanning || schedulePreview.errors.length > 0} data-testid="button-import-schedule">
                   {scheduleImporter.isPending ? <LoaderCircle size={16} className="spin" /> : <ArrowDownToLine size={16} />}
-                  {scheduleImporter.isPending ? 'Creating planned runs…' : `Import ${schedulePreview.runs.length} planned ${schedulePreview.runs.length === 1 ? 'run' : 'runs'}`}
+                  {scheduleImporter.isPending ? 'Creating reviewed run plans…' : `Import ${schedulePreview.runs.length} planned ${schedulePreview.runs.length === 1 ? 'run' : 'runs'}`}
                 </button>
               </div>}
             </section>}

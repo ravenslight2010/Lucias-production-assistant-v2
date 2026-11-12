@@ -10,9 +10,10 @@ import type {
 } from '@workspace/api-client-react';
 import './run-requirements.css';
 
-type ReviewCallback = (review: RunPlanningReview | null) => void;
+type ReviewCallback = (review: RunPlanningReview | null, plan: RunRequirementsPlan | null) => void;
 type Base = { profileRevision: number; nameRevision: number };
 type Phase = 'loading' | 'calculating' | 'current' | 'error' | 'conflict' | 'invalid';
+const DEFAULT_DESCRIPTION = 'Per-pizza usage is multiplied by total pizzas. Shared batch recipes are then rounded up to whole batches. Nothing here is approved for production until each line is resolved.';
 
 const USAGE_UNITS = Object.values(RunRecipeLinkUsageUnit);
 const DIRECT = '__direct__';
@@ -55,11 +56,22 @@ function linkFromItem(item: RunRequirementItem): RunRecipeLink {
 /* Editor                                                              */
 /* ------------------------------------------------------------------ */
 
-export function RunRequirementsEditor({ profileId, targetCases, online, onReviewChange }: {
+export function RunRequirementsEditor({
+  profileId,
+  targetCases,
+  online,
+  onReviewChange,
+  heading = 'Confirm how this run will be prepared',
+  description = DEFAULT_DESCRIPTION,
+  previewLabel,
+}: {
   profileId: string;
   targetCases: number;
   online: boolean;
   onReviewChange: ReviewCallback;
+  heading?: string;
+  description?: string;
+  previewLabel?: string;
 }) {
   const callbackRef = useRef(onReviewChange);
   callbackRef.current = onReviewChange;
@@ -84,7 +96,7 @@ export function RunRequirementsEditor({ profileId, targetCases, online, onReview
 
   // Initial / user-requested base load (no review): captures revisions as reviewed base.
   useEffect(() => {
-    callbackRef.current(null);
+    callbackRef.current(null, null);
     if (!validCases || !online) { setPhase(validCases ? 'error' : 'invalid'); setMessage(validCases ? 'Offline. Requirements load when the connection returns.' : 'Enter a whole target case count to calculate requirements.'); return; }
     const controller = new AbortController();
     const epoch = requestEpoch.current;
@@ -134,11 +146,11 @@ export function RunRequirementsEditor({ profileId, targetCases, online, onReview
           setPlan(result);
           setPhase('current');
           setMessage('');
-          callbackRef.current(review);
+          callbackRef.current(review, result);
         })
         .catch((error: unknown) => {
           if (controller.signal.aborted || isAbort(error) || epoch !== requestEpoch.current) return;
-          callbackRef.current(null);
+          callbackRef.current(null, null);
           if (errorStatus(error) === 409) {
             setPhase('conflict');
             setMessage('The product profile or name library changed after you began reviewing. Your choices are kept, but they were reviewed against an older version.');
@@ -153,7 +165,7 @@ export function RunRequirementsEditor({ profileId, targetCases, online, onReview
 
   const change = (next: (current: RunPlanningOptions) => RunPlanningOptions) => {
     requestEpoch.current += 1;
-    callbackRef.current(null);
+    callbackRef.current(null, null);
     setDraft((current) => (current ? next(current) : current));
     setNonce((n) => n + 1);
   };
@@ -174,7 +186,7 @@ export function RunRequirementsEditor({ profileId, targetCases, online, onReview
     const parsed = Number(value);
     if (value.trim() === '' || !Number.isInteger(parsed) || parsed < 1 || parsed > 1000) {
       requestEpoch.current += 1;
-      callbackRef.current(null);
+      callbackRef.current(null, null);
       setCasesError('Enter a whole number of pizzas per case from 1 to 1000.');
       setPhase('invalid');
       return;
@@ -185,7 +197,7 @@ export function RunRequirementsEditor({ profileId, targetCases, online, onReview
 
   const reloadBase = (keepChoices: boolean) => {
     requestEpoch.current += 1;
-    callbackRef.current(null);
+    callbackRef.current(null, null);
     keepDraftOnReload.current = keepChoices;
     setBase(null);
     setBaseNonce((n) => n + 1);
@@ -201,8 +213,8 @@ export function RunRequirementsEditor({ profileId, targetCases, online, onReview
       <div className="rr-editor-head">
         <div>
           <div className="eyebrow">Run requirements review</div>
-          <h3 id={`rr-editor-title-${profileId}`}>Confirm how this run will be prepared</h3>
-          <p className="field-help">Per-pizza usage is multiplied by total pizzas. Shared batch recipes are then rounded up to whole batches. Nothing here is approved for production until each line is resolved.</p>
+          <h3 id={`rr-editor-title-${profileId}`}>{heading}</h3>
+          <p className="field-help">{description}</p>
         </div>
         <EditorStatus phase={phase} base={base} />
       </div>
@@ -230,7 +242,7 @@ export function RunRequirementsEditor({ profileId, targetCases, online, onReview
         <div className="error-banner" role="alert" data-testid="status-rr-error">
           {message}
           <div className="control-row">
-            <button type="button" className="button button-secondary" disabled={!online} onClick={() => (base && draft ? (callbackRef.current(null), setNonce((n) => n + 1)) : reloadBase(false))} data-testid="button-rr-retry">
+              <button type="button" className="button button-secondary" disabled={!online} onClick={() => (base && draft ? (callbackRef.current(null, null), setNonce((n) => n + 1)) : reloadBase(false))} data-testid="button-rr-retry">
               <RefreshCw size={15} aria-hidden="true" /> Try again
             </button>
           </div>
@@ -337,7 +349,7 @@ export function RunRequirementsEditor({ profileId, targetCases, online, onReview
       {plan && (
         <div className={phase === 'current' ? undefined : 'rr-stale'} aria-hidden={phase === 'loading' ? true : undefined}>
           {phase !== 'current' && phase !== 'loading' && <p className="rr-stale-note" role="status">{phase === 'calculating' ? 'Recalculating…' : 'Preview below reflects the last successful calculation, not your current choices.'}</p>}
-          <RunRequirementsSummary plan={plan} />
+          <RunRequirementsSummary plan={plan} previewLabel={previewLabel} />
         </div>
       )}
     </section>
@@ -345,7 +357,7 @@ export function RunRequirementsEditor({ profileId, targetCases, online, onReview
 }
 
 function EditorStatus({ phase, base }: { phase: Phase; base: Base | null }) {
-  const label = { loading: 'Loading', calculating: 'Recalculating', current: 'Preview saved for run', error: 'Not current', conflict: 'Out of date', invalid: 'Input needed' }[phase];
+  const label = { loading: 'Loading', calculating: 'Recalculating', current: 'Preview current', error: 'Not current', conflict: 'Out of date', invalid: 'Input needed' }[phase];
   return (
     <div className="rr-editor-status" data-testid="status-rr-phase">
       <span className={`rr-chip ${phase === 'current' ? 'rr-chip-ok' : phase === 'calculating' || phase === 'loading' ? '' : 'rr-chip-review'}`}>
@@ -369,7 +381,11 @@ function IssueList({ issues, label }: { issues: string[]; label: string }) {
 /* Summary (no network)                                                */
 /* ------------------------------------------------------------------ */
 
-export function RunRequirementsSummary({ plan, runId }: { plan: RunRequirementsPlan; runId?: string }) {
+export function RunRequirementsSummary({ plan, runId, previewLabel }: {
+  plan: RunRequirementsPlan;
+  runId?: string;
+  previewLabel?: string;
+}) {
   const section = plan.sections.find((s) => s.id === plan.sectionId) ?? null;
   const recipesById = useMemo(() => new Map(plan.recipes.map((r) => [r.id, r])), [plan.recipes]);
   const byStation = useMemo(() => {
@@ -388,7 +404,7 @@ export function RunRequirementsSummary({ plan, runId }: { plan: RunRequirementsP
         <div>
           <div className="eyebrow">Station preparation sheet</div>
           <h3>{plan.productLabel} requirements</h3>
-          <span className="rr-meta">{runId ? `Captured run ${runId}` : 'Planning preview · not yet saved to a run'}</span>
+          <span className="rr-meta">{runId ? `Captured run ${runId}` : previewLabel ?? 'Planning preview · not yet saved to a run'}</span>
           <span className="rr-meta">Profile rev {plan.profileRevision} · names rev {plan.nameRevision}{section ? ` · section ${section.label} (${section.source})` : ''}</span>
         </div>
         <div className="rr-sheet-actions">

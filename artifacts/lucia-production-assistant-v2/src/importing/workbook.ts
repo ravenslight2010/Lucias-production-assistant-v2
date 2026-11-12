@@ -298,7 +298,7 @@ export function parseScheduleWorkbook(workbook: ParsedWorkbook, importDate?: str
           : NaN;
         if (!Number.isSafeInteger(quantity)) { errors.push({ sheet: sheet.name, row: next + 1, message: `Cases must be a whole number; source units: ${units || "(blank)"}` }); continue; }
         const casesPlanned = quantity;
-        if (casesPlanned < 1 || casesPlanned > 2_147_483_647) { errors.push({ sheet: sheet.name, row: next + 1, message: "Cases must be between 1 and 2,147,483,647 to create a planned run" }); continue; }
+        if (casesPlanned < 1 || casesPlanned > 1_000_000) { errors.push({ sheet: sheet.name, row: next + 1, message: "Cases must be between 1 and 1,000,000 to calculate run requirements" }); continue; }
         const noteParts = [
           customerCol >= 0 ? cellText(cells[customerCol]) : "",
           poCol >= 0 && cellText(cells[poCol]) ? `PO ${cellText(cells[poCol])}` : "",

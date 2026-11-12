@@ -129,9 +129,18 @@ test("new manual and scheduled runs freeze name decisions; later renames never r
   const snapshot = created.run.productSnapshot as ProductProfile;
   assert.equal(resolveName(ref("recipe", "Lucia Style"), snapshot.nameResolution!.rules).name, "Lucia Sauce");
   assert.deepEqual(snapshot.productData, profile.productData);
+  const currentNames = await getNameLibrary(facilityId);
   await importSchedule({
     facilityId, actorUserId: "synthetic-name-test", sourceName: "synthetic.xlsx", sourceHash: "d".repeat(64),
     importDate: "2099-01-01", ignoredPastCount: 0,
+    planningByProfile: [{
+      productProfileId: profile.id,
+      review: {
+        expectedProfileRevision: profile.revision,
+        expectedNameRevision: currentNames.resolution.revision,
+        options: {},
+      },
+    }],
     runs: [{ date: "2099-01-01", brand: "Lucia", flavor: "Cheese", productProfileId: profile.id,
       casesPlanned: 12, notes: "", source: { sheet: "Plan", row: 2 } }],
   });

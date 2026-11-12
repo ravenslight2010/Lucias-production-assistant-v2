@@ -12,5 +12,7 @@ export interface ScheduleImportResult {
   importedCount: number;
   /** @minimum 0 */
   ignoredPastCount: number;
+  /** @minimum 0 */
+  needsReviewRunCount: number;
   replayed: boolean;
 }

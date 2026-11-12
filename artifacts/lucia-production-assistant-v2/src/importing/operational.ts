@@ -495,7 +495,7 @@ export function parseOperationalWorkbook(
 }
 
 export function filterShippingWorkbookByBrand(data: OperationalWorkbookData, brand: string): OperationalWorkbookData {
-  const normalize = (value: string) => value.normalize('NFKC').replace(/[‘’]/g, "'").trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+  const normalize = normalizeShippingBrand;
   const sheets = data.sheets.map((sheet) => ({
     ...sheet,
     shippingRecords: sheet.shippingRecords.filter((record) => normalize(record.brand) === normalize(brand)),
@@ -504,4 +504,15 @@ export function filterShippingWorkbookByBrand(data: OperationalWorkbookData, bra
     throw new Error(`No shipping rows match the selected profile brand “${brand}”. Choose a profile whose brand appears in this workbook.`);
   }
   return { ...data, filteredToBrand: brand, sheets };
+}
+
+export function normalizeShippingBrand(value: string) {
+  return value.normalize('NFKC').replace(/[‘’]/g, "'").trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+}
+
+export function shippingRowCountForBrand(data: OperationalWorkbookData, brand: string) {
+  const normalizedBrand = normalizeShippingBrand(brand);
+  return data.sheets.reduce((count, sheet) =>
+    count + sheet.shippingRecords.filter((record) => normalizeShippingBrand(record.brand) === normalizedBrand).length,
+  0);
 }

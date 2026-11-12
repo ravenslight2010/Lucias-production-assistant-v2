@@ -70,6 +70,7 @@ import { executeRunCommand } from "../lib/run-command-service";
 import { getRunStationProgress } from "../lib/run-station-progress-service";
 import { createPlannedRun } from "../lib/run-create-service";
 import { importSchedule } from "../lib/schedule-import-service";
+import { shippingDataMatchesBrand } from "../lib/shipping-import-validation";
 import { toContractRun } from "../lib/run-contract";
 import {
   DEFAULT_FACILITY_STATIONS,
@@ -990,9 +991,14 @@ router.post(
       /[/\\\u0000-\u001f]/.test(sourceName) ||
       !/^[a-f0-9]{64}$/i.test(input.sourceHash) ||
       input.importKind === "schedule" ||
-      !safeJsonPayload(input.productData)
+      !safeJsonPayload(input.productData) ||
+      (input.importKind === "shipping" && !shippingDataMatchesBrand(input.productData, brand))
     ) {
-      res.status(400).json({ error: "This workbook cannot be saved as product setup data." });
+      res.status(400).json({
+        error: input.importKind === "shipping"
+          ? "Shipping details must contain rows for only the target profile brand."
+          : "This workbook cannot be saved as product setup data.",
+      });
       return;
     }
     const access = await membershipOrRespond(req, res);

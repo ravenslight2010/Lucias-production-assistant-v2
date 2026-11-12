@@ -17,7 +17,14 @@ import {
 } from '@workspace/api-client-react';
 import type { ProductProfile, ProductProfileImportInput, ScheduleImportInput } from '@workspace/api-client-react';
 import { OperationalSetupSummary } from '../components/operational-setup-summary';
-import { filterShippingWorkbookByBrand, parseOperationalWorkbook, type OperationalImportKind, type OperationalWorkbookData } from '../importing/operational';
+import {
+  filterShippingWorkbookByBrand,
+  normalizeShippingBrand,
+  parseOperationalWorkbook,
+  shippingRowCountForBrand,
+  type OperationalImportKind,
+  type OperationalWorkbookData,
+} from '../importing/operational';
 import {
   IMPORT_KINDS,
   parseProductSpecProfiles,
@@ -242,7 +249,7 @@ function WorkbookReview({
   const [sheetFilter, setSheetFilter] = useState('');
   const [brand, setBrand] = useState('');
   const [flavor, setFlavor] = useState('');
-  const [shippingProfileId, setShippingProfileId] = useState('');
+  const [shippingImportStates, setShippingImportStates] = useState<Record<string, { status: 'saving' | 'saved' | 'failed'; error?: string }>>({});
   const [productSpecDrafts, setProductSpecDrafts] = useState<ProductSpecDraft[]>(() =>
     initialWorkbook?.kind === 'product_specs' ? parseProductSpecProfiles(initialWorkbook) : [],
   );
@@ -291,9 +298,37 @@ function WorkbookReview({
     () => new Map(profiles.map((profile) => [scheduleProductKey(profile.brand, profile.flavor), profile])),
     [profiles],
   );
-  const selectedShippingProfile = kind === 'shipping'
-    ? profiles.find((profile) => profile.id === shippingProfileId)
-    : undefined;
+  const shippingTargets = useMemo(() => {
+    if (kind !== 'shipping' || !operationalPreview) return [];
+    return profiles
+      .filter((profile) => !profile.mergedIntoId)
+      .map((profile) => ({
+        profile,
+        rowCount: shippingRowCountForBrand(operationalPreview, profile.brand),
+      }))
+      .filter((target) => target.rowCount > 0);
+  }, [kind, operationalPreview, profiles]);
+  const shippingPendingCount = shippingTargets.filter(
+    ({ profile }) => shippingImportStates[profile.id]?.status !== 'saved',
+  ).length;
+  const shippingScopeLocked = shippingTargets.some(
+    ({ profile }) => shippingImportStates[profile.id]?.status === 'saved',
+  );
+  const shippingBrandsWithoutProfiles = useMemo(() => {
+    if (kind !== 'shipping' || !operationalPreview) return [];
+    const brands = new Map<string, { brand: string; rowCount: number }>();
+    for (const sheet of operationalPreview.sheets) {
+      for (const record of sheet.shippingRecords) {
+        const key = normalizeShippingBrand(record.brand);
+        const existing = brands.get(key);
+        if (existing) existing.rowCount++;
+        else brands.set(key, { brand: record.brand, rowCount: 1 });
+      }
+    }
+    return [...brands.values()].filter((shippingBrand) =>
+      !profiles.some((profile) => !profile.mergedIntoId && normalizeShippingBrand(profile.brand) === normalizeShippingBrand(shippingBrand.brand)),
+    );
+  }, [kind, operationalPreview, profiles]);
   const resolvedScheduleProducts = scheduleProducts.map((product) => {
     const chosenId = scheduleProfileChoices[product.key] || activeProfileByProduct.get(product.key)?.id || '';
     return { ...product, chosenId, selectedProfile: profiles.find((profile) => profile.id === chosenId) };
@@ -301,8 +336,8 @@ function WorkbookReview({
   const hasScheduleMappings = profilesReady && resolvedScheduleProducts.length > 0 && resolvedScheduleProducts.every((product) => Boolean(product.selectedProfile));
   const hasProductSpecDrafts = kind === 'product_specs' && productSpecDrafts.length > 0;
   const unsavedProductSpecCount = productSpecDrafts.filter((draft) => draft.saveState !== 'saved').length;
-  const profileBrand = kind === 'shipping' ? selectedShippingProfile?.brand ?? '' : brand;
-  const profileFlavor = kind === 'shipping' ? selectedShippingProfile?.flavor ?? '' : flavor;
+  const profileBrand = brand;
+  const profileFlavor = flavor;
   const matchingProfile = profilesReady && profileBrand.trim() && profileFlavor.trim()
     ? activeProfileByProduct.get(scheduleProductKey(profileBrand, profileFlavor))
     : undefined;
@@ -320,7 +355,7 @@ function WorkbookReview({
     setScheduleProfileChoices({});
     setProductSpecDrafts([]);
     setSelectedOperationalSheets([]);
-    setShippingProfileId('');
+    setShippingImportStates({});
     setSheetFilter('');
     setWorkbook(null);
     setSourceFile(file);
@@ -506,12 +541,101 @@ function WorkbookReview({
       }
       return;
     }
-    if (kind === 'shipping' && !selectedShippingProfile) {
-      setValidation('Choose an existing product profile. Shipping guides are attached to that profile without creating a new flavor.');
+    if (kind === 'shipping') {
+      if (!profilesReady) {
+        setValidation('Product profiles are still loading. Wait for them to load before importing this workbook.');
+        return;
+      }
+      if (selectedOperationalSheets.length === 0) {
+        setValidation('Select at least one worksheet that belongs to this shipping import.');
+        return;
+      }
+      if (!shippingTargets.length) {
+        setValidation('No active product profiles match the shipping brands in the selected worksheets.');
+        return;
+      }
+      const pendingTargets = shippingTargets.filter((target) => shippingImportStates[target.profile.id]?.status !== 'saved');
+      if (!pendingTargets.length) {
+        setSavedMessage('All matching product profiles already contain this shipping source.');
+        return;
+      }
+      setValidation('');
+      setSavedMessage('');
+      try {
+        const sourceHash = await sha256(sourceFile);
+        let importedCount = 0;
+        let alreadySavedCount = 0;
+        let failedCount = 0;
+        for (let index = 0; index < pendingTargets.length; index++) {
+          const { profile } = pendingTargets[index];
+          setShippingImportStates((current) => ({
+            ...current,
+            [profile.id]: { status: 'saving' },
+          }));
+          try {
+            const productData = shippingProductData(workbook, selectedOperationalSheets, profile.brand);
+            if (JSON.stringify(productData).length > 700_000) {
+              throw new Error('This profile’s shipping data exceeds the 700,000-character API limit.');
+            }
+            const input: ProductProfileImportInput = {
+              brand: profile.brand,
+              flavor: profile.flavor,
+              sourceName: workbook.fileName,
+              sourceHash,
+              importKind: 'shipping',
+              productData,
+              expectedRevision: profile.revision,
+            };
+            if (new TextEncoder().encode(JSON.stringify(input)).byteLength > 1_000_000) {
+              throw new Error('This profile request is over the 1 MB API limit after adding source details.');
+            }
+            const result = await importer.mutateAsync({ data: input });
+            if (result.imported) importedCount++;
+            else alreadySavedCount++;
+            setShippingImportStates((current) => ({
+              ...current,
+              [profile.id]: { status: 'saved' },
+            }));
+          } catch (error) {
+            failedCount++;
+            const message = errorStatus(error) === 409
+              ? 'This profile changed elsewhere. Refresh profiles and review its latest revision before retrying.'
+              : errorText(error, 'This profile could not be saved.');
+            setShippingImportStates((current) => ({
+              ...current,
+              [profile.id]: { status: 'failed', error: message },
+            }));
+            if (errorStatus(error) === 429) {
+              const remainingTargets = pendingTargets.slice(index + 1);
+              failedCount += remainingTargets.length;
+              setShippingImportStates((current) => ({
+                ...current,
+                ...Object.fromEntries(remainingTargets.map(({ profile: remaining }) => [
+                  remaining.id,
+                  { status: 'failed' as const, error: 'The facility write limit was reached. Wait briefly, then retry.' },
+                ])),
+              }));
+              break;
+            }
+          }
+        }
+        const savedCount = importedCount + alreadySavedCount;
+        const savedDetails = [
+          importedCount ? `${importedCount} updated` : '',
+          alreadySavedCount ? `${alreadySavedCount} already present` : '',
+        ].filter(Boolean).join(', ');
+        setSavedMessage(
+          `${savedCount} of ${pendingTargets.length} matching profiles saved${savedDetails ? ` (${savedDetails})` : ''}.${failedCount ? ` ${failedCount} failed; successful profiles will not be duplicated if you retry.` : ''}`,
+        );
+        void client.invalidateQueries({ queryKey: getListProductProfilesQueryKey() });
+        void client.invalidateQueries({ queryKey: getListImportBatchesQueryKey() });
+      } catch (error) {
+        setValidation(errorText(error, 'The shipping workbook source could not be prepared.'));
+      }
       return;
     }
-    const cleanBrand = (selectedShippingProfile?.brand ?? brand).trim();
-    const cleanFlavor = (selectedShippingProfile?.flavor ?? flavor).trim();
+    const cleanBrand = brand.trim();
+    const cleanFlavor = flavor.trim();
     if (!cleanBrand || cleanBrand.length > 120 || !cleanFlavor || cleanFlavor.length > 120) {
       setValidation('Brand and flavor are required and must each be 120 characters or fewer.');
       return;
@@ -528,9 +652,7 @@ function WorkbookReview({
     setSavedMessage('');
     try {
       const productData = isOperationalKind(kind)
-        ? kind === 'shipping'
-          ? shippingProductData(workbook, selectedOperationalSheets, cleanBrand)
-          : operationalProductData(workbook, kind, selectedOperationalSheets)
+        ? operationalProductData(workbook, kind, selectedOperationalSheets)
         : toSparseWorkbook(workbook);
       const productDataSize = JSON.stringify(productData).length;
       if (productDataSize > 700_000) {
@@ -675,7 +797,7 @@ function WorkbookReview({
                     id={checkboxId}
                     type="checkbox"
                     checked={checked}
-                    disabled={previewMode}
+                    disabled={previewMode || (kind === 'shipping' && shippingScopeLocked)}
                     onChange={(event) => setSelectedOperationalSheets((current) =>
                       event.target.checked
                         ? [...current, sheet.name]
@@ -690,14 +812,26 @@ function WorkbookReview({
             </div>
           </fieldset>}
           {kind === 'shipping' && <div className="form-field" style={{ marginTop: 12 }}>
-            <label htmlFor="shipping-profile">Existing product profile</label>
-            <select id="shipping-profile" value={shippingProfileId} onChange={(event) => setShippingProfileId(event.target.value)} required disabled={previewMode || !profilesReady || profiles.length === 0}>
-              <option value="">Choose a product profile</option>
-              {profiles.filter((profile) => !profile.mergedIntoId).map((profile) => <option key={profile.id} value={profile.id}>{profile.brand} / {profile.flavor}</option>)}
-            </select>
-            <span className="field-help">Shipping rows are matched to the selected profile’s brand and stored with that profile. This does not create a run flavor or modify other profiles.</span>
+            <strong>Matching active profiles</strong>
+            <span className="field-help">Each selected shipping row is saved only to active profiles with the same normalized brand. Existing run snapshots stay unchanged.</span>
+            {shippingScopeLocked && <span className="field-help">Worksheet selection is locked after a profile saves. Choose the workbook again to review a different selection.</span>}
             {!profilesReady && <span className="field-help" role="status">Loading active profiles…</span>}
             {profilesReady && profiles.length === 0 && <span className="field-help">Create a product profile before attaching its shipping reference.</span>}
+            {profilesReady && shippingTargets.length === 0 && <span className="field-help" role="status">No active profiles match brands found in the selected worksheets.</span>}
+            {shippingTargets.length > 0 && <ul className="field-help" data-testid="shipping-profile-targets">
+              {shippingTargets.map(({ profile, rowCount }) => {
+                const state = shippingImportStates[profile.id];
+                return <li key={profile.id} data-testid={`shipping-target-${profile.id}`}>
+                  {profile.brand} / {profile.flavor} · {rowCount} matching {rowCount === 1 ? 'row' : 'rows'}
+                  {state?.status === 'saving' && ' · saving'}
+                  {state?.status === 'saved' && ' · saved'}
+                  {state?.status === 'failed' && <> · failed: {state.error}</>}
+                </li>;
+              })}
+            </ul>}
+            {shippingBrandsWithoutProfiles.length > 0 && <span className="field-help" role="status">
+              No active profiles for: {shippingBrandsWithoutProfiles.map(({ brand: unmatchedBrand }) => unmatchedBrand).join(', ')}.
+            </span>}
           </div>}
           {kind !== 'schedule' && kind !== 'shipping' && !hasProductSpecDrafts && <div className="import-fields">
             <div className="form-field"><label htmlFor="profile-brand">Brand</label><input id="profile-brand" autoComplete="organization" maxLength={120} value={brand} onChange={(event) => setBrand(event.target.value)} required disabled={previewMode} /></div>
@@ -752,7 +886,7 @@ function WorkbookReview({
             </div>
             <button className="button button-secondary" type="button" onClick={addManualProductSpecDraft} disabled={previewMode || importer.isPending}>Add profile manually</button>
           </section>}
-          {kind !== 'schedule' && !hasProductSpecDrafts && matchingProfile && <div className="notice" role="status" data-testid="notice-existing-profile">
+          {kind !== 'schedule' && kind !== 'shipping' && !hasProductSpecDrafts && matchingProfile && <div className="notice" role="status" data-testid="notice-existing-profile">
             This matches active profile revision {matchingProfile.revision}. Import will add this workbook as another preserved source and create a new revision; existing run snapshots will not change.
           </div>}
           {kind === 'schedule' && schedulePreview && <section className="schedule-review" aria-labelledby="schedule-preview-heading" data-testid="schedule-preview" style={{ marginTop: 16, padding: 16, border: '1px solid hsl(var(--border))', borderRadius: 12, background: 'hsl(var(--muted) / .35)' }}>
@@ -807,9 +941,9 @@ function WorkbookReview({
                 {importer.isPending ? <LoaderCircle size={16} className="spin" /> : <ArrowDownToLine size={16} />}
                 {importer.isPending ? 'Saving product profiles…' : unsavedProductSpecCount ? `Save ${unsavedProductSpecCount} product ${unsavedProductSpecCount === 1 ? 'profile' : 'profiles'}` : 'All profiles saved'}
               </button>
-              : <button className="button button-primary" type="submit" disabled={previewMode || !online || importer.isPending || !kind || (isOperationalKind(kind) && selectedOperationalSheets.length === 0) || (kind === 'shipping' && !selectedShippingProfile)} data-testid="button-import-profile">
+              : <button className="button button-primary" type="submit" disabled={previewMode || !online || importer.isPending || !kind || (isOperationalKind(kind) && selectedOperationalSheets.length === 0) || (kind === 'shipping' && (!profilesReady || shippingTargets.length === 0 || shippingPendingCount === 0))} data-testid="button-import-profile">
               {importer.isPending ? <LoaderCircle size={16} className="spin" /> : <ArrowDownToLine size={16} />}
-              {importer.isPending ? 'Saving source profile…' : matchingProfile ? 'Add workbook to profile' : 'Save product profile'}
+              {importer.isPending ? kind === 'shipping' ? 'Saving shipping details…' : 'Saving source profile…' : kind === 'shipping' ? shippingPendingCount ? `Apply shipping to ${shippingPendingCount} ${shippingPendingCount === 1 ? 'profile' : 'profiles'}` : 'Shipping applied to all profiles' : matchingProfile ? 'Add workbook to profile' : 'Save product profile'}
               </button>}
             {!online && <p className="field-help" style={{ marginTop: 10 }}>Offline: workbook review is available, but profiles cannot be saved.</p>}
           </>}

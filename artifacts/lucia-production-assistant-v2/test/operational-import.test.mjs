@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { filterShippingWorkbookByBrand, parseOperationalWorkbook } from "../src/importing/operational.ts";
+import {
+  filterShippingWorkbookByBrand,
+  normalizeShippingBrand,
+  parseOperationalWorkbook,
+  shippingRowCountForBrand,
+} from "../src/importing/operational.ts";
 
 const sheet = (name, rows) => ({ name, rows });
 const workbook = (kind, sheets) => ({
@@ -94,17 +99,21 @@ test("retains shipping specifications as structured brand rows", () => {
   assert.equal(parsed.sheets[0].shippingRecords[0].values.BOX, "6-pack");
 });
 
-test("shipping references can be safely scoped to an existing profile brand", () => {
+test("shipping references can be safely scoped to every flavor of a normalized brand", () => {
   const parsed = parseOperationalWorkbook(workbook("shipping", [
     sheet("Palletizing", [
       ["PIZZA", "BOX", "PALLET TYPE"],
       ["Lucia’s", "12-pack", "Standard"],
+      [" LUCIA'S  ", "6-pack", "Standard"],
       ["Other Brand", "6-pack", "Standard"],
     ]),
   ]), "shipping");
   const filtered = filterShippingWorkbookByBrand(parsed, "Lucia's");
   assert.equal(filtered.filteredToBrand, "Lucia's");
-  assert.equal(filtered.sheets[0].shippingRecords.length, 1);
+  assert.equal(filtered.sheets[0].shippingRecords.length, 2);
+  assert.equal(shippingRowCountForBrand(parsed, " LUCIA'S "), 2);
+  assert.equal(normalizeShippingBrand("  Lucia’s   Pizza "), "lucia's pizza");
+  assert.equal(shippingRowCountForBrand(parsed, "Other Brand"), 1);
   assert.throws(() => filterShippingWorkbookByBrand(parsed, "Missing Brand"), /No shipping rows match/);
 });
 

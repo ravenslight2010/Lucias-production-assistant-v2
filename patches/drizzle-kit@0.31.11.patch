@@ -1,0 +1,13 @@
+diff --git a/api.mjs b/api.mjs
+index a940272dfb05accf57a472c46c52652ec9ad0080..2c87ec68d5c851f92e8c74eab48cc28c099ef347 100644
+--- a/api.mjs
++++ b/api.mjs
+@@ -75301,7 +75301,7 @@ var pushSchema = async (imports, drizzleInstance, schemaFilters, tablesFilter, e
+   );
+   const db = {
+     query: async (query, params) => {
+-      const res = await drizzleInstance.execute(sql.raw(query));
++      const res = await drizzleInstance.$client.query(query, params);
+       return res.rows;
+     }
+   };

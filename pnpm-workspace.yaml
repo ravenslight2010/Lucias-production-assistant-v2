@@ -42,6 +42,9 @@ onlyBuiltDependencies:
   - msw
   - unrs-resolver
 
+patchedDependencies:
+  drizzle-kit@0.31.11: patches/drizzle-kit@0.31.11.patch
+
 overrides:
   express>body-parser: 2.4.0
   qs: 6.16.1

@@ -40,8 +40,13 @@ function runSetup(
       lastCommitPaths = git("diff", "--name-only", "HEAD^", "HEAD").trim();
     }
     writeFileSync(
-      path.join(directory, "pnpm"),
+      path.join(directory, "corepack"),
       `#!/bin/bash
+if [ "$1" = "pnpm@9" ]; then
+  shift
+else
+  exit 99
+fi
 if [ "$1" = install ]; then
   [ "$2" = --frozen-lockfile ] || exit 99
   exit "$TEST_INSTALL_STATUS"

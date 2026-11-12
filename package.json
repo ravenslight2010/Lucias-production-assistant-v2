@@ -107,6 +107,9 @@
       "rollup>@rollup/rollup-win32-x64-gnu": "-",
       "rollup>@rollup/rollup-win32-x64-msvc": "-",
       "source-map-js@^1": "^1.2.2"
+    },
+    "patchedDependencies": {
+      "drizzle-kit@0.31.11": "patches/drizzle-kit@0.31.11.patch"
     }
   }
 }

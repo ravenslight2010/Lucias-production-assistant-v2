@@ -1,7 +1,6 @@
 - [PostgreSQL integration test runners](api-integration-test-runner.md) — nested Node test processes need a clean test context and bundle output near the package providing external modules.
 - [Temporary ESM integration bundles](temporary-esm-integration-bundles.md) — externalized packages resolve from the emitted bundle path, not the test runner's working directory.
 - [Drizzle push safeguards](drizzle-push-safeguards.md) — keep confirmation enabled because schema pushes can treat independently maintained indexes and constraints as drift.
-- [Drizzle composite-key introspection](drizzle-kit-push-composite-pk-params.md) — repeat pushes can fail when the current API drops bound parameters while introspecting composite primary keys.
 - [Publish check-constraint formatting](publish-check-constraint-formatting.md) — Avoid top-level CASE checks; the Publish diff can duplicate CHECK wrappers, so verify generated DDL before retrying.
 - [Enum additions in Publish](enum-addition-publish-staging.md) — Keep new PostgreSQL enum labels out of same-transaction defaults; use explicit app values or a later Publish.
 - [VM replacement overlap evidence](vm-replacement-overlap-evidence.md) — Aggregate uptime resets do not prove a full restart or old/new overlap without instance-scoped evidence.

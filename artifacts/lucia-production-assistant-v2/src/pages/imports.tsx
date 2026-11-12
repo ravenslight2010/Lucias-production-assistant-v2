@@ -119,7 +119,8 @@ function WorkbookReview({ profiles, profilesReady }: { profiles: ProductProfile[
     : undefined;
 
   const chooseFile = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.currentTarget.files?.[0];
+    const input = event.currentTarget;
+    const file = input.files?.[0];
     if (!file) return;
     setParseError('');
     setValidation('');
@@ -135,8 +136,9 @@ function WorkbookReview({ profiles, profilesReady }: { profiles: ProductProfile[
       setKind(parsed.kind ?? '');
     } catch (error) {
       setParseError(errorText(error, 'This workbook could not be opened.'));
+    } finally {
+      input.value = '';
     }
-    event.currentTarget.value = '';
   };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {

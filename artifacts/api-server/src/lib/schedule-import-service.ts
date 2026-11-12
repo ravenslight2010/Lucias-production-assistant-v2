@@ -151,6 +151,7 @@ export async function importSchedule(input: ScheduleImportInput & {
           productData: profile.productData,
           createdAt: profile.createdAt,
           updatedAt: profile.updatedAt,
+          mergedIntoId: profile.mergedIntoId,
         },
         targetCases: row.casesPlanned,
         status: "planned" as const,

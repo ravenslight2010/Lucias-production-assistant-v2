@@ -4,17 +4,8 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 pnpm install --frozen-lockfile
 
-# App-only merges do not need to touch the development database. Keep schema
-# pushes limited to changes that can affect the database schema or push logic.
-if git rev-parse --verify HEAD^ >/dev/null 2>&1 &&
-   git diff --quiet HEAD^ HEAD -- \
-     lib/db/src/schema \
-     lib/db/drizzle.config.ts \
-     lib/db/scripts/push.mjs; then
-  echo "No database schema or push-script changes; skipping schema push."
-  exit 0
-fi
-
+# Always verify the schema. HEAD^ only covers the final commit of a multi-commit
+# update, so it cannot safely determine whether an upgrade is needed.
 # Drizzle can log an interactive-terminal error and still exit zero.
 # Keep strict confirmation enabled; never turn an unapplied schema into success.
 schema_log="$(mktemp)"

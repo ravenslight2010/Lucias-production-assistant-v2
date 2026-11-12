@@ -1,6 +1,12 @@
 import type { ProductionRun } from "@workspace/db";
 
 export function toContractRun(run: ProductionRun) {
+  const snapshot = run.productSnapshot;
+  // Older immutable snapshots predate the nullable merge marker required by
+  // the profile response contract. Normalize the response, not the saved data.
+  const productSnapshot = snapshot && typeof snapshot === "object" && !Array.isArray(snapshot)
+    ? { ...snapshot, mergedIntoId: "mergedIntoId" in snapshot ? snapshot.mergedIntoId ?? null : null }
+    : snapshot;
   return {
     id: run.id,
     status: run.status === "draft" ? "planned" : run.status,
@@ -19,7 +25,7 @@ export function toContractRun(run: ProductionRun) {
       targetCases: run.targetCases,
       productProfileId: run.productProfileId,
     },
-    productSnapshot: run.productSnapshot,
+    productSnapshot,
     pauseIntervals: run.pauseIntervals,
   };
 }

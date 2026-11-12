@@ -92,6 +92,7 @@ export async function createPlannedRun(input: {
             productData: productProfile.productData,
             createdAt: productProfile.createdAt,
             updatedAt: productProfile.updatedAt,
+            mergedIntoId: productProfile.mergedIntoId,
           }
         : null;
       const [run] = await tx

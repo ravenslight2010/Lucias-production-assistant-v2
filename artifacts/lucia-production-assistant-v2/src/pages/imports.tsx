@@ -370,6 +370,9 @@ function ProfileCard({ profile, profiles }: { profile: ProductProfile; profiles:
   const [flavor, setFlavor] = useState(profile.flavor);
   const [targetId, setTargetId] = useState('');
   const [confirmMerge, setConfirmMerge] = useState(false);
+  // Background list refreshes must not rebase an operator's open draft/confirmation.
+  const [renameRevision, setRenameRevision] = useState(profile.revision);
+  const [mergeRevisions, setMergeRevisions] = useState<{ source: number; target: number } | null>(null);
   const [feedback, setFeedback] = useState('');
   const [validation, setValidation] = useState('');
   const rename = useRenameProductProfile({ request: { credentials: 'include' } });
@@ -402,7 +405,7 @@ function ProfileCard({ profile, profiles }: { profile: ProductProfile; profiles:
     }
     setValidation('');
     setFeedback('');
-    rename.mutate({ profileId: profile.id, data: { brand: nextBrand, flavor: nextFlavor, expectedRevision: profile.revision } }, {
+    rename.mutate({ profileId: profile.id, data: { brand: nextBrand, flavor: nextFlavor, expectedRevision: renameRevision } }, {
       onSuccess: (result) => {
         setEditing(false);
         setFeedback(`Renamed at revision ${result.profile.revision}.`);
@@ -418,11 +421,11 @@ function ProfileCard({ profile, profiles }: { profile: ProductProfile; profiles:
 
   const submitMerge = () => {
     const target = targets.find((item) => item.id === targetId);
-    if (!target) return;
+    if (!target || !mergeRevisions) return;
     setFeedback('');
     merge.mutate({
       profileId: profile.id,
-      data: { targetProfileId: target.id, expectedSourceRevision: profile.revision, expectedTargetRevision: target.revision },
+      data: { targetProfileId: target.id, expectedSourceRevision: mergeRevisions.source, expectedTargetRevision: mergeRevisions.target },
     }, {
       onSuccess: (result) => {
         setConfirmMerge(false);
@@ -463,14 +466,14 @@ function ProfileCard({ profile, profiles }: { profile: ProductProfile; profiles:
         <pre>{JSON.stringify(profile.productData, null, 2)}</pre>
       </details>
       <div className="profile-actions">
-        {!editing && <button className="button button-secondary" type="button" onClick={() => { setEditing(true); setFeedback(''); }} data-testid={`button-rename-${profile.id}`}><Pencil size={14} /> Rename profile</button>}
+        {!editing && <button className="button button-secondary" type="button" onClick={() => { setBrand(profile.brand); setFlavor(profile.flavor); setRenameRevision(profile.revision); rename.reset(); setEditing(true); setFeedback(''); }} data-testid={`button-rename-${profile.id}`}><Pencil size={14} /> Rename profile</button>}
         {targets.length > 0 && <>
           <label className="sr-only" htmlFor={`merge-target-${profile.id}`}>Select profile to merge into</label>
           <select id={`merge-target-${profile.id}`} value={targetId} onChange={(event) => { setTargetId(event.target.value); setConfirmMerge(false); }} aria-label={`Select merge destination for ${profile.brand} ${profile.flavor}`}>
             <option value="">Merge into another profile…</option>
             {targets.map((target) => <option key={target.id} value={target.id}>{target.brand} / {target.flavor} · rev {target.revision}</option>)}
           </select>
-          <button className="button button-quiet" type="button" onClick={() => { setConfirmMerge(true); setFeedback(''); }} disabled={!targetId || merge.isPending} data-testid={`button-merge-${profile.id}`}><GitMerge size={14} /> Merge profiles</button>
+          <button className="button button-quiet" type="button" onClick={() => { const target = targets.find((item) => item.id === targetId); if (!target) return; setMergeRevisions({ source: profile.revision, target: target.revision }); setConfirmMerge(true); setFeedback(''); }} disabled={!targetId || merge.isPending} data-testid={`button-merge-${profile.id}`}><GitMerge size={14} /> Merge profiles</button>
         </>}
         {confirmMerge && targetId && <div className="confirm-merge" role="group" aria-label="Confirm profile merge">
           <strong>Confirm merge?</strong> The source profile will leave the active list and be linked into the selected profile. Both original source bundles are preserved; existing run snapshots do not change.

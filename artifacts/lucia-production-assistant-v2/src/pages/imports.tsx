@@ -73,6 +73,42 @@ type ProductSpecDraft = ProductSpecProfileCandidate & {
   saveError?: string;
 };
 
+const visualPreviewWorkbook: ParsedWorkbook = {
+  fileName: 'Sample_Pizza_Recipe_Specs.xlsx',
+  sizeBytes: 16_384,
+  sheetCount: 1,
+  cellCount: 36,
+  kind: 'product_specs',
+  kindConfidence: 'high',
+  sheets: [{
+    name: '12-inch retail',
+    rows: [
+      ['Sample Brand', 'Classic Cheese'],
+      ['Crust', 8.2],
+      ['Sauce', 3.1],
+      ['Cheese', 5.4],
+      ['TARGET WEIGHT', 16.7],
+      ['WEIGHT SPEC RANGE', '16.2–17.2'],
+      [],
+      ['Sample Brand', 'Pepperoni'],
+      ['Crust', 8.2],
+      ['Sauce', 3.1],
+      ['Cheese', 4.8],
+      ['TARGET WEIGHT', 16.1],
+      ['WEIGHT SPEC RANGE', '15.6–16.6'],
+      [],
+      ['Sample Brand', 'Garden Vegetable'],
+      ['Crust', 8.2],
+      ['Sauce', 3.1],
+      ['Vegetables', 4.6],
+      ['TARGET WEIGHT', 15.9],
+      ['WEIGHT SPEC RANGE', '15.4–16.4'],
+    ],
+  }],
+};
+
+const visualPreviewProducts = parseProductSpecProfiles(visualPreviewWorkbook);
+
 function toProductSpecData(workbook: ParsedWorkbook, draft: ProductSpecDraft) {
   return {
     ...toSparseWorkbook(workbook),
@@ -89,7 +125,17 @@ async function sha256(file: File) {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-function WorkbookReview({ profiles, profilesReady }: { profiles: ProductProfile[]; profilesReady: boolean }) {
+function WorkbookReview({
+  profiles,
+  profilesReady,
+  previewMode = false,
+  initialWorkbook,
+}: {
+  profiles: ProductProfile[];
+  profilesReady: boolean;
+  previewMode?: boolean;
+  initialWorkbook?: ParsedWorkbook;
+}) {
   const [online, setOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine);
   useEffect(() => {
     const onOnline = () => setOnline(true);
@@ -102,12 +148,14 @@ function WorkbookReview({ profiles, profilesReady }: { profiles: ProductProfile[
     };
   }, []);
   const client = useQueryClient();
-  const [workbook, setWorkbook] = useState<ParsedWorkbook | null>(null);
+  const [workbook, setWorkbook] = useState<ParsedWorkbook | null>(() => initialWorkbook ?? null);
   const [sourceFile, setSourceFile] = useState<File | null>(null);
-  const [kind, setKind] = useState<ImportKind | ''>('');
+  const [kind, setKind] = useState<ImportKind | ''>(() => initialWorkbook?.kind ?? '');
   const [brand, setBrand] = useState('');
   const [flavor, setFlavor] = useState('');
-  const [productSpecDrafts, setProductSpecDrafts] = useState<ProductSpecDraft[]>([]);
+  const [productSpecDrafts, setProductSpecDrafts] = useState<ProductSpecDraft[]>(() =>
+    initialWorkbook?.kind === 'product_specs' ? parseProductSpecProfiles(initialWorkbook) : [],
+  );
   const [parseError, setParseError] = useState('');
   const [validation, setValidation] = useState('');
   const [savedMessage, setSavedMessage] = useState('');
@@ -146,6 +194,7 @@ function WorkbookReview({ profiles, profilesReady }: { profiles: ProductProfile[
     : undefined;
 
   const chooseFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    if (previewMode) return;
     const input = event.currentTarget;
     const file = input.files?.[0];
     if (!file) return;
@@ -172,7 +221,7 @@ function WorkbookReview({ profiles, profilesReady }: { profiles: ProductProfile[
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!workbook || !sourceFile || !kind) return;
+    if (previewMode || !workbook || !sourceFile || !kind) return;
     if (kind === 'schedule') {
       const importDate = localDateString();
       setScheduleImportDate(importDate);
@@ -395,6 +444,7 @@ function WorkbookReview({ profiles, profilesReady }: { profiles: ProductProfile[
   };
 
   const addManualProductSpecDraft = () => {
+    if (previewMode) return;
     setValidation('');
     setSavedMessage('');
     const id = `manual-${Date.now()}-${productSpecDrafts.length}`;
@@ -413,13 +463,13 @@ function WorkbookReview({ profiles, profilesReady }: { profiles: ProductProfile[
       <p className="field-help" style={{ display: 'block', lineHeight: 1.6, marginBottom: 17 }}>
         Choose a workbook, inspect its source cells, then explicitly save it as a facility profile. Nothing is applied until you import.
       </p>
-      <div className="upload-zone">
+      <div className={previewMode ? 'upload-zone upload-zone-disabled' : 'upload-zone'}>
         <label htmlFor="workbook-file">
           <Upload size={21} aria-hidden="true" />
           <span style={{ color: 'hsl(var(--foreground))' }}>Choose an .xlsx or .xlsm workbook</span>
           <span>Up to 25 MB · workbook limits are checked during review</span>
         </label>
-        <input id="workbook-file" type="file" accept=".xlsx,.xlsm" onChange={(event) => void chooseFile(event)} aria-label="Choose a product or process workbook" data-testid="input-workbook-file" />
+        <input id="workbook-file" type="file" accept=".xlsx,.xlsm" onChange={(event) => void chooseFile(event)} aria-label="Choose a product or process workbook" data-testid="input-workbook-file" disabled={previewMode} />
       </div>
       {parseError && <div className="error-banner" role="alert">{parseError}</div>}
       {workbook && <>
@@ -448,7 +498,7 @@ function WorkbookReview({ profiles, profilesReady }: { profiles: ProductProfile[
         <form onSubmit={(event) => void submit(event)} noValidate>
           <div className="form-field">
             <label htmlFor="workbook-kind">Workbook type</label>
-            <select id="workbook-kind" data-testid="select-workbook-kind" value={kind} onChange={(event) => {
+            <select id="workbook-kind" data-testid="select-workbook-kind" value={kind} disabled={previewMode} onChange={(event) => {
               const nextKind = event.target.value as ImportKind | '';
               setKind(nextKind);
               if (nextKind === 'product_specs' && workbook && !productSpecDrafts.length) {
@@ -461,8 +511,8 @@ function WorkbookReview({ profiles, profilesReady }: { profiles: ProductProfile[
             <span className="field-help">Detected: {workbook.kind ? `${kindLabels[workbook.kind]} (${workbook.kindConfidence === 'high' ? 'high confidence' : 'review suggested'})` : 'No confident type; choose one after reviewing.'}</span>
           </div>
           {kind !== 'schedule' && !hasProductSpecDrafts && <div className="import-fields">
-            <div className="form-field"><label htmlFor="profile-brand">Brand</label><input id="profile-brand" autoComplete="organization" maxLength={120} value={brand} onChange={(event) => setBrand(event.target.value)} required /></div>
-            <div className="form-field"><label htmlFor="profile-flavor">Flavor</label><input id="profile-flavor" maxLength={120} value={flavor} onChange={(event) => setFlavor(event.target.value)} required /></div>
+            <div className="form-field"><label htmlFor="profile-brand">Brand</label><input id="profile-brand" autoComplete="organization" maxLength={120} value={brand} onChange={(event) => setBrand(event.target.value)} required disabled={previewMode} /></div>
+            <div className="form-field"><label htmlFor="profile-flavor">Flavor</label><input id="profile-flavor" maxLength={120} value={flavor} onChange={(event) => setFlavor(event.target.value)} required disabled={previewMode} /></div>
           </div>}
           {kind === 'product_specs' && productSpecDrafts.length === 0 && <div className="notice" role="status">
             No complete product sections were detected automatically. You can still import the full workbook to one profile; every source cell will be retained.
@@ -480,7 +530,7 @@ function WorkbookReview({ profiles, profilesReady }: { profiles: ProductProfile[
                 const sourceLocation = draft.sections.length
                   ? draft.sections.slice(0, 3).map((section) => `${section.sheet} · row ${section.headerRow}–${section.endRow}`).join('; ')
                   : 'Manual profile; full workbook retained';
-                const locked = importer.isPending || draft.saveState === 'saved';
+                const locked = previewMode || importer.isPending || draft.saveState === 'saved';
                 return <fieldset className="product-spec-draft" key={draft.id} data-testid={`product-spec-draft-${index}`}>
                   <legend>Product {index + 1}</legend>
                   <div className="product-spec-draft-fields">
@@ -506,7 +556,7 @@ function WorkbookReview({ profiles, profilesReady }: { profiles: ProductProfile[
                 </fieldset>;
               })}
             </div>
-            <button className="button button-secondary" type="button" onClick={addManualProductSpecDraft} disabled={importer.isPending}>Add profile manually</button>
+            <button className="button button-secondary" type="button" onClick={addManualProductSpecDraft} disabled={previewMode || importer.isPending}>Add profile manually</button>
           </section>}
           {kind !== 'schedule' && !hasProductSpecDrafts && matchingProfile && <div className="notice" role="status" data-testid="notice-existing-profile">
             This matches active profile revision {matchingProfile.revision}. Import will add this workbook as another preserved source and create a new revision; existing run snapshots will not change.
@@ -559,11 +609,11 @@ function WorkbookReview({ profiles, profilesReady }: { profiles: ProductProfile[
             {importer.isError && !hasProductSpecDrafts && <div className={errorStatus(importer.error) === 409 ? 'notice' : 'error-banner'} role="alert">{errorStatus(importer.error) === 409 ? 'The source conflicts with a change made elsewhere. Refresh profiles and review the current setup before retrying.' : errorText(importer.error, 'The profile was not saved. Check the connection and try again.')}</div>}
             {savedMessage && <div className="notice" role="status"><ShieldCheck size={15} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />{savedMessage}</div>}
             {hasProductSpecDrafts
-              ? <button className="button button-primary" type="submit" disabled={!online || importer.isPending || !profilesReady || unsavedProductSpecCount === 0} data-testid="button-import-product-profiles">
+              ? <button className="button button-primary" type="submit" disabled={previewMode || !online || importer.isPending || !profilesReady || unsavedProductSpecCount === 0} data-testid="button-import-product-profiles">
                 {importer.isPending ? <LoaderCircle size={16} className="spin" /> : <ArrowDownToLine size={16} />}
                 {importer.isPending ? 'Saving product profiles…' : unsavedProductSpecCount ? `Save ${unsavedProductSpecCount} product ${unsavedProductSpecCount === 1 ? 'profile' : 'profiles'}` : 'All profiles saved'}
               </button>
-              : <button className="button button-primary" type="submit" disabled={!online || importer.isPending || !kind} data-testid="button-import-profile">
+              : <button className="button button-primary" type="submit" disabled={previewMode || !online || importer.isPending || !kind} data-testid="button-import-profile">
               {importer.isPending ? <LoaderCircle size={16} className="spin" /> : <ArrowDownToLine size={16} />}
               {importer.isPending ? 'Saving source profile…' : matchingProfile ? 'Add workbook to profile' : 'Save product profile'}
               </button>}
@@ -741,6 +791,62 @@ export default function ImportsPage() {
           </article>)}
         </div> : <div className="panel empty-state"><div className="empty-mark"><FileSpreadsheet size={20} /></div><h3>No import activity yet</h3><p>Reviewed workbook sources will appear here after the import service records them. This history contains metadata only.</p></div>)}
       </section>
+    </main>
+  );
+}
+
+export function ImportsVisualPreviewPage() {
+  return (
+    <main className="workspace">
+      <div className="page-head">
+        <div>
+          <div className="eyebrow">Development-only visual check</div>
+          <h1>Importer preview</h1>
+          <p className="page-subtitle">Synthetic product-spec data shown in the real importer components.</p>
+        </div>
+      </div>
+      <div className="notice visual-preview-banner" role="status">
+        <ShieldCheck size={16} aria-hidden="true" />
+        <span><strong>Preview only.</strong> This route uses sample data, makes no API requests, and disables every save action. The real workspace and its sign-in protection are unchanged.</span>
+      </div>
+      <p className="import-intro">Use this page to check the importer layout at phone, tablet, and desktop widths without signing in or touching facility data.</p>
+      <div className="import-layout">
+        <WorkbookReview
+          profiles={[]}
+          profilesReady
+          previewMode
+          initialWorkbook={visualPreviewWorkbook}
+        />
+        <section aria-labelledby="visual-preview-products-heading">
+          <div className="section-heading">
+            <div>
+              <div className="eyebrow">Sample output</div>
+              <h2 id="visual-preview-products-heading">Detected product profiles</h2>
+            </div>
+            <span className="eyebrow">{visualPreviewProducts.length} preview only</span>
+          </div>
+          <div className="profile-list">
+            {visualPreviewProducts.map((product, index) => (
+              <article className="panel profile-card" key={product.id}>
+                <div className="profile-card-head">
+                  <div>
+                    <div className="eyebrow">Sample profile {index + 1}</div>
+                    <h3>{product.brand}</h3>
+                    <div className="profile-meta">{product.flavor} · Product specifications</div>
+                  </div>
+                  <span className="import-state">Preview only</span>
+                </div>
+                <div className="profile-bundle">
+                  {product.sections.map((section) => `${section.sheet} · rows ${section.headerRow}–${section.endRow}`).join('; ')}
+                </div>
+              </article>
+            ))}
+          </div>
+          <div className="notice" role="note">
+            These cards are generated from the same product-section parser used by imports. They are not saved profiles.
+          </div>
+        </section>
+      </div>
     </main>
   );
 }

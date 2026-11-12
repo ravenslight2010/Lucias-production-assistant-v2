@@ -1,5 +1,14 @@
 # Authenticated browser regressions
 
+## Dev-only visual importer preview
+
+Open `/__visual-preview/imports` in the development preview to render the real
+workbook-review component with a synthetic three-product workbook. The route is
+available only in Vite development mode, runs outside Clerk/session bootstrap,
+contains no facility data, and disables file selection and every save action.
+Use it for screenshot and responsive-layout checks; it does not replace the
+authenticated browser regressions below.
+
 ## Profile snapshot regression
 
 `profile_snapshots.py` runs the real UI against the real development API, with

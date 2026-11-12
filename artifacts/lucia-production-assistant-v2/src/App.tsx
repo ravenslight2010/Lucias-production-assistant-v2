@@ -37,6 +37,7 @@ import NotFound from '@/pages/not-found';
 const SignInPage = lazy(() => import('@/pages/sign-in'));
 const SignUpPage = lazy(() => import('@/pages/sign-up'));
 const ImportsPage = lazy(() => import('@/pages/imports'));
+const ImportsVisualPreviewPage = lazy(() => import('@/pages/imports').then((module) => ({ default: module.ImportsVisualPreviewPage })));
 const FacilityMembersPage = lazy(() => import('@/components/facility-members-page'));
 const StationLineupPage = lazy(() => import('@/components/station-lineup-page'));
 const RunStationProgressSection = lazy(() => import('@/components/run-station-progress'));
@@ -888,13 +889,14 @@ function RouterContent() {
 }
 
 function App() {
-  if (!clerkPubKey) throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY in .env file');
+  const isVisualPreview = import.meta.env.DEV && stripBase(window.location.pathname) === '/__visual-preview/imports';
+  if (!clerkPubKey && !isVisualPreview) throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY in .env file');
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <WouterRouter base={basePath}>
-          <RouterContent />
-        </WouterRouter>
+        {isVisualPreview
+          ? <Suspense fallback={<LoadingPage title="Loading importer preview" />}><ImportsVisualPreviewPage /></Suspense>
+          : <WouterRouter base={basePath}><RouterContent /></WouterRouter>}
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>

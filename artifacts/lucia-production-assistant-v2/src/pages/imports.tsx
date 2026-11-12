@@ -495,7 +495,7 @@ function WorkbookReview({
     );
   }, [kind, operationalPreview, profiles]);
   const resolvedScheduleProducts = scheduleProducts.map((product) => {
-    const chosenId = scheduleProfileChoices[product.key] || activeProfileByProduct.get(product.key)?.id || '';
+    const chosenId = scheduleProfileChoices[product.key] ?? activeProfileByProduct.get(product.key)?.id ?? '';
     return { ...product, chosenId, selectedProfile: profiles.find((profile) => profile.id === chosenId) };
   });
   const hasScheduleMappings = profilesReady && resolvedScheduleProducts.length > 0 && resolvedScheduleProducts.every((product) => Boolean(product.selectedProfile));
@@ -550,6 +550,10 @@ function WorkbookReview({
       const importDate = localDateString();
       setScheduleImportDate(importDate);
       const preview = parseScheduleWorkbook(workbook, importDate);
+      if (preview.errors.length) {
+        setValidation('Correct the flagged schedule rows in the workbook and upload it again before creating runs.');
+        return;
+      }
       if (!preview.runs.length) {
         setValidation(`No schedule rows dated ${importDate} or later are eligible to import.`);
         return;
@@ -560,8 +564,9 @@ function WorkbookReview({
       }
       const profileByKey = new Map(profiles.map((profile) => [scheduleProductKey(profile.brand, profile.flavor), profile]));
       const mappings = new Map<string, ProductProfile>();
-      for (const product of scheduleProducts) {
-        const id = scheduleProfileChoices[product.key] || profileByKey.get(product.key)?.id || '';
+      for (const run of preview.runs) {
+        const product = { key: scheduleProductKey(run.brand, run.flavor) };
+        const id = scheduleProfileChoices[product.key] ?? profileByKey.get(product.key)?.id ?? '';
         const profile = profiles.find((candidate) => candidate.id === id);
         if (!profile) {
           setValidation('Match every scheduled brand and flavor to an active product profile before importing.');
@@ -1210,7 +1215,7 @@ function WorkbookReview({
               <p className="field-help" style={{ marginTop: 0, marginBottom: 12 }}>Exact brand and flavor matches are selected automatically. Review or change each match before creating planned runs.</p>
               <div className="schedule-mappings" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 10 }}>{resolvedScheduleProducts.map((product) => <div className="form-field" key={product.key}>
                 <label htmlFor={`schedule-profile-${encodeURIComponent(product.key)}`}>{product.brand} / {product.flavor || 'No flavor listed'} · {product.rows} {product.rows === 1 ? 'row' : 'rows'}</label>
-                <select id={`schedule-profile-${encodeURIComponent(product.key)}`} value={product.chosenId} onChange={(event) => setScheduleProfileChoices((current) => ({ ...current, [product.key]: event.target.value }))} disabled={!profilesReady || !profiles.length}>
+                <select id={`schedule-profile-${encodeURIComponent(product.key)}`} value={product.chosenId} onChange={(event) => setScheduleProfileChoices((current) => ({ ...current, [product.key]: event.target.value }))} disabled={!profilesReady || !profiles.length || scheduleImporter.isPending}>
                   <option value="">Choose an active profile</option>
                   {profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.brand} / {profile.flavor} · rev {profile.revision}</option>)}
                 </select>
@@ -1221,14 +1226,15 @@ function WorkbookReview({
                 {validation && <div className="error-banner" role="alert">{validation}</div>}
                 {scheduleImporter.isError && <div className={errorStatus(scheduleImporter.error) === 409 ? 'notice' : 'error-banner'} role="alert">{errorText(scheduleImporter.error, 'Schedule import failed. No partial runs were saved.')}</div>}
                 {savedMessage && <div className="notice" role="status"><ShieldCheck size={15} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />{savedMessage}</div>}
-                <button className="button button-primary" type="submit" disabled={!online || scheduleImporter.isPending || !hasScheduleMappings} data-testid="button-import-schedule">
+                <button className="button button-primary" type="submit" disabled={previewMode || !online || scheduleImporter.isPending || !hasScheduleMappings || schedulePreview.errors.length > 0} data-testid="button-import-schedule">
                   {scheduleImporter.isPending ? <LoaderCircle size={16} className="spin" /> : <ArrowDownToLine size={16} />}
                   {scheduleImporter.isPending ? 'Creating planned runs…' : `Import ${schedulePreview.runs.length} planned ${schedulePreview.runs.length === 1 ? 'run' : 'runs'}`}
                 </button>
               </div>}
             </section>}
             {schedulePreview.errors.length > 0 && <div className="notice schedule-warnings" aria-label="Parser warnings" style={{ marginTop: 14 }}>
-              <strong>Parser warnings · {schedulePreview.errors.length}</strong>
+              <strong>Schedule rows needing correction · {schedulePreview.errors.length}</strong>
+              <p>These rows were not included. Correct them in the source workbook and upload it again before importing, so no planned production is silently omitted.</p>
               <ul style={{ margin: '8px 0 0', paddingLeft: 20, lineHeight: 1.55 }}>{schedulePreview.errors.map((warning, index) => <li key={`${warning.sheet}:${warning.row}:${index}`} data-testid={`schedule-warning-${index}`}>{warning.sheet} · row {warning.row}: {warning.message}</li>)}</ul>
             </div>}
           </section>}
@@ -1243,7 +1249,7 @@ function WorkbookReview({
               </button>
               : <button className="button button-primary" type="submit" disabled={previewMode || !online || importer.isPending || !kind || (isOperationalKind(kind) && selectedOperationalSheets.length === 0) || (kind === 'shipping' && (!profilesReady || shippingTargets.length === 0 || shippingPendingCount === 0))} data-testid="button-import-profile">
               {importer.isPending ? <LoaderCircle size={16} className="spin" /> : <ArrowDownToLine size={16} />}
-              {importer.isPending ? kind === 'shipping' ? 'Saving shipping details…' : 'Saving source profile…' : kind === 'shipping' ? shippingPendingCount ? `Apply shipping to ${shippingPendingCount} ${shippingPendingCount === 1 ? 'profile' : 'profiles'}` : 'Shipping applied to all profiles' : matchingProfile ? 'Add workbook to profile' : 'Save product profile'}
+              {importer.isPending ? kind === 'shipping' ? 'Saving shipping details…' : 'Saving source profile…' : kind === 'shipping' ? shippingPendingCount ? `Apply shipping to ${shippingPendingCount} ${shippingPendingCount === 1 ? 'profile' : 'profiles'}` : 'Shipping applied to selected profiles' : matchingProfile ? 'Add workbook to profile' : 'Save product profile'}
               </button>}
             {!online && <p className="field-help" style={{ marginTop: 10 }}>Offline: workbook review is available, but profiles cannot be saved.</p>}
           </>}

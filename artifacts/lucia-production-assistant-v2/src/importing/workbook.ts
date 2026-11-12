@@ -235,17 +235,27 @@ function cellText(value: WorkbookCell | undefined) {
   return value == null ? "" : String(value).trim();
 }
 
+function calendarDate(year: number, month: number, day: number): string | null {
+  if (year < 1900 || year > 9999 || month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+    ? date.toISOString().slice(0, 10)
+    : null;
+}
+
 function cellDate(value: WorkbookCell | undefined): string | null {
   if (typeof value === "number" && value >= 20_000 && value <= 90_000) {
-    return new Date(Math.round((value - 25_569) * 86_400_000)).toISOString().slice(0, 10);
+    // A fractional Excel serial is a time on that day, not permission to round
+    // an afternoon production slot into the following calendar day.
+    return new Date((Math.floor(value) - 25_569) * 86_400_000).toISOString().slice(0, 10);
   }
   const text = cellText(value);
-  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(text);
-  if (iso) return `${iso[1]}-${String(Number(iso[2])).padStart(2, "0")}-${String(Number(iso[3])).padStart(2, "0")}`;
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:T00:00:00(?:\.000)?Z)?$/.exec(text);
+  if (iso) return calendarDate(Number(iso[1]), Number(iso[2]), Number(iso[3]));
   const us = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$/.exec(text);
   if (!us) return null;
   const year = us[3].length === 2 ? 2000 + Number(us[3]) : Number(us[3]);
-  return `${year}-${String(Number(us[1])).padStart(2, "0")}-${String(Number(us[2])).padStart(2, "0")}`;
+  return calendarDate(year, Number(us[1]), Number(us[2]));
 }
 
 export function parseScheduleWorkbook(workbook: ParsedWorkbook, importDate?: string): ScheduleParseResult {
@@ -283,9 +293,11 @@ export function parseScheduleWorkbook(workbook: ParsedWorkbook, importDate?: str
         if (date && importDate && date < importDate) { ignoredPastCount++; continue; }
         if (!date) { errors.push({ sheet: sheet.name, row: next + 1, message: `${brand || flavor} has no valid day date` }); continue; }
         if (!brand) { errors.push({ sheet: sheet.name, row: next + 1, message: "Missing brand" }); continue; }
-        const quantity = units === "" ? 0 : Number(units.replace(/[, ]/g, ""));
-        if (!Number.isFinite(quantity) || quantity < 0) { errors.push({ sheet: sheet.name, row: next + 1, message: `Invalid units: ${units}` }); continue; }
-        const casesPlanned = Math.round(quantity);
+        const quantity = /^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/.test(units)
+          ? Number(units.replace(/,/g, ""))
+          : NaN;
+        if (!Number.isSafeInteger(quantity)) { errors.push({ sheet: sheet.name, row: next + 1, message: `Cases must be a whole number; source units: ${units || "(blank)"}` }); continue; }
+        const casesPlanned = quantity;
         if (casesPlanned < 1 || casesPlanned > 2_147_483_647) { errors.push({ sheet: sheet.name, row: next + 1, message: "Cases must be between 1 and 2,147,483,647 to create a planned run" }); continue; }
         const noteParts = [
           customerCol >= 0 ? cellText(cells[customerCol]) : "",

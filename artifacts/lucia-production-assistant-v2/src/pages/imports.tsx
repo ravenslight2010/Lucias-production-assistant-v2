@@ -15,7 +15,8 @@ import {
   useMergeProductProfile,
   useRenameProductProfile,
 } from '@workspace/api-client-react';
-import type { ProductProfile, ProductProfileImportInput, ScheduleImportInput } from '@workspace/api-client-react';
+import type { ProductProfile, ProductProfileNameMapping, ProductProfileImportInput, ScheduleImportInput } from '@workspace/api-client-react';
+import { indexProductNames, productNameKey as scheduleProductKey } from '../importing/product-names';
 import { OperationalSetupSummary } from '../components/operational-setup-summary';
 import { ProductSpecSummary } from '../components/product-spec-summary';
 import {
@@ -55,11 +56,6 @@ function localDateString(date = new Date()) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
-}
-
-function scheduleProductKey(brand: string, flavor: string) {
-  const normalize = (value: string) => value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
-  return JSON.stringify([normalize(brand), normalize(flavor)]);
 }
 
 function errorStatus(error: unknown) {
@@ -326,11 +322,13 @@ async function sha256(file: File) {
 
 function WorkbookReview({
   profiles,
+  nameMappings = [],
   profilesReady,
   previewMode = false,
   initialWorkbook,
 }: {
   profiles: ProductProfile[];
+  nameMappings?: ProductProfileNameMapping[];
   profilesReady: boolean;
   previewMode?: boolean;
   initialWorkbook?: ParsedWorkbook;
@@ -458,8 +456,8 @@ function WorkbookReview({
   );
   const [scheduleProfileChoices, setScheduleProfileChoices] = useState<Record<string, string>>({});
   const activeProfileByProduct = useMemo(
-    () => new Map(profiles.map((profile) => [scheduleProductKey(profile.brand, profile.flavor), profile])),
-    [profiles],
+    () => indexProductNames(profiles, nameMappings),
+    [profiles, nameMappings],
   );
   const availableShippingChoices = useMemo(() => operationalPreview && kind === 'shipping' ? shippingChoices(operationalPreview) : [], [operationalPreview, kind]);
   const shippingProfileRows = useMemo(() => {
@@ -467,11 +465,12 @@ function WorkbookReview({
     return profiles
       .filter((profile) => !profile.mergedIntoId)
       .map(profile => {
-        const exact = availableShippingChoices.filter(c => normalizeShippingBrand(c.record.brand) === normalizeShippingBrand(profile.brand));
+        const brands = new Set([profile.brand, ...nameMappings.filter(mapping => mapping.profileId === profile.id).map(mapping => mapping.brand)].map(normalizeShippingBrand));
+        const exact = availableShippingChoices.filter(c => brands.has(normalizeShippingBrand(c.record.brand)));
         const key = shippingProfileChoices[profile.id] ?? (exact.length === 1 ? exact[0].key : '');
         return { profile, key, choice: availableShippingChoices.find(c => c.key === key) };
       });
-  }, [kind, operationalPreview, profiles, availableShippingChoices, shippingProfileChoices]);
+  }, [kind, operationalPreview, profiles, nameMappings, availableShippingChoices, shippingProfileChoices]);
   const shippingTargets = shippingProfileRows.filter(row => row.choice);
   const shippingPendingCount = shippingTargets.filter(
     ({ profile }) => shippingImportStates[profile.id]?.status !== 'saved',
@@ -491,9 +490,12 @@ function WorkbookReview({
       }
     }
     return [...brands.values()].filter((shippingBrand) =>
-      !profiles.some((profile) => !profile.mergedIntoId && normalizeShippingBrand(profile.brand) === normalizeShippingBrand(shippingBrand.brand)),
+      !profiles.some((profile) => !profile.mergedIntoId && (
+        normalizeShippingBrand(profile.brand) === normalizeShippingBrand(shippingBrand.brand) ||
+        nameMappings.some(mapping => mapping.profileId === profile.id && normalizeShippingBrand(mapping.brand) === normalizeShippingBrand(shippingBrand.brand))
+      )),
     );
-  }, [kind, operationalPreview, profiles]);
+  }, [kind, operationalPreview, profiles, nameMappings]);
   const resolvedScheduleProducts = scheduleProducts.map((product) => {
     const chosenId = scheduleProfileChoices[product.key] ?? activeProfileByProduct.get(product.key)?.id ?? '';
     return { ...product, chosenId, selectedProfile: profiles.find((profile) => profile.id === chosenId) };
@@ -562,7 +564,7 @@ function WorkbookReview({
         setValidation('Product profiles are still loading. Wait for them to load, then review the schedule mappings.');
         return;
       }
-      const profileByKey = new Map(profiles.map((profile) => [scheduleProductKey(profile.brand, profile.flavor), profile]));
+      const profileByKey = indexProductNames(profiles, nameMappings);
       const mappings = new Map<string, ProductProfile>();
       for (const run of preview.runs) {
         const product = { key: scheduleProductKey(run.brand, run.flavor) };
@@ -646,6 +648,7 @@ function WorkbookReview({
         let importedCount = 0;
         let alreadySavedCount = 0;
         let failedCount = 0;
+        const batchProfiles = new Map(profiles.map(profile => [profile.id, profile]));
 
         for (let index = 0; index < pendingDrafts.length; index++) {
           const draft = pendingDrafts[index];
@@ -668,12 +671,13 @@ function WorkbookReview({
               sourceHash,
               importKind: kind,
               productData,
-              ...(matchedProfile ? { expectedRevision: matchedProfile.revision } : {}),
+              ...(matchedProfile ? { expectedRevision: batchProfiles.get(matchedProfile.id)!.revision } : {}),
             };
             if (new TextEncoder().encode(JSON.stringify(input)).byteLength > 1_000_000) {
               throw new Error('This profile request is over the 1 MB API limit after adding source details.');
             }
             const result = await importer.mutateAsync({ data: input });
+            batchProfiles.set(result.profile.id, result.profile);
             if (result.imported) importedCount++;
             else alreadySavedCount++;
             setProductSpecDrafts((current) => current.map((item) =>
@@ -1168,7 +1172,7 @@ function WorkbookReview({
                   </div>
                   <div className="product-spec-draft-meta">
                     <span>{sourceLocation}{draft.sections.length > 3 ? `; +${draft.sections.length - 3} more` : ''}</span>
-                    {draftProfile && <span>Matches active profile revision {draftProfile.revision}</span>}
+                    {draftProfile && <span>Matches {draftProfile.brand} / {draftProfile.flavor} · revision {draftProfile.revision}</span>}
                   </div>
                   {draft.sourceBrand && <p className="field-help" role="status">
                     Original workbook brand: {draft.sourceBrand}. This customer workbook uses separate Kroger profiles; the source cells are unchanged.
@@ -1192,7 +1196,7 @@ function WorkbookReview({
             <button className="button button-secondary" type="button" onClick={addManualProductSpecDraft} disabled={previewMode || importer.isPending}>Add profile manually</button>
           </section>}
           {kind !== 'schedule' && kind !== 'shipping' && !hasProductSpecDrafts && matchingProfile && !savedMessage && <div className="notice" role="status" data-testid="notice-existing-profile">
-            This matches active profile revision {matchingProfile.revision}. A new workbook or changed recipe selection adds a preserved source and creates a new revision. Repeating the same workbook and selection does not add a duplicate or change the revision. Existing run snapshots will not change.
+            This matches {matchingProfile.brand} / {matchingProfile.flavor} · revision {matchingProfile.revision}. A new workbook or changed recipe selection adds a preserved source and creates a new revision. Repeating the same workbook and selection does not add a duplicate or change the revision. Existing run snapshots will not change.
           </div>}
           {kind === 'schedule' && schedulePreview && <section className="schedule-review" aria-labelledby="schedule-preview-heading" data-testid="schedule-preview" style={{ marginTop: 16, padding: 16, border: '1px solid hsl(var(--border))', borderRadius: 12, background: 'hsl(var(--muted) / .35)' }}>
             <div className="schedule-review-head" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -1259,7 +1263,9 @@ function WorkbookReview({
   );
 }
 
-function ProfileCard({ profile, profiles }: { profile: ProductProfile; profiles: ProductProfile[] }) {
+function ProfileCard({ profile, profiles, nameMappings, onMerged }: {
+  profile: ProductProfile; profiles: ProductProfile[]; nameMappings: ProductProfileNameMapping[]; onMerged: (message: string) => void;
+}) {
   const client = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [brand, setBrand] = useState(profile.brand);
@@ -1274,6 +1280,9 @@ function ProfileCard({ profile, profiles }: { profile: ProductProfile; profiles:
   const rename = useRenameProductProfile({ request: { credentials: 'include' } });
   const merge = useMergeProductProfile({ request: { credentials: 'include' } });
   const targets = profiles.filter((item) => item.id !== profile.id && !item.mergedIntoId);
+  const rememberedNames = nameMappings.filter(mapping => mapping.profileId === profile.id &&
+    scheduleProductKey(mapping.brand, mapping.flavor) !== scheduleProductKey(profile.brand, profile.flavor));
+  const busy = rename.isPending || merge.isPending;
   const importedSources = useMemo(() => {
     const raw = profile.productData as Record<string, unknown>;
     const sources = Array.isArray(raw.sources) ? raw.sources : [raw];
@@ -1309,7 +1318,7 @@ function ProfileCard({ profile, profiles }: { profile: ProductProfile; profiles:
       },
       onError: (error) => {
         setFeedback(errorStatus(error) === 409
-          ? 'Conflict: this profile changed on another device. No rename was applied; refresh and review its current revision.'
+          ? `Conflict: ${errorText(error, 'The rename was not applied. Review the profile name and revision.')}`
           : errorText(error, 'Rename failed. No change was applied.'));
       },
     });
@@ -1325,14 +1334,14 @@ function ProfileCard({ profile, profiles }: { profile: ProductProfile; profiles:
     }, {
       onSuccess: (result) => {
         setConfirmMerge(false);
-        setFeedback(`Merged into ${result.profile.brand} / ${result.profile.flavor}. Both source bundles remain preserved.`);
+        onMerged(`Merged ${profile.brand} / ${profile.flavor} into ${result.profile.brand} / ${result.profile.flavor}. Source data and remembered names were preserved.`);
         void client.invalidateQueries({ queryKey: getListProductProfilesQueryKey() });
         void client.invalidateQueries({ queryKey: getListRunsQueryKey() });
       },
       onError: (error) => {
         setConfirmMerge(false);
         setFeedback(errorStatus(error) === 409
-          ? 'Conflict: one of these profiles changed elsewhere. The merge was not applied. Refresh and compare revisions before confirming again.'
+          ? `Conflict: ${errorText(error, 'The merge was not applied. Review the selected profiles and their revisions.')}`
           : errorText(error, 'Merge failed. Neither source bundle was discarded.'));
       },
     });
@@ -1349,35 +1358,41 @@ function ProfileCard({ profile, profiles }: { profile: ProductProfile; profiles:
       </div>
       <OperationalSetupSummary data={profile.productData} title="Recipe and process details" />
       <ProductSpecSummary data={profile.productData} title="Product specification details" />
+      {rememberedNames.length > 0 && <details className="profile-bundle" data-testid={`remembered-names-${profile.id}`}>
+        <summary>Remembered import names ({rememberedNames.length})</summary>
+        <p>Workbooks using these brand/flavor names match this profile automatically. Original source labels and existing run snapshots stay unchanged.</p>
+        <ul>{rememberedNames.map(name => <li key={scheduleProductKey(name.brand, name.flavor)}>{name.brand} / {name.flavor}</li>)}</ul>
+      </details>}
       {editing && <form onSubmit={saveRename} noValidate className="import-fields" style={{ marginTop: 10 }}>
         <div className="form-field"><label htmlFor={`rename-brand-${profile.id}`}>Brand</label><input id={`rename-brand-${profile.id}`} value={brand} maxLength={120} onChange={(event) => setBrand(event.target.value)} /></div>
         <div className="form-field"><label htmlFor={`rename-flavor-${profile.id}`}>Flavor</label><input id={`rename-flavor-${profile.id}`} value={flavor} maxLength={120} onChange={(event) => setFlavor(event.target.value)} /></div>
         {validation && <div className="field-help" role="alert" style={{ gridColumn: '1/-1' }}>{validation}</div>}
-        {rename.isError && <div className="error-banner" role="alert" style={{ gridColumn: '1/-1' }}>{errorStatus(rename.error) === 409 ? 'Revision conflict: rename was not applied. Refresh and review the latest profile.' : errorText(rename.error, 'Rename failed.')}</div>}
+        {rename.isError && <div className="error-banner" role="alert" style={{ gridColumn: '1/-1' }}>{errorText(rename.error, 'Rename failed. No change was applied.')}</div>}
         <div className="control-row" style={{ gridColumn: '1/-1', marginTop: 0 }}>
           <button className="button button-primary" type="submit" disabled={rename.isPending}>{rename.isPending ? 'Saving rename…' : 'Save rename'}</button>
-          <button className="button button-secondary" type="button" onClick={() => { setEditing(false); setBrand(profile.brand); setFlavor(profile.flavor); }}>Cancel</button>
+          <button className="button button-secondary" type="button" disabled={busy} onClick={() => { setEditing(false); setBrand(profile.brand); setFlavor(profile.flavor); }}>Cancel</button>
         </div>
+        <p className="field-help" style={{ gridColumn: '1/-1' }}>The previous brand/flavor will be remembered for future imports. This renames the product profile, not the labels inside its original workbooks.</p>
       </form>}
       <details className="profile-bundle">
         <summary>View preserved source data <ChevronDown size={13} style={{ verticalAlign: 'middle' }} /></summary>
         <pre>{JSON.stringify(profile.productData, null, 2)}</pre>
       </details>
       <div className="profile-actions">
-        {!editing && <button className="button button-secondary" type="button" onClick={() => { setBrand(profile.brand); setFlavor(profile.flavor); setRenameRevision(profile.revision); rename.reset(); setEditing(true); setFeedback(''); }} data-testid={`button-rename-${profile.id}`}><Pencil size={14} /> Rename profile</button>}
+        {!editing && <button className="button button-secondary" type="button" disabled={busy || confirmMerge} onClick={() => { setBrand(profile.brand); setFlavor(profile.flavor); setRenameRevision(profile.revision); rename.reset(); setEditing(true); setFeedback(''); }} data-testid={`button-rename-${profile.id}`}><Pencil size={14} /> Rename profile</button>}
         {targets.length > 0 && <>
           <label className="sr-only" htmlFor={`merge-target-${profile.id}`}>Select profile to merge into</label>
-          <select id={`merge-target-${profile.id}`} value={targetId} onChange={(event) => { setTargetId(event.target.value); setConfirmMerge(false); }} aria-label={`Select merge destination for ${profile.brand} ${profile.flavor}`}>
+          <select id={`merge-target-${profile.id}`} value={targetId} disabled={busy || editing} onChange={(event) => { setTargetId(event.target.value); setConfirmMerge(false); }} aria-label={`Select merge destination for ${profile.brand} ${profile.flavor}`}>
             <option value="">Merge into another profile…</option>
             {targets.map((target) => <option key={target.id} value={target.id}>{target.brand} / {target.flavor} · rev {target.revision}</option>)}
           </select>
-          <button className="button button-quiet" type="button" onClick={() => { const target = targets.find((item) => item.id === targetId); if (!target) return; setMergeRevisions({ source: profile.revision, target: target.revision }); setConfirmMerge(true); setFeedback(''); }} disabled={!targetId || merge.isPending} data-testid={`button-merge-${profile.id}`}><GitMerge size={14} /> Merge profiles</button>
+          <button className="button button-quiet" type="button" onClick={() => { const target = targets.find((item) => item.id === targetId); if (!target) return; setMergeRevisions({ source: profile.revision, target: target.revision }); setConfirmMerge(true); setFeedback(''); }} disabled={!targetId || busy || editing} data-testid={`button-merge-${profile.id}`}><GitMerge size={14} /> Merge profiles</button>
         </>}
         {confirmMerge && targetId && <div className="confirm-merge" role="group" aria-label="Confirm profile merge">
-          <strong>Confirm merge?</strong> The source profile will leave the active list and be linked into the selected profile. Both original source bundles are preserved; existing run snapshots do not change.
+          <strong>Confirm merge?</strong> Merge {profile.brand} / {profile.flavor} into {targets.find(target => target.id === targetId)?.brand} / {targets.find(target => target.id === targetId)?.flavor}, keeping the destination name. The source leaves the active list. Both source bundles and all previously remembered names are kept for future imports; existing run snapshots do not change.
           <div className="control-row">
             <button className="button button-warn" type="button" onClick={submitMerge} disabled={merge.isPending}>{merge.isPending ? 'Merging…' : 'Confirm and merge'}</button>
-            <button className="button button-secondary" type="button" onClick={() => setConfirmMerge(false)}>Keep profiles separate</button>
+            <button className="button button-secondary" type="button" disabled={busy} onClick={() => setConfirmMerge(false)}>Keep profiles separate</button>
           </div>
         </div>}
         {feedback && <div className={feedback.startsWith('Conflict') || feedback.includes('failed') ? 'error-banner' : 'notice'} role="status" style={{ flexBasis: '100%' }}>{feedback}</div>}
@@ -1387,11 +1402,13 @@ function ProfileCard({ profile, profiles }: { profile: ProductProfile; profiles:
 }
 
 export default function ImportsPage() {
+  const [profileFeedback, setProfileFeedback] = useState('');
   const profilesQuery = useListProductProfiles({
     query: { queryKey: getListProductProfilesQueryKey() },
     request: { credentials: 'include' },
   });
   const profiles = profilesQuery.data?.profiles ?? [];
+  const nameMappings = profilesQuery.data?.nameMappings ?? [];
   const historyQuery = useListImportBatches({
     query: { queryKey: getListImportBatchesQueryKey() },
     request: { credentials: 'include' },
@@ -1404,14 +1421,15 @@ export default function ImportsPage() {
       </div>
       <p className="import-intro">Profiles are shared setup references, not an archive. New runs capture an immutable product snapshot at creation; later profile edits do not rewrite existing runs.</p>
       <div className="import-layout">
-          <WorkbookReview profiles={profiles} profilesReady={Boolean(profilesQuery.data)} />
+          <WorkbookReview profiles={profiles} nameMappings={nameMappings} profilesReady={Boolean(profilesQuery.data)} />
         <section aria-labelledby="profiles-heading">
           <div className="section-heading"><h2 id="profiles-heading">Active profiles</h2><span className="eyebrow">{profiles.length} saved</span></div>
+          {profileFeedback && <div className="notice" role="status">{profileFeedback}</div>}
           {profilesQuery.isLoading && !profilesQuery.data && <><div className="skeleton" /><div className="skeleton" /></>}
           {profilesQuery.isError && !profilesQuery.data && <div className="panel empty-state"><div className="empty-mark"><CircleAlert size={20} /></div><h3>Profiles are unavailable</h3><p>{errorText(profilesQuery.error, 'Could not load facility profiles.')}</p><button className="button button-secondary" type="button" onClick={() => void profilesQuery.refetch()}><RefreshCw size={14} /> Try again</button></div>}
           {profilesQuery.isError && profilesQuery.data && <div className="error-banner" role="status">Could not refresh profiles. Showing the last loaded list.</div>}
           {profilesQuery.data && (profiles.length
-            ? <div className="profile-list">{profiles.map((profile) => <ProfileCard key={profile.id} profile={profile} profiles={profiles} />)}</div>
+            ? <div className="profile-list">{profiles.map((profile) => <ProfileCard key={profile.id} profile={profile} profiles={profiles} nameMappings={nameMappings} onMerged={setProfileFeedback} />)}</div>
             : <div className="panel empty-state"><div className="empty-mark"><FileSpreadsheet size={21} /></div><h3>No approved profiles yet</h3><p>Review a product or process workbook to create the facility’s first run setup profile. Nothing is imported automatically.</p></div>)}
         </section>
       </div>

@@ -494,7 +494,12 @@ export const ListProductProfilesResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "mergedIntoId": zod.string().uuid().nullable()
-}))
+})),
+  "nameMappings": zod.array(zod.object({
+  "brand": zod.string(),
+  "flavor": zod.string(),
+  "profileId": zod.string().uuid()
+})).describe('Names explicitly renamed or merged, resolved to active facility profiles.')
 })
 
 

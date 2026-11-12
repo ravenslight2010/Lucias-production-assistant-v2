@@ -1658,7 +1658,7 @@ return customFetch<ProductProfileMergeResult>(getMergeProductProfileUrl(profileI
 
 export const getMergeProductProfileMutationKey = () => ['mergeProductProfile'] as const;
 
-export const getMergeProductProfileMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+export const getMergeProductProfileMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeProductProfile>>, TError,MergeProductProfileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof mergeProductProfile>>, TError,MergeProductProfileMutationVariables, TContext> => {
 
@@ -1687,11 +1687,11 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type MergeProductProfileMutationResult = NonNullable<Awaited<ReturnType<typeof mergeProductProfile>>>
     export type MergeProductProfileMutationBody = BodyType<ProductProfileMergeInput>
-    export type MergeProductProfileMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+    export type MergeProductProfileMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | void>
     export type MergeProductProfileMutationVariables = {profileId: string;data: BodyType<ProductProfileMergeInput>}
 
     /** @summary Preserve a product profile inside another profile */
-export const useMergeProductProfile = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+export const useMergeProductProfile = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeProductProfile>>, TError,MergeProductProfileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof mergeProductProfile>>,

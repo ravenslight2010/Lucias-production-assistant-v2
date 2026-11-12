@@ -550,6 +550,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "413":
+          description: Combined source data exceeds the profile size limit; neither profile was changed.
   /v2/runs/{runId}:
     get:
       operationId: getRun
@@ -1012,7 +1014,23 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ProductProfile"
-      required: [profiles]
+        nameMappings:
+          type: array
+          description: Names explicitly renamed or merged, resolved to active facility profiles.
+          items:
+            $ref: "#/components/schemas/ProductProfileNameMapping"
+      required: [profiles, nameMappings]
+    ProductProfileNameMapping:
+      type: object
+      properties:
+        brand:
+          type: string
+        flavor:
+          type: string
+        profileId:
+          type: string
+          format: uuid
+      required: [brand, flavor, profileId]
     ProductProfileEnvelope:
       type: object
       properties:

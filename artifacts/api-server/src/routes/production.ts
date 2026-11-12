@@ -74,6 +74,10 @@ import { executeRunCommand } from "../lib/run-command-service";
 import { getRunStationProgress } from "../lib/run-station-progress-service";
 import { createPlannedRun } from "../lib/run-create-service";
 import { importSchedule } from "../lib/schedule-import-service";
+import {
+  activeProfile, listProfileNames, lockProfileNames, mergeProfiles, normalizedProfileKey,
+  profileForName, profileSourceEntries, renameProfile, safeProfilePayload as safeJsonPayload,
+} from "../lib/profile-names";
 import { shippingDataMatchesBrand, shippingSelectionIdentity } from "../lib/shipping-import-validation";
 import { toContractRun } from "../lib/run-contract";
 import {
@@ -839,55 +843,10 @@ router.put(
   },
 );
 
-function normalizedProfileKey(brand: string, flavor: string) {
-  return [brand, flavor]
-    .map((part) => part.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase())
-    .join("::");
-}
-
-function profileSourceEntries(profile: {
-  id: string;
-  brand: string;
-  flavor: string;
-  productData: unknown;
-}): unknown[] {
-  if (
-    profile.productData &&
-    typeof profile.productData === "object" &&
-    !Array.isArray(profile.productData) &&
-    Array.isArray((profile.productData as Record<string, unknown>).sources)
-  ) {
-    return (profile.productData as { sources: unknown[] }).sources;
-  }
-  return [{
-    profileId: profile.id,
-    brand: profile.brand,
-    flavor: profile.flavor,
-    data: profile.productData,
-  }];
-}
-
-function safeJsonPayload(value: unknown) {
-  try {
-    const serialized = JSON.stringify(value);
-    return serialized.length <= 700_000 && serialized.length > 0;
-  } catch {
-    return false;
-  }
-}
-
 router.get("/v2/product-profiles", requireV2Session, async (req, res): Promise<void> => {
   const access = await membershipOrRespond(req, res);
   if (!access) return;
-  const profiles = await db
-    .select()
-    .from(facilityProductProfilesTable)
-    .where(and(
-      eq(facilityProductProfilesTable.facilityId, access.membership.facilityId),
-      isNull(facilityProductProfilesTable.mergedIntoId),
-    ))
-    .orderBy(facilityProductProfilesTable.brand, facilityProductProfilesTable.flavor);
-  res.json(ListProductProfilesResponse.parse({ profiles }));
+  res.json(ListProductProfilesResponse.parse(await listProfileNames(access.membership.facilityId)));
 });
 
 router.get("/v2/import-batches", requireV2Session, async (req, res): Promise<void> => {
@@ -1060,6 +1019,7 @@ router.post(
       .digest("hex");
     try {
       const result = await db.transaction(async (tx) => {
+        await lockProfileNames(tx, access.membership.facilityId);
         const [previousBatch] = await tx.select().from(facilityImportBatchesTable).where(and(
           eq(facilityImportBatchesTable.facilityId, access.membership.facilityId),
           eq(facilityImportBatchesTable.sourceHash, dataHash),
@@ -1070,16 +1030,9 @@ router.post(
             eq(facilityProductProfilesTable.id, previousBatch.profileId),
             eq(facilityProductProfilesTable.facilityId, access.membership.facilityId),
           )).limit(1);
-          if (previousProfile) return { profile: previousProfile, batch: previousBatch, imported: false };
+          if (previousProfile) return { profile: await activeProfile(tx, access.membership.facilityId, previousProfile.id), batch: previousBatch, imported: false };
         }
-        const [existing] = await tx
-          .select()
-          .from(facilityProductProfilesTable)
-          .where(and(
-            eq(facilityProductProfilesTable.facilityId, access.membership.facilityId),
-            eq(facilityProductProfilesTable.normalizedKey, normalizedKey),
-          ))
-          .limit(1);
+        const existing = await profileForName(tx, access.membership.facilityId, normalizedKey);
         if (existing) {
           if (input.expectedRevision === undefined || existing.revision !== input.expectedRevision) {
             throw new HttpError(409, "This brand and flavor already has a profile. Refresh it, then add the workbook to its current revision.");
@@ -1213,22 +1166,10 @@ router.patch(
       return;
     }
     try {
-      const [profile] = await db.update(facilityProductProfilesTable).set({
-        brand,
-        flavor,
-        normalizedKey: normalizedProfileKey(brand, flavor),
-        revision: sql`${facilityProductProfilesTable.revision} + 1`,
-        updatedAt: new Date(),
-      }).where(and(
-        eq(facilityProductProfilesTable.id, params.data.profileId),
-        eq(facilityProductProfilesTable.facilityId, access.membership.facilityId),
-        isNull(facilityProductProfilesTable.mergedIntoId),
-        eq(facilityProductProfilesTable.revision, body.data.expectedRevision),
-      )).returning();
-      if (!profile) {
-        res.status(409).json({ error: "This profile changed on another device. Refresh and try again." });
-        return;
-      }
+      const profile = await renameProfile({
+        facilityId: access.membership.facilityId, profileId: params.data.profileId,
+        brand, flavor, expectedRevision: body.data.expectedRevision,
+      });
       res.json(RenameProductProfileResponse.parse({ profile }));
     } catch (error) {
       if (typeof error === "object" && error !== null && "code" in error && error.code === "23505") {
@@ -1255,45 +1196,11 @@ router.post(
     const access = await membershipOrRespond(req, res);
     if (!access) return;
     assertRunPermission(access.membership.role, "create");
-    const result = await db.transaction(async (tx) => {
-      const profiles = await tx.select().from(facilityProductProfilesTable).where(and(
-        eq(facilityProductProfilesTable.facilityId, access.membership.facilityId),
-        inArray(facilityProductProfilesTable.id, [params.data.profileId, body.data.targetProfileId]),
-      ));
-      const source = profiles.find((profile) => profile.id === params.data.profileId);
-      const target = profiles.find((profile) => profile.id === body.data.targetProfileId);
-      if (!source || !target) throw new HttpError(404, "One of the selected profiles is unavailable.");
-      if (
-        source.mergedIntoId ||
-        target.mergedIntoId ||
-        source.revision !== body.data.expectedSourceRevision ||
-        target.revision !== body.data.expectedTargetRevision
-      ) {
-        throw new HttpError(409, "A profile changed on another device. Refresh and review the merge again.");
-      }
-      const sourceParts = profileSourceEntries(target);
-      const incomingParts = profileSourceEntries(source);
-      const [updatedTarget] = await tx.update(facilityProductProfilesTable).set({
-        productData: { sources: [...sourceParts, ...incomingParts] },
-        revision: sql`${facilityProductProfilesTable.revision} + 1`,
-        updatedAt: new Date(),
-      }).where(and(
-        eq(facilityProductProfilesTable.id, target.id),
-        eq(facilityProductProfilesTable.revision, body.data.expectedTargetRevision),
-      )).returning();
-      const [updatedSource] = await tx.update(facilityProductProfilesTable).set({
-        mergedIntoId: target.id,
-        revision: sql`${facilityProductProfilesTable.revision} + 1`,
-        updatedAt: new Date(),
-      }).where(and(
-        eq(facilityProductProfilesTable.id, source.id),
-        eq(facilityProductProfilesTable.revision, body.data.expectedSourceRevision),
-        isNull(facilityProductProfilesTable.mergedIntoId),
-      )).returning();
-      if (!updatedTarget || !updatedSource) {
-        throw new HttpError(409, "A profile changed on another device. Refresh and review the merge again.");
-      }
-      return { profile: updatedTarget, mergedProfileId: updatedSource.id };
+    const result = await mergeProfiles({
+      facilityId: access.membership.facilityId,
+      sourceId: params.data.profileId, targetId: body.data.targetProfileId,
+      expectedSourceRevision: body.data.expectedSourceRevision,
+      expectedTargetRevision: body.data.expectedTargetRevision,
     });
     res.json(MergeProductProfileResponse.parse(result));
     req.log.info({ profileId: result.mergedProfileId, targetProfileId: result.profile.id }, "Product profiles merged");

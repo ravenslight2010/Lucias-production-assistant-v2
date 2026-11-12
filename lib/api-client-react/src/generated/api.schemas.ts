@@ -291,8 +291,16 @@ export interface ProductProfile {
   mergedIntoId: string | null;
 }
 
+export interface ProductProfileNameMapping {
+  brand: string;
+  flavor: string;
+  profileId: string;
+}
+
 export interface ProductProfileList {
   profiles: ProductProfile[];
+  /** Names explicitly renamed or merged, resolved to active facility profiles. */
+  nameMappings: ProductProfileNameMapping[];
 }
 
 export interface ProductProfileEnvelope {

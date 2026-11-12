@@ -54,6 +54,7 @@ export * from './productProfileImportResult.ts';
 export * from './productProfileList.ts';
 export * from './productProfileMergeInput.ts';
 export * from './productProfileMergeResult.ts';
+export * from './productProfileNameMapping.ts';
 export * from './productProfileProductData.ts';
 export * from './productProfileRenameInput.ts';
 export * from './run.ts';

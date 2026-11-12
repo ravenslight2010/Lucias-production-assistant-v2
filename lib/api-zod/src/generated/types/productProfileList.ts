@@ -6,7 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ProductProfile } from './productProfile.ts';
+import type { ProductProfileNameMapping } from './productProfileNameMapping.ts';
 
 export interface ProductProfileList {
   profiles: ProductProfile[];
+  /** Names explicitly renamed or merged, resolved to active facility profiles. */
+  nameMappings: ProductProfileNameMapping[];
 }

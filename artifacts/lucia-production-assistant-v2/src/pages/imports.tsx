@@ -30,6 +30,7 @@ import { parseProductSpecData, type ProductSpecData } from '../importing/product
 import { doughPortionChoices, scopeDoughWorkbook } from '../importing/dough';
 import { cheeseRecipeChoices, scopeCheeseWorkbook } from '../importing/cheese';
 import { sauceIssueCount } from '../importing/sauce';
+import { premixIssueCount } from '../importing/premix';
 import {
   IMPORT_KINDS,
   parseProductSpecProfiles,
@@ -180,21 +181,25 @@ const visualOperationalWorkbook: ParsedWorkbook = {
   fileName: 'Sample_Premix_Sheets.xlsx',
   sizeBytes: 18_240,
   sheetCount: 2,
-  cellCount: 25,
+  cellCount: 46,
   kind: 'premix',
   kindConfidence: 'high',
   sheets: [
     {
-      name: 'Sample Brand - Classic',
+      name: 'Sample Brand',
       rows: [
-        ['Sample Brand Premix'],
-        ['Ingredient', 'Per Pizza (oz)', 'Per Batch (lbs)'],
-        ['Flour blend', 0.15, 12],
+        ['Sample Brand Premix', null, null, '# OF MIXES', null, '***Pull 3 Days Early***'],
+        ['Ingredient', 'Per Pizza (oz)', 'Per Batch (lbs)', 2, null, null, 'Per Pizza (oz)', 'Per Batch (lbs)', 'Total Needed'],
+        ['Flour blend', 0.15, 12, null, null, 'Garlic sauce', 2, 80, '2 Buckets'],
         ['Seasoning', 0.01, 0.8],
         ['Total', 0.16, 12.8],
         ['Mixes', 2],
         ['PULL FOR MIX'],
-        ['Flour blend', 12],
+        ['Flour blend', 24, 'POUNDS'],
+        ['***PUT AN EGG ALLERGEN STICKER ON EVERY BOX***'],
+        ['ADD SEASONING'],
+        ['MIX 10-15 MIN'],
+        ['***PULL OLD MIX 2 DAYS PRIOR***'],
       ],
     },
     {
@@ -210,7 +215,10 @@ const visualOperationalWorkbook: ParsedWorkbook = {
   ],
 };
 
-const visualOperationalPreview = parseOperationalWorkbook(visualOperationalWorkbook, 'premix', ['Sample Brand - Classic']);
+const visualOperationalPreview: OperationalWorkbookData = {
+  ...parseOperationalWorkbook(visualOperationalWorkbook, 'premix', ['Sample Brand']),
+  premixReview: { reviewedAsReference: true },
+};
 
 const visualDoughWorkbook: ParsedWorkbook = {
   fileName: 'Sample_Dough_Mixing_Procedure.xlsx',
@@ -337,6 +345,7 @@ function WorkbookReview({
   );
   const [cheeseReviewConfirmed, setCheeseReviewConfirmed] = useState(false);
   const [sauceReviewConfirmed, setSauceReviewConfirmed] = useState(false);
+  const [premixReviewConfirmed, setPremixReviewConfirmed] = useState(false);
   const [kind, setKind] = useState<ImportKind | ''>(() => initialWorkbook?.kind ?? '');
   const [selectedOperationalSheets, setSelectedOperationalSheets] = useState<string[]>(() =>
     initialWorkbook && isOperationalKind(initialWorkbook.kind ?? '')
@@ -405,7 +414,9 @@ function WorkbookReview({
   }, [workbook, kind, selectedOperationalSheets, previewMode]);
   useEffect(() => { setCheeseReviewConfirmed(false); }, [cheeseKeys]);
   useEffect(() => { setSauceReviewConfirmed(false); }, [unscopedOperationalPreview]);
+  useEffect(() => { setPremixReviewConfirmed(false); }, [unscopedOperationalPreview]);
   const sauceReviewIssueCount = kind === 'sauce_guide' ? sauceIssueCount(operationalPreview) : 0;
+  const premixReviewIssueCount = kind === 'premix' ? premixIssueCount(operationalPreview) : 0;
   const doughReviewIssueCount = kind === 'dough_guide'
     ? operationalPreview?.sheets.reduce((count, sheet) =>
       count + sheet.recipes.reduce((sum, recipe) => sum + (recipe.dough?.issues.length ?? 0), 0), 0) ?? 0
@@ -804,13 +815,19 @@ function WorkbookReview({
       setValidation('Review the sauce source discrepancies and acknowledge saving them as reference data before continuing.');
       return;
     }
+    if (kind === 'premix' && premixReviewIssueCount > 0 && !premixReviewConfirmed) {
+      setValidation('Review the premix source details and acknowledge saving them as reference data before continuing.');
+      return;
+    }
     setValidation('');
     setSavedMessage('');
     try {
       const reviewedDoughData = kind === 'dough_guide' && workbook && unscopedOperationalPreview && doughChoice && selectedDoughBatch
         ? scopeDoughWorkbook(workbook, unscopedOperationalPreview, doughChoice.key, selectedDoughBatch.column, doughReviewConfirmed)
         : undefined;
-      const reviewedData = kind === 'sauce_guide' && unscopedOperationalPreview
+      const reviewedData = kind === 'premix' && unscopedOperationalPreview
+        ? { ...unscopedOperationalPreview, premixReview: { reviewedAsReference: premixReviewConfirmed } }
+        : kind === 'sauce_guide' && unscopedOperationalPreview
         ? { ...unscopedOperationalPreview, sauceReview: { reviewedAsReference: sauceReviewConfirmed } }
         : kind === 'cheese' && unscopedOperationalPreview
         ? scopeCheeseWorkbook(unscopedOperationalPreview, validCheeseKeys, cheeseReviewConfirmed)
@@ -1078,6 +1095,13 @@ function WorkbookReview({
               if (event.target.checked) setValidation(current => current.startsWith('Review the sauce source discrepancies') ? '' : current);
             }} />
             <span>I reviewed the {sauceReviewIssueCount} sauce source discrepancies. Save them as reference data, not corrected or approved formulas.</span>
+          </label>}
+          {kind === 'premix' && premixReviewIssueCount > 0 && <label className="operational-sheet-option">
+            <input type="checkbox" checked={premixReviewConfirmed} disabled={previewMode || importer.isPending} onChange={event => {
+              setPremixReviewConfirmed(event.target.checked);
+              if (event.target.checked) setValidation(current => current.startsWith('Review the premix source details') ? '' : current);
+            }} />
+            <span>I reviewed the {premixReviewIssueCount} premix source details, including preparation timing and saved planning values. Save as reference data, not corrected formulas or current-run quantities.</span>
           </label>}
           {kind === 'product_specs' && productSpecDrafts.length === 0 && <div className="notice" role="status">
             No complete product sections were detected automatically. You can still import the full workbook to one profile; every source cell will be retained.

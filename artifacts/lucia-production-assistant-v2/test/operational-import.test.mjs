@@ -61,7 +61,7 @@ test("extracts premix recipes, totals, batch metrics, and pull quantities", () =
 
   const recipe = parsed.sheets[0].recipes[0];
   assert.equal(parsed.title, "Sample Premix");
-  assert.equal(recipe.name, "Sample Premix");
+  assert.equal(recipe.name, "Customer — Sample Premix");
   assert.equal(recipe.ingredients.length, 2);
   assert.equal(recipe.total?.amounts[1].value, 13);
   assert.ok(recipe.metrics.some(({ name }) => name === "Mixes"));

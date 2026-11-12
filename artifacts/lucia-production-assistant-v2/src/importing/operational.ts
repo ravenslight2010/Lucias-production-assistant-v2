@@ -5,6 +5,8 @@ import { parseCheeseSheet } from './cheese.ts';
 import type { CheeseDetails, CheeseSelection } from './cheese';
 import { reviewSauceSheet } from './sauce.ts';
 import type { SauceDetails } from './sauce';
+import { parsePremixSheet } from './premix.ts';
+import type { PremixDetails } from './premix';
 
 export type OperationalImportKind = Exclude<ImportKind, 'product_specs' | 'schedule'>;
 
@@ -36,6 +38,7 @@ export type OperationalRecipe = {
   dough?: DoughDetails;
   cheese?: CheeseDetails;
   sauce?: SauceDetails;
+  premix?: PremixDetails;
 };
 export type OperationalProductMapping = {
   sourceRow: number;
@@ -66,6 +69,7 @@ export type OperationalWorkbookData = {
   warnings: string[];
   cheeseSelection?: CheeseSelection;
   sauceReview?: { reviewedAsReference: boolean };
+  premixReview?: { reviewedAsReference: boolean };
 };
 
 const normalizeText = (value: string) => value.normalize('NFKC').trim().replace(/\s+/g, ' ');
@@ -307,105 +311,6 @@ function parseGeneralRecipe(workbook: ParsedWorkbook, sheet: WorkbookSheet, doug
   return { name: sheet.name, recipes, productMappings: mappings, shippingRecords: [], notes: warning };
 }
 
-function nearestHeading(sheet: WorkbookSheet, labelColumn: number, headerRow: number) {
-  let fallback = '';
-  for (let rowIndex = headerRow - 1; rowIndex >= Math.max(0, headerRow - 6); rowIndex--) {
-    const text = cellText(sheet.rows[rowIndex]?.[labelColumn]);
-    if (!text || isUnit(text) || isTotal(text) || /\b(?:for\s+\d+(?:st|nd|rd|th)\s+cheese applicator|percent|revision|rev\.?)\b/i.test(text)) continue;
-    fallback ||= text;
-    if (/\b(?:mix|blend|recipe)\b/i.test(text)) return text;
-  }
-  return fallback;
-}
-
-function nearestRecipeHeading(sheet: WorkbookSheet, labelColumn: number, headerRow: number) {
-  const preferred = nearestHeading(sheet, labelColumn, headerRow + 1);
-  const isGeneric = (value: string) => /^(?:ingredient|ingredients|per pizza|per batch|total|quantity|qty|lbs?|oz\.?)$/i.test(value);
-  if (preferred && !isGeneric(preferred)) return preferred;
-  for (let rowIndex = headerRow - 1; rowIndex >= Math.max(0, headerRow - 6); rowIndex--) {
-    const candidate = rowStrings(sheet.rows[rowIndex]).find((text) =>
-      !isGeneric(text) && /\b(?:mix|premix|cheese|recipe|pizza|flavor|sauce)\b/i.test(text),
-    );
-    if (candidate) return candidate;
-  }
-  return preferred && !isGeneric(preferred) ? preferred : sheet.name;
-}
-
-function parsePremixRecipes(sheet: WorkbookSheet): OperationalSheet {
-  const recipes: OperationalRecipe[] = [];
-  for (let headerRow = 0; headerRow < sheet.rows.length; headerRow++) {
-    const row = sheet.rows[headerRow];
-    const batchColumns = row
-      .map((value, column) => ({ label: cellText(value), column }))
-      .filter(({ label }) => /per\s+batch/i.test(label));
-    for (const { column: batchColumn } of batchColumns) {
-      const pizzaColumn = batchColumn - 1;
-      const nameColumn = batchColumn - 2;
-      if (nameColumn < 0 || !/per\s+pizza/i.test(cellText(row[pizzaColumn]))) continue;
-      const name = nearestRecipeHeading(sheet, nameColumn, headerRow);
-      const ingredients: OperationalIngredient[] = [];
-      let total: OperationalIngredient | undefined;
-      let totalRow = headerRow;
-      for (let rowIndex = headerRow + 1; rowIndex < Math.min(sheet.rows.length, headerRow + 50); rowIndex++) {
-        const label = cellText(sheet.rows[rowIndex]?.[nameColumn]);
-        if (!label) continue;
-        const amounts = amountCells(sheet, rowIndex, nameColumn, headerRow);
-        if (isTotal(label)) {
-          total = { name: label, sourceRow: rowIndex + 1, amounts };
-          totalRow = rowIndex;
-          break;
-        }
-        if (amounts.length) ingredients.push({ name: label, sourceRow: rowIndex + 1, amounts });
-      }
-      if (!ingredients.length) continue;
-
-      const metrics: OperationalIngredient[] = [];
-      let pullStart = -1;
-      for (let rowIndex = totalRow + 1; rowIndex < sheet.rows.length; rowIndex++) {
-        const rowTextValue = rowStrings(sheet.rows[rowIndex]).join(' ');
-        if (/\bpull\s+for\s+mix\b/i.test(rowTextValue)) {
-          pullStart = rowIndex;
-          break;
-        }
-        const label = cellText(sheet.rows[rowIndex]?.[nameColumn]);
-        if (label && rowIndex > totalRow) {
-          const amounts = amountCells(sheet, rowIndex, nameColumn, headerRow);
-          if (amounts.length) metrics.push({ name: label, sourceRow: rowIndex + 1, amounts });
-        }
-      }
-
-      if (pullStart >= 0) {
-        let blankRows = 0;
-        for (let rowIndex = pullStart + 1; rowIndex < sheet.rows.length && blankRows < 2; rowIndex++) {
-          const row = sheet.rows[rowIndex];
-          const label = cellText(row[nameColumn]);
-          if (!label) {
-            blankRows++;
-            continue;
-          }
-          blankRows = 0;
-          const amounts = amountCells(sheet, rowIndex, nameColumn, headerRow);
-          if (amounts.length) metrics.push({ name: `Pull: ${label}`, sourceRow: rowIndex + 1, amounts });
-        }
-      }
-
-      recipes.push({
-        name,
-        source: { sheet: sheet.name, startRow: headerRow + 2, endRow: Math.max(totalRow, pullStart) + 1 },
-        ingredients,
-        ...(total ? { total } : {}),
-        steps: [],
-        equipment: [],
-        notes: [],
-        metrics,
-      });
-    }
-  }
-  const notes: string[] = [];
-  if (!recipes.length) notes.push(`No per-pizza/per-batch mix tables were confidently detected in worksheet "${sheet.name}".`);
-  return { name: sheet.name, recipes, productMappings: [], shippingRecords: [], notes };
-}
-
 function parseShippingRecords(sheet: WorkbookSheet): OperationalSheet {
   const headerRow = sheet.rows.findIndex((row) => {
     const text = rowStrings(row).join(' ').toLowerCase();
@@ -450,7 +355,7 @@ export function parseOperationalWorkbook(
   const metadata = titleAndRevision(workbook, metadataSheet, kind === 'cheese' || kind === 'sauce_guide');
   const sheets = sourceSheets.map((sheet) => {
     if (kind === 'shipping') return parseShippingRecords(sheet);
-    if (kind === 'premix') return parsePremixRecipes(sheet);
+    if (kind === 'premix') return parsePremixSheet(sheet);
     if (kind === 'cheese') return parseCheeseSheet(sheet);
     if (kind === 'sauce_guide') return reviewSauceSheet(sheet, parseGeneralRecipe(workbook, sheet));
     return parseGeneralRecipe(workbook, sheet, kind === 'dough_guide');

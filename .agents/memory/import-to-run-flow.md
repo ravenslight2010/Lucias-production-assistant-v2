@@ -36,3 +36,9 @@ Keep cheese applicator formulas and sub-mixes distinct. Similar recipe names are
 **Why:** Customer tabs reuse recipe names and may require more than one blend or a separately prepared sub-mix for one product.
 
 **How to apply:** Require an explicit choice of the source formulas for a product; retain applicator labels, original names, and provenance rather than merging by display name or silently expanding sub-mixes.
+
+Premix workbook planning totals are source references, not current-run requirements. Keep preparation/early-pull sections separate from the mix formula they sit beside.
+
+**Why:** The source workbooks include saved mix counts, cases, already-made amounts, and pull totals from prior planning. Adjacent preparation tables can have different timing and quantities from the mix itself.
+
+**How to apply:** Preserve the source values and timing in profile/run snapshots with their table identity. Do not reuse saved totals as new-run requirements or combine preparation quantities into a formula without a verified calculation rule.

@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { doughImportSelectionIdentity } from "../lib/dough-import-selection";
 import { cheeseImportSelectionIdentity } from "../lib/cheese-import-selection";
 import { sauceImportReviewIdentity } from "../lib/sauce-import-review";
+import { premixImportReviewIdentity } from "../lib/premix-import-review";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { clerkClient } from "@clerk/express";
 import {
@@ -1027,6 +1028,15 @@ router.post(
         return;
       }
     }
+    let premixSelection: string | null = null;
+    if (input.importKind === "premix") {
+      try {
+        premixSelection = premixImportReviewIdentity(input.productData);
+      } catch {
+        res.status(400).json({ error: "Review the premix source details and save them as reference data before continuing." });
+        return;
+      }
+    }
     if (input.importKind === "sauce_guide") {
       try {
         sauceSelection = sauceImportReviewIdentity(input.productData);
@@ -1041,6 +1051,7 @@ router.post(
         ...(doughSelection ? { doughSelection } : {}),
         ...(cheeseSelection ? { cheeseSelection } : {}),
         ...(sauceSelection ? { sauceSelection } : {}),
+        ...(premixSelection ? { premixSelection } : {}),
       }))
       .digest("hex");
     try {

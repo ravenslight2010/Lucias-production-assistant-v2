@@ -76,10 +76,25 @@ function RecipeSummary({ recipe }: { recipe: unknown }) {
   const name = asText(recipe.name) || 'Recipe';
   const sauce = isRecord(recipe.sauce) ? recipe.sauce : null;
   const sauceIssues = sauce && Array.isArray(sauce.issues) ? sauce.issues.filter(isRecord) : [];
-  return <details className="operational-recipe" open={isRecord(recipe.dough) || isRecord(recipe.cheese) || Boolean(sauce)}>
+  const premix = isRecord(recipe.premix) ? recipe.premix : null;
+  const premixIssues = premix && Array.isArray(premix.issues) ? premix.issues.filter(isRecord) : [];
+  const pullInstructions = premix && Array.isArray(premix.pullInstructions) ? premix.pullInstructions.filter(isRecord) : [];
+  return <details className="operational-recipe" open={isRecord(recipe.dough) || isRecord(recipe.cheese) || Boolean(sauce) || Boolean(premix)}>
     <summary>{name} <span>{ingredients.length} ingredients · {steps.length} steps</span></summary>
     <DoughDetailsSummary data={recipe.dough} />
     <CheeseDetailsSummary data={recipe.cheese} />
+    {premix && <div className="field-help">
+      <p>Customer: {asText(premix.sourceBrand)} · Original heading: {asText(premix.originalName)} · {asText(premix.section)} reference</p>
+      <p>Saved workbook planning values are not current-run calculations. No aliases, cross-brand merges, or quantity corrections were applied.</p>
+      {pullInstructions.length > 0 && <div><strong>Pull-ahead instructions</strong><ul className="operational-items">
+        {pullInstructions.map((pull, index) => <li key={index}>{asText(pull.text)} · source row {asText(pull.sourceRow)}
+          {typeof pull.daysEarly === 'number' && ` · ${pull.daysEarly} days early`}
+        </li>)}
+      </ul></div>}
+      {premixIssues.length > 0 && <div className="notice" role="status"><strong>Review premix source details</strong>
+        <ul className="operational-items">{premixIssues.map((issue, index) => <li key={index}>{asText(issue.message)}</li>)}</ul>
+      </div>}
+    </div>}
     {sauce && <div className="field-help">
       Source formula reference only. Alternative formulas, conditional additions, and native units have not been approved, converted, or applied automatically.
       {sauceIssues.length > 0 && <div className="notice" role="status"><strong>Review sauce source discrepancies</strong>
@@ -137,6 +152,9 @@ export function OperationalSetupSummary({
         </p>}
         {isRecord(workbook.sauceReview) && workbook.sauceReview.reviewedAsReference === true && <p className="field-help">
           Sauce source discrepancies were acknowledged as reference data, not corrected or approved formulas.
+        </p>}
+        {isRecord(workbook.premixReview) && workbook.premixReview.reviewedAsReference === true && <p className="field-help">
+          Premix source details were acknowledged as reference data. Stored planning totals are not current-run requirements.
         </p>}
         {workbook.warnings.length > 0 && <div className="notice" role="status">
           Review parser notes:

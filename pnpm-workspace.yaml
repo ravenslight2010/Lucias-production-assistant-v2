@@ -45,7 +45,7 @@ onlyBuiltDependencies:
 overrides:
   express>body-parser: 2.4.0
   qs: 6.16.1
-  '@esbuild-kit/esm-loader': npm:tsx@^4.21.0
+  '@esbuild-kit/esm-loader': npm:tsx@4.23.15
   '@expo/ngrok-bin>@expo/ngrok-bin-darwin-arm64': '-'
   '@expo/ngrok-bin>@expo/ngrok-bin-darwin-x64': '-'
   '@expo/ngrok-bin>@expo/ngrok-bin-freebsd-ia32': '-'
@@ -105,6 +105,7 @@ overrides:
   lightningcss>lightningcss-linux-x64-musl: '-'
   lightningcss>lightningcss-win32-arm64-msvc: '-'
   lightningcss>lightningcss-win32-x64-msvc: '-'
+  postcss-selector-parser: 6.1.6
   proxy-addr@^2: ^2.0.8
   rollup>@rollup/rollup-android-arm-eabi: '-'
   rollup>@rollup/rollup-android-arm64: '-'

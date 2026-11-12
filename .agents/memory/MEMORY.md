@@ -6,3 +6,4 @@
 - [VM replacement overlap evidence](vm-replacement-overlap-evidence.md) — Aggregate uptime resets do not prove a full restart or old/new overlap without instance-scoped evidence.
 - [Station timer behavior](station-timer-behavior.md) — Every station follows the production line timer for start, pause, resume, and end.
 - [Import-to-run flow](import-to-run-flow.md) — Imports are a primary source of run data; trace imported product and process data into downstream V2 workflows.
+- [PNPM 9 override location](pnpm9-override-location.md) — Put critical overrides in root `package.json`; the pinned PNPM 9 install ignored workspace-only overrides.

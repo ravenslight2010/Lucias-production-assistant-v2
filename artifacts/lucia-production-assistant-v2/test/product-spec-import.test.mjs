@@ -49,6 +49,25 @@ test("recognizes customer pizza-spec workbooks by filename and product-specific 
     kind: "product_specs",
     confidence: "high",
   });
+  assert.deepEqual(detectImportKind([sheet("Sheet1", [["CRB DOUGH"]])], "CRB_Dough_Mixing_Procedure.xlsx"), {
+    kind: "dough_guide",
+    confidence: "high",
+  });
+  assert.deepEqual(detectImportKind([sheet("Sheet1", [["Tika Masala Sauce"]])], "Tikka_Masala_Process.xlsx"), {
+    kind: "sauce_guide",
+    confidence: "high",
+  });
+  assert.deepEqual(detectImportKind([sheet("Sheet1", [["Ingredients"]])], "Updated_Pre_Mix_Sheets.xlsx"), {
+    kind: "premix",
+    confidence: "high",
+  });
+  assert.deepEqual(detectImportKind(
+    [sheet("Sheet1", [["Malted Barley"], ["Ingredients:"], ["Process"]])],
+    "Malted_Barley_Process.xlsx",
+  ), {
+    kind: null,
+    confidence: "review",
+  });
 });
 
 test("groups repeated brand/flavor sections across sheets and ignores incomplete headings", () => {

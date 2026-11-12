@@ -283,14 +283,18 @@ export function detectImportKind(sheets: WorkbookSheet[], sourceFileName = ""): 
     .filter((cell): cell is string => typeof cell === "string")
     .join(" ")
     .toLowerCase();
-  const fileName = sourceFileName.normalize("NFKC").toLowerCase();
+  const fileName = sourceFileName.normalize("NFKC").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const candidates: Array<[ImportKind, number]> = [
     ["shipping", Number(/shipping boxes|palletiz/.test(text)) * 5],
     ["schedule", Number(/week of|production schedule/.test(text)) * 4 + Number(/\bday\b/.test(text))],
     ["cheese", Number(sheets.length >= 10 && /cheese shredder|cheese mix/.test(text)) * 5],
-    ["premix", Number(/per batch\s*\(lbs\)|#\s*of mixes|total needed/.test(text)) * 4],
-    ["dough_guide", Number(/dough mixing procedure|doughball|dough balls/.test(text)) * 5],
-    ["sauce_guide", Number(/sauce procedure|sauce mix|sauce barrel/.test(text)) * 4],
+    ["premix",
+      Number(/per batch\s*\(lbs\)|#\s*of mixes|total needed/.test(text)) * 4 +
+      Number(/\bpre\s*mix\b/.test(fileName)) * 4],
+    ["dough_guide",
+      Number(/dough mixing procedure|doughball|dough balls/.test(text)) * 5 +
+      Number(/\bdough\b.*\b(?:mixing|procedure|process)\b/.test(fileName)) * 5],
+    ["sauce_guide", Number(/sauce procedure|sauce mix|sauce barrel|masala sauce/.test(text)) * 4],
     ["product_specs",
       Number(/\b(?:pizza|pizzas)\b/.test(fileName) && /\b(?:recipe|specs?)\b/.test(fileName)) * 4 +
       Number(/applicator|die type|oz\s*\/?\s*pizza/.test(text)) * 2 +

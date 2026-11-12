@@ -9,3 +9,4 @@
 - [PNPM 9 override location](pnpm9-override-location.md) — Put critical overrides in root `package.json`; the pinned PNPM 9 install ignored workspace-only overrides.
 - [PNPM patch lockfiles](pnpm-patched-lockfile-compatibility.md) — Generate and consume patched lockfiles with the same PNPM major to avoid frozen-install hash mismatches.
 - [Profile edit concurrency](profile-edit-concurrency.md) — Background list refreshes must not advance an open draft's reviewed revision and silently overwrite newer edits.
+- [Authenticated browser notebooks](authenticated-browser-notebooks.md) — Bundle reusable scenarios when the authenticated notebook cannot import ESM; normalize upload buffers at the harness boundary.

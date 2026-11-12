@@ -56,6 +56,7 @@ export type ProductSpecSection = {
 export type ProductSpecProfileCandidate = {
   id: string;
   brand: string;
+  sourceBrand?: string;
   flavor: string;
   sections: ProductSpecSection[];
 };
@@ -88,6 +89,15 @@ function normalizedProductName(value: string) {
 
 function profileKey(brand: string, flavor: string) {
   return JSON.stringify([normalizedProductName(brand).toLocaleLowerCase(), normalizedProductName(flavor).toLocaleLowerCase()]);
+}
+
+function productSpecBrand(fileName: string, sourceBrand: string) {
+  // This customer workbook reuses Corner Booth headings, but its products
+  // belong to separate Kroger profiles. Keep the source cells unchanged.
+  const krogerSpecWorkbook = /^kroger[ _-]+pizza[ _-]+recipe[ _-]+specs(?:[ _.-]|$)/i.test(fileName);
+  return krogerSpecWorkbook && /^corner booth pizzas?$/i.test(sourceBrand)
+    ? "Kroger"
+    : sourceBrand;
 }
 
 function isProductHeaderName(value: string) {
@@ -201,14 +211,16 @@ export function parseProductSpecProfiles(workbook: ParsedWorkbook): ProductSpecP
         endRow: findProductSpecEndRow(sheet, target.row, target.column, nextHeaderRow) + 1,
         endColumn,
       };
-      const key = profileKey(header.brand, header.flavor);
+      const brand = productSpecBrand(workbook.fileName, header.brand);
+      const key = profileKey(brand, header.flavor);
       const candidate = groups.get(key);
       if (candidate) {
         candidate.sections.push(section);
       } else {
         groups.set(key, {
           id: `${key}:${sheet.name}:${section.headerRow}:${section.headerColumn}`,
-          brand: header.brand,
+          brand,
+          ...(brand !== header.brand ? { sourceBrand: header.brand } : {}),
           flavor: header.flavor,
           sections: [section],
         });

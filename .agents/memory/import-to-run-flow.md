@@ -18,3 +18,9 @@ During import, prefix cheese recipe names and mix names with their brand names t
 **Why:** The user explicitly set this sequence and called out the data-quality risks for dough, duplicate cheese recipe names, incomplete sauce coverage, and premix pull timing.
 
 **How to apply:** Do not advance to a lower-priority workbook type until the higher-priority one is working and verified, unless the user changes the order. Apply the brand prefix when creating imported cheese and mix recipe names.
+
+Keep the Kroger spec workbook's products in separate Kroger profiles, even though its internal headings say Corner Booth.
+
+**Why:** The user explicitly chose separate Kroger profiles rather than sharing the matching Corner Booth brand/flavor profiles.
+
+**How to apply:** Use Kroger as the destination brand for those customer specs, preserve the original source labels, and do not automatically rename existing profiles or run snapshots.

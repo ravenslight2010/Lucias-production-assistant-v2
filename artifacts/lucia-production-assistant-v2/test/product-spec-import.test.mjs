@@ -95,3 +95,37 @@ test("groups repeated brand/flavor sections across sheets and ignores incomplete
   assert.equal(parsed[0].sections.length, 2);
   assert.deepEqual(parsed[0].sections.map(({ sheet: source }) => source), ["First", "Second"]);
 });
+
+test("keeps Kroger customer specs separate from their original Corner Booth headings", () => {
+  const rows = [
+    ["CORNER BOOTH PIZZAS", "Buffalo"],
+    ["Crust", 8],
+    ["TARGET WEIGHT", 16],
+    ["WEIGHT SPEC RANGE", "15.75 - 16.25"],
+  ];
+  const source = workbook([sheet("OZ", rows)]);
+  source.fileName = "Kroger_Pizza_Recipe_Specs_-_01_1794437759317.xlsx";
+  const before = JSON.stringify(source);
+  const kroger = parseProductSpecProfiles(source);
+  assert.equal(kroger.length, 1);
+  assert.equal(kroger[0].brand, "Kroger");
+  assert.equal(kroger[0].sourceBrand, "CORNER BOOTH PIZZAS");
+  assert.equal(kroger[0].flavor, "Buffalo");
+  assert.equal(JSON.stringify(source), before);
+
+  const cornerBooth = parseProductSpecProfiles({ ...source, fileName: "Corner_Booth_Recipe_Specs.xlsx" });
+  assert.equal(cornerBooth[0].brand, "CORNER BOOTH PIZZAS");
+  assert.equal(cornerBooth[0].sourceBrand, undefined);
+  assert.notEqual(kroger[0].id, cornerBooth[0].id);
+  assert.equal(parseProductSpecProfiles({ ...source, fileName: "Not_Kroger_Pizza_Recipe_Specs.xlsx" })[0].brand, "CORNER BOOTH PIZZAS");
+});
+
+test("does not replace unrelated brands in a Kroger spec workbook", () => {
+  const source = workbook([sheet("OZ", [
+    ["Sample Pizzas", "Cheese"],
+    ["Crust", 8],
+    ["TARGET WEIGHT", 16],
+  ])]);
+  source.fileName = "Kroger Pizza Recipe Specs.xlsx";
+  assert.equal(parseProductSpecProfiles(source)[0].brand, "Sample Pizzas");
+});

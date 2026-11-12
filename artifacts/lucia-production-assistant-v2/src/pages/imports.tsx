@@ -219,6 +219,7 @@ function toProductSpecData(workbook: ParsedWorkbook, draft: ProductSpecDraft) {
     ...toSparseWorkbook(workbook),
     selectedProduct: {
       brand: candidate.brand,
+      ...(draft.sourceBrand ? { sourceBrand: draft.sourceBrand } : {}),
       flavor: candidate.flavor,
       sections: draft.sections,
     },
@@ -891,6 +892,9 @@ function WorkbookReview({
                     <span>{sourceLocation}{draft.sections.length > 3 ? `; +${draft.sections.length - 3} more` : ''}</span>
                     {draftProfile && <span>Matches active profile revision {draftProfile.revision}</span>}
                   </div>
+                  {draft.sourceBrand && <p className="field-help" role="status">
+                    Original workbook brand: {draft.sourceBrand}. This customer workbook uses separate Kroger profiles; the source cells are unchanged.
+                  </p>}
                   {draft.extracted && <ProductSpecSummary
                     data={draft.extracted}
                     title="Extracted spec preview"

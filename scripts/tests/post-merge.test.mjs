@@ -8,7 +8,10 @@ import test from "node:test";
 
 const script = fileURLToPath(new URL("../post-merge.sh", import.meta.url));
 
-function runSetup(output, { installStatus = 0, pushStatus = 0 } = {}) {
+function runSetup(
+  output,
+  { installStatus = 0, pushStatus = 0, dbChange = true } = {},
+) {
   const directory = mkdtempSync(path.join(tmpdir(), "post-merge-test-"));
   try {
     writeFileSync(
@@ -24,6 +27,19 @@ exit "$TEST_PUSH_STATUS"
 `,
       { mode: 0o755 },
     );
+    writeFileSync(
+      path.join(directory, "git"),
+      `#!/bin/bash
+if [ "$*" = "rev-parse --verify HEAD^" ]; then
+  exit 0
+fi
+if [ "$*" = "diff --quiet HEAD^ HEAD -- lib/db/src/schema lib/db/drizzle.config.ts lib/db/scripts/push.mjs" ]; then
+  exit "$TEST_DB_DIFF_STATUS"
+fi
+exit 97
+`,
+      { mode: 0o755 },
+    );
     return spawnSync("bash", [script], {
       cwd: tmpdir(),
       encoding: "utf8",
@@ -33,12 +49,19 @@ exit "$TEST_PUSH_STATUS"
         TEST_SCHEMA_OUTPUT: output,
         TEST_INSTALL_STATUS: String(installStatus),
         TEST_PUSH_STATUS: String(pushStatus),
+        TEST_DB_DIFF_STATUS: dbChange ? "1" : "0",
       },
     });
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
 }
+
+test("skips schema push for merges without database changes", () => {
+  const result = runSetup("", { dbChange: false });
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /No database schema or push-script changes/);
+});
 
 test("accepts an explicitly unchanged schema", () => {
   assert.equal(runSetup("[i] No changes detected").status, 0);

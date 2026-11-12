@@ -17,6 +17,7 @@ import {
 } from '@workspace/api-client-react';
 import type { ProductProfile, ProductProfileImportInput, ScheduleImportInput } from '@workspace/api-client-react';
 import { OperationalSetupSummary } from '../components/operational-setup-summary';
+import { ProductSpecSummary } from '../components/product-spec-summary';
 import {
   filterShippingWorkbookByBrand,
   normalizeShippingBrand,
@@ -25,6 +26,7 @@ import {
   type OperationalImportKind,
   type OperationalWorkbookData,
 } from '../importing/operational';
+import { parseProductSpecData, type ProductSpecData } from '../importing/product-spec';
 import {
   IMPORT_KINDS,
   parseProductSpecProfiles,
@@ -123,9 +125,17 @@ function shippingProductData(workbook: ParsedWorkbook, selectedSheetNames: strin
 }
 
 type ProductSpecDraft = ProductSpecProfileCandidate & {
+  extracted?: ProductSpecData;
   saveState?: 'saving' | 'saved' | 'failed';
   saveError?: string;
 };
+
+function prepareProductSpecDrafts(workbook: ParsedWorkbook): ProductSpecDraft[] {
+  return parseProductSpecProfiles(workbook).map((candidate) => ({
+    ...candidate,
+    extracted: parseProductSpecData(workbook, candidate),
+  }));
+}
 
 const visualPreviewWorkbook: ParsedWorkbook = {
   fileName: 'Sample_Pizza_Recipe_Specs.xlsx',
@@ -161,7 +171,7 @@ const visualPreviewWorkbook: ParsedWorkbook = {
   }],
 };
 
-const visualPreviewProducts = parseProductSpecProfiles(visualPreviewWorkbook);
+const visualPreviewProducts = prepareProductSpecDrafts(visualPreviewWorkbook);
 
 const visualOperationalWorkbook: ParsedWorkbook = {
   fileName: 'Sample_Premix_Sheets.xlsx',
@@ -200,13 +210,19 @@ const visualOperationalWorkbook: ParsedWorkbook = {
 const visualOperationalPreview = parseOperationalWorkbook(visualOperationalWorkbook, 'premix', ['Sample Brand - Classic']);
 
 function toProductSpecData(workbook: ParsedWorkbook, draft: ProductSpecDraft) {
+  const candidate = {
+    ...draft,
+    brand: draft.brand.trim(),
+    flavor: draft.flavor.trim(),
+  };
   return {
     ...toSparseWorkbook(workbook),
     selectedProduct: {
-      brand: draft.brand.trim(),
-      flavor: draft.flavor.trim(),
+      brand: candidate.brand,
+      flavor: candidate.flavor,
       sections: draft.sections,
     },
+    structured: parseProductSpecData(workbook, candidate),
   };
 }
 
@@ -251,7 +267,7 @@ function WorkbookReview({
   const [flavor, setFlavor] = useState('');
   const [shippingImportStates, setShippingImportStates] = useState<Record<string, { status: 'saving' | 'saved' | 'failed'; error?: string }>>({});
   const [productSpecDrafts, setProductSpecDrafts] = useState<ProductSpecDraft[]>(() =>
-    initialWorkbook?.kind === 'product_specs' ? parseProductSpecProfiles(initialWorkbook) : [],
+    initialWorkbook?.kind === 'product_specs' ? prepareProductSpecDrafts(initialWorkbook) : [],
   );
   const [parseError, setParseError] = useState('');
   const [validation, setValidation] = useState('');
@@ -363,7 +379,7 @@ function WorkbookReview({
       const parsed = await parseWorkbookFile(file);
       setWorkbook(parsed);
       setKind(parsed.kind ?? '');
-      setProductSpecDrafts(parsed.kind === 'product_specs' ? parseProductSpecProfiles(parsed) : []);
+      setProductSpecDrafts(parsed.kind === 'product_specs' ? prepareProductSpecDrafts(parsed) : []);
       setSelectedOperationalSheets(parsed.kind && isOperationalKind(parsed.kind)
         ? parsed.sheets.slice(0, 1).map((sheet) => sheet.name)
         : []);
@@ -768,7 +784,7 @@ function WorkbookReview({
                 setSelectedOperationalSheets([workbook.sheets[0].name]);
               }
               if (nextKind === 'product_specs' && workbook && !productSpecDrafts.length) {
-                setProductSpecDrafts(parseProductSpecProfiles(workbook));
+                setProductSpecDrafts(prepareProductSpecDrafts(workbook));
               }
             }} required>
               <option value="">Select type to continue</option>
@@ -875,6 +891,12 @@ function WorkbookReview({
                     <span>{sourceLocation}{draft.sections.length > 3 ? `; +${draft.sections.length - 3} more` : ''}</span>
                     {draftProfile && <span>Matches active profile revision {draftProfile.revision}</span>}
                   </div>
+                  {draft.extracted && <ProductSpecSummary
+                    data={draft.extracted}
+                    title="Extracted spec preview"
+                    brand={draft.brand}
+                    flavor={draft.flavor}
+                  />}
                   {draft.saveState === 'saving' && <div className="field-help" role="status">Saving this profile…</div>}
                   {draft.saveState === 'saved' && <div className="notice" role="status">Saved. This profile will not be duplicated if you retry the batch.</div>}
                   {draft.saveState === 'failed' && <div className="error-banner" role="alert">{draft.saveError || 'This profile could not be saved.'}</div>}
@@ -1042,6 +1064,7 @@ function ProfileCard({ profile, profiles }: { profile: ProductProfile; profiles:
         <span className="status status-running">Active profile</span>
       </div>
       <OperationalSetupSummary data={profile.productData} title="Recipe and process details" />
+      <ProductSpecSummary data={profile.productData} title="Product specification details" />
       {editing && <form onSubmit={saveRename} noValidate className="import-fields" style={{ marginTop: 10 }}>
         <div className="form-field"><label htmlFor={`rename-brand-${profile.id}`}>Brand</label><input id={`rename-brand-${profile.id}`} value={brand} maxLength={120} onChange={(event) => setBrand(event.target.value)} /></div>
         <div className="form-field"><label htmlFor={`rename-flavor-${profile.id}`}>Flavor</label><input id={`rename-flavor-${profile.id}`} value={flavor} maxLength={120} onChange={(event) => setFlavor(event.target.value)} /></div>

@@ -13,6 +13,8 @@ Treat V1 as a behavioral reference: preserve useful workflows in V2 while improv
 
 For importer work, follow this priority order: product spec sheets first; dough procedures second because they are hardest to parse correctly; cheese workbooks third, disambiguating duplicate recipe names; sauce guides fourth, allowing products without a sauce recipe; premix workbooks fifth, preserving extra timing information such as pulling ingredients days early; shipping guides sixth; schedules last.
 
+During import, prefix cheese recipe names and mix names with their brand names to disambiguate duplicates.
+
 **Why:** The user explicitly set this sequence and called out the data-quality risks for dough, duplicate cheese recipe names, incomplete sauce coverage, and premix pull timing.
 
-**How to apply:** Do not advance to a lower-priority workbook type until the higher-priority one is working and verified, unless the user changes the order.
+**How to apply:** Do not advance to a lower-priority workbook type until the higher-priority one is working and verified, unless the user changes the order. Apply the brand prefix when creating imported cheese and mix recipe names.

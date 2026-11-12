@@ -50,6 +50,7 @@ export type ProductSpecSection = {
   headerColumn: number;
   targetWeightRow: number;
   endRow: number;
+  endColumn: number;
 };
 
 export type ProductSpecProfileCandidate = {
@@ -95,6 +96,7 @@ function isProductHeaderName(value: string) {
     !normalized ||
     normalized.length > 80 ||
     productSpecHeaderExclusions.has(normalized.toLocaleLowerCase()) ||
+    /\ballergen\b/i.test(normalized) ||
     instructionHeaderPattern.test(normalized) ||
     revisionHeaderPattern.test(normalized) ||
     dateHeaderPattern.test(normalized) ||
@@ -114,8 +116,13 @@ function labelColumnAt(row: WorkbookCell[], column: number) {
   return -1;
 }
 
-function findTargetWeightRow(sheet: WorkbookSheet, startRow: number, startColumn: number) {
-  const limit = Math.min(sheet.rows.length, startRow + 51);
+function findTargetWeightRow(
+  sheet: WorkbookSheet,
+  startRow: number,
+  startColumn: number,
+  stopBeforeRow: number,
+) {
+  const limit = Math.min(sheet.rows.length, startRow + 51, stopBeforeRow);
   for (let rowIndex = startRow + 1; rowIndex < limit; rowIndex++) {
     for (const column of [startColumn, startColumn + 1]) {
       if (/^target\s+weight$/i.test(cellText(sheet.rows[rowIndex]?.[column]))) {
@@ -126,8 +133,13 @@ function findTargetWeightRow(sheet: WorkbookSheet, startRow: number, startColumn
   return null;
 }
 
-function findProductSpecEndRow(sheet: WorkbookSheet, targetRow: number, targetColumn: number) {
-  const limit = Math.min(sheet.rows.length, targetRow + 5);
+function findProductSpecEndRow(
+  sheet: WorkbookSheet,
+  targetRow: number,
+  targetColumn: number,
+  stopBeforeRow: number,
+) {
+  const limit = Math.min(sheet.rows.length, targetRow + 5, stopBeforeRow);
   for (let rowIndex = targetRow + 1; rowIndex < limit; rowIndex++) {
     if (/^weight\s+spec\s+range$/i.test(cellText(sheet.rows[rowIndex]?.[targetColumn]))) {
       return rowIndex;
@@ -156,20 +168,32 @@ export function parseProductSpecProfiles(workbook: ParsedWorkbook): ProductSpecP
         const brand = normalizedProductName(cellText(row[column]));
         const flavor = normalizedProductName(cellText(row[labelColumn]));
         if (!isProductHeaderName(brand) || !isProductHeaderName(flavor)) continue;
-        if (!findTargetWeightRow(sheet, rowIndex, column)) continue;
         headers.push({ row: rowIndex, column, brand, flavor });
       }
     }
 
-    for (const header of headers) {
-      const target = findTargetWeightRow(sheet, header.row, header.column);
+    const nextHeaderRowFor = (header: (typeof headers)[number]) => headers
+      .filter((candidate) => candidate.column === header.column && candidate.row > header.row)
+      .reduce((next, candidate) => Math.min(next, candidate.row), sheet.rows.length);
+    const validHeaders = headers.filter((header) =>
+      findTargetWeightRow(sheet, header.row, header.column, nextHeaderRowFor(header)) !== null,
+    );
+    const columnStarts = [...new Set(validHeaders.map((header) => header.column))]
+      .sort((a, b) => a - b);
+    const maxColumns = sheet.rows.reduce((max, row) => Math.max(max, row.length), 0);
+    for (const header of validHeaders) {
+      const nextHeaderRow = nextHeaderRowFor(header);
+      const nextColumnStart = columnStarts.find((column) => column > header.column);
+      const endColumn = nextColumnStart ?? maxColumns;
+      const target = findTargetWeightRow(sheet, header.row, header.column, nextHeaderRow);
       if (!target) continue;
       const section: ProductSpecSection = {
         sheet: sheet.name,
         headerRow: header.row + 1,
         headerColumn: header.column + 1,
         targetWeightRow: target.row + 1,
-        endRow: findProductSpecEndRow(sheet, target.row, target.column) + 1,
+        endRow: findProductSpecEndRow(sheet, target.row, target.column, nextHeaderRow) + 1,
+        endColumn,
       };
       const key = profileKey(header.brand, header.flavor);
       const candidate = groups.get(key);

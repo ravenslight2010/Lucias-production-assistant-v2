@@ -30,13 +30,18 @@ test('remembered product names are verified against disposable PostgreSQL', { ti
     run('pg_ctl', ['-D', data, '-o', `-h 127.0.0.1 -p ${port} -F -c unix_socket_directories=${data}`, '-w', 'start']);
     started = true;
     run('pnpm', ['--filter', '@workspace/db', 'run', 'push']);
-    for (const suite of ['profile-names', 'name-library']) {
+    for (const suite of ['profile-names', 'name-library', 'run-requirements']) {
       const bundle = path.join(output, `${suite}.mjs`);
       run('pnpm', ['--filter', '@workspace/api-server', 'exec', 'esbuild',
         path.join(root, `artifacts/api-server/tests/${suite}.integration.ts`),
         '--bundle', '--platform=node', '--format=esm', `--outfile=${bundle}`, '--external:pg', '--external:pg-native']);
       run(process.execPath, ['--test', bundle]);
     }
+    const workbookBundle = path.join(output, 'run-requirements-workbooks.mjs');
+    run('pnpm', ['--filter', '@workspace/api-server', 'exec', 'esbuild',
+      path.join(root, 'scripts/tests/run-requirements-workbooks.mjs'),
+      '--bundle', '--platform=node', '--format=esm', `--outfile=${workbookBundle}`, '--external:pg', '--external:pg-native']);
+    run(process.execPath, ['--test', workbookBundle]);
   } finally {
     if (started) run('pg_ctl', ['-D', data, '-m', 'fast', '-w', 'stop']);
     await rm(data, { recursive: true, force: true });

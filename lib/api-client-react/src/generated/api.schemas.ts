@@ -262,6 +262,56 @@ export interface V2Session {
   csrfToken: string;
 }
 
+export type RunRecipeLinkUsageUnit = typeof RunRecipeLinkUsageUnit[keyof typeof RunRecipeLinkUsageUnit];
+
+
+export const RunRecipeLinkUsageUnit = {
+  oz: 'oz',
+  lb: 'lb',
+  g: 'g',
+  kg: 'kg',
+  each: 'each',
+} as const;
+
+export interface RunRecipeLink {
+  /** @maxLength 200 */
+  itemId: string;
+  /**
+     * @maxLength 200
+     * @nullable
+     */
+  recipeId?: string | null;
+  /** @maxLength 100 */
+  amountColumn?: string;
+  usageUnit?: RunRecipeLinkUsageUnit;
+  /**
+     * @minimum 1
+     * @maximum 10000
+     */
+  batchColumn?: number;
+  directIngredient?: boolean;
+}
+
+export interface RunPlanningOptions {
+  /**
+     * @minimum 1
+     * @maximum 1000
+     */
+  unitsPerCase?: number;
+  /** @maxLength 200 */
+  sectionId?: string;
+  /** @maxItems 200 */
+  links?: RunRecipeLink[];
+}
+
+export interface RunPlanningReview {
+  /** @minimum 0 */
+  expectedProfileRevision: number;
+  /** @minimum 0 */
+  expectedNameRevision: number;
+  options: RunPlanningOptions;
+}
+
 export interface RunSetup {
   /**
      * @minLength 1
@@ -275,6 +325,130 @@ export interface RunSetup {
   targetCases: number;
   /** @nullable */
   productProfileId?: string | null;
+  planning?: RunPlanningReview;
+}
+
+export interface RunRequirementsInput {
+  productProfileId: string;
+  /**
+     * @minimum 1
+     * @maximum 1000000
+     */
+  targetCases: number;
+  review?: RunPlanningReview;
+}
+
+export interface RunPlanSection {
+  id: string;
+  label: string;
+  source: string;
+  notes: string[];
+}
+
+export interface RunBatchColumn {
+  column: number;
+  label: string;
+  /** @nullable */
+  unit: string | null;
+  /** @nullable */
+  yield: number | null;
+}
+
+export interface RunRecipeChoice {
+  id: string;
+  name: string;
+  brand: string;
+  kind: string;
+  source: string;
+  columns: RunBatchColumn[];
+  issues: string[];
+}
+
+export interface RunIngredientRequirement {
+  name: string;
+  unit: string;
+  perBatch: number;
+  exactRequired: number;
+  wholeBatchRequired: number;
+}
+
+export type RunRequirementItemAmountChoicesItem = {
+  column: string;
+  value: string;
+};
+
+export interface RunRequirementItem {
+  id: string;
+  name: string;
+  originalName: string;
+  source: string;
+  station: string;
+  amountChoices: RunRequirementItemAmountChoicesItem[];
+  /** @nullable */
+  amountColumn: string | null;
+  /** @nullable */
+  usageUnit: string | null;
+  /** @nullable */
+  perPizza: number | null;
+  /** @nullable */
+  totalRequired: number | null;
+  /** @nullable */
+  recipeId: string | null;
+  directIngredient: boolean;
+  /** @nullable */
+  batchColumn: number | null;
+  /** @nullable */
+  batchUnit: string | null;
+  /** @nullable */
+  batchYield: number | null;
+  /** @nullable */
+  batchesExact: number | null;
+  /** @nullable */
+  wholeBatches: number | null;
+  /** @nullable */
+  remainder: number | null;
+  ingredients: RunIngredientRequirement[];
+  instructions: string[];
+  issues: string[];
+}
+
+export type RunRequirementsPlanVersion = typeof RunRequirementsPlanVersion[keyof typeof RunRequirementsPlanVersion];
+
+
+export const RunRequirementsPlanVersion = {
+  NUMBER_1: 1,
+} as const;
+
+export type RunRequirementsPlanStatus = typeof RunRequirementsPlanStatus[keyof typeof RunRequirementsPlanStatus];
+
+
+export const RunRequirementsPlanStatus = {
+  ready: 'ready',
+  needs_review: 'needs_review',
+} as const;
+
+export interface RunRequirementsPlan {
+  version: RunRequirementsPlanVersion;
+  productLabel: string;
+  profileRevision: number;
+  nameRevision: number;
+  targetCases: number;
+  /** @nullable */
+  unitsPerCase: number | null;
+  casePackSource: string;
+  /** @nullable */
+  totalPizzas: number | null;
+  status: RunRequirementsPlanStatus;
+  options: RunPlanningOptions;
+  sections: RunPlanSection[];
+  /** @nullable */
+  sectionId: string | null;
+  recipes: RunRecipeChoice[];
+  items: RunRequirementItem[];
+  batchPreparation: RunRequirementItem[];
+  preparation: string[];
+  packaging: string[];
+  issues: string[];
 }
 
 export type NameReferenceKind = typeof NameReferenceKind[keyof typeof NameReferenceKind];
@@ -348,6 +522,7 @@ export interface ProductProfile {
   revision: number;
   productData: ProductProfileProductData;
   nameResolution?: NameResolution;
+  runRequirements?: RunRequirementsPlan;
   createdAt: string;
   updatedAt: string;
   /** @nullable */

@@ -27,11 +27,12 @@ import {
   useListRuns,
   useListProductProfiles,
 } from '@workspace/api-client-react';
-import type { HealthStatus, Run, RunCommandRequest, RunStatus } from '@workspace/api-client-react';
+import type { HealthStatus, Run, RunCommandRequest, RunStatus, RunPlanningReview } from '@workspace/api-client-react';
 import { Link, Redirect, Route, Switch, Router as WouterRouter, useLocation, useRoute } from 'wouter';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { OperationalSetupSummary } from '@/components/operational-setup-summary';
 import { ProductSpecSummary } from '@/components/product-spec-summary';
+import { RunRequirementsEditor, RunRequirementsSummary } from '@/components/run-requirements';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
@@ -386,6 +387,7 @@ function RunsPage() {
   const [brand, setBrand] = useState('');
   const [productProfileId, setProductProfileId] = useState('');
   const [targetCases, setTargetCases] = useState('1');
+  const [planning, setPlanning] = useState<{ profileId: string; targetCases: number; review: RunPlanningReview } | null>(null);
   const [validation, setValidation] = useState('');
   const [filter, setFilter] = useState<RunStatus | 'all'>('all');
   const queryArgs = { limit: 100 };
@@ -409,6 +411,7 @@ function RunsPage() {
     .filter((profile) => profile.brand === brand)
     .sort((a, b) => a.flavor.localeCompare(b.flavor));
   const selectedProfile = profiles.find((profile) => profile.id === productProfileId);
+  const reviewedPlanning = planning?.profileId === productProfileId && planning.targetCases === Number(targetCases) ? planning.review : null;
 
   const handleCreate = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -417,16 +420,20 @@ function RunsPage() {
       setValidation('Choose a brand and flavor, then enter a whole target case count of at least one.');
       return;
     }
+    if (!reviewedPlanning) {
+      setValidation('Wait for the current requirements preview and review its warnings before saving this planned run.');
+      return;
+    }
     setValidation('');
     const label = `${selectedProfile.brand} / ${selectedProfile.flavor}`;
-    const fingerprint = JSON.stringify({ label, targetCases: countValue, productProfileId: selectedProfile.id });
+    const fingerprint = JSON.stringify({ label, targetCases: countValue, productProfileId: selectedProfile.id, planning: reviewedPlanning });
     if (!createAttempt.current || createAttempt.current.fingerprint !== fingerprint) {
       createAttempt.current = { fingerprint, requestId: crypto.randomUUID() };
     }
     createRun.mutate({
       data: {
         requestId: createAttempt.current.requestId,
-        setupSnapshot: { label, targetCases: countValue, productProfileId: selectedProfile.id },
+        setupSnapshot: { label, targetCases: countValue, productProfileId: selectedProfile.id, planning: reviewedPlanning },
       },
     }, {
       onSuccess: (created) => {
@@ -484,9 +491,11 @@ function RunsPage() {
             <span className="field-help" id="run-flavor-help">The selected profile is captured as an immutable snapshot when the run is created.</span>
           </div>
           <div className="form-field"><label htmlFor="run-target-cases">Target cases</label><input id="run-target-cases" data-testid="input-run-target-cases" type="number" inputMode="numeric" min={1} step={1} value={targetCases} onChange={(event) => setTargetCases(event.target.value)} aria-describedby={validation ? 'run-error' : undefined} required /></div>
+          {selectedProfile && <RunRequirementsEditor key={selectedProfile.id} profileId={selectedProfile.id} targetCases={Number(targetCases)} online={online}
+            onReviewChange={(review) => setPlanning(review ? { profileId: selectedProfile.id, targetCases: Number(targetCases), review } : null)} />}
           {validation && <span className="field-help" id="run-error" role="alert">{validation}</span>}
           {createRun.isError && <div className="error-banner" role="alert">{getErrorMessage(createRun.error, 'Run could not be created.')}</div>}
-          <div className="control-row"><button className="button button-primary" type="submit" disabled={!online || createRun.isPending || !selectedProfile}>{createRun.isPending ? <LoaderCircle size={16} /> : <Plus size={16} />} {createRun.isPending ? 'Saving planned run…' : 'Create planned run'}</button><button className="button button-secondary" type="button" onClick={() => { setIsCreating(false); setValidation(''); }} data-testid="button-cancel-create-run">Cancel</button></div>
+          <div className="control-row"><button className="button button-primary" type="submit" disabled={!online || createRun.isPending || !selectedProfile || !reviewedPlanning}>{createRun.isPending ? <LoaderCircle size={16} /> : <Plus size={16} />} {createRun.isPending ? 'Saving planned run…' : 'Create planned run'}</button><button className="button button-secondary" type="button" onClick={() => { setIsCreating(false); setValidation(''); }} data-testid="button-cancel-create-run">Cancel</button></div>
         </form>}
         <div className="section-heading" style={{ marginTop: 26 }}>
           <h2>{filter === 'all' ? 'All facility runs' : `${filter[0].toUpperCase()}${filter.slice(1)} runs`}</h2>
@@ -619,6 +628,8 @@ function RunDetailPage() {
               </>
               : <div className="notice" role="status">No product profile snapshot was attached when this run was created. The run setup remains unchanged.</div>}
           </section>
+          {run.productSnapshot?.runRequirements && <RunRequirementsSummary plan={run.productSnapshot.runRequirements} runId={run.id} />}
+          {!run.productSnapshot?.runRequirements && <div className="notice" role="status">This run has no captured requirements plan. Its original snapshot has not been changed.</div>}
           <RunStationProgressSection
             runId={run.id}
             run={run}

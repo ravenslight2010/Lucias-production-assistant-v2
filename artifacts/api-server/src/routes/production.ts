@@ -16,6 +16,8 @@ import {
   CreateV2SessionResponse,
   CreateRunBody,
   CreateRunResponse,
+  PreviewRunRequirementsBody,
+  PreviewRunRequirementsResponse,
   GetNameLibraryResponse,
   ChangeLibraryNameBody,
   ChangeLibraryNameResponse,
@@ -76,6 +78,7 @@ import {
 import { executeRunCommand } from "../lib/run-command-service";
 import { getRunStationProgress } from "../lib/run-station-progress-service";
 import { createPlannedRun } from "../lib/run-create-service";
+import { buildRunRequirements } from "../lib/run-requirements";
 import { importSchedule } from "../lib/schedule-import-service";
 import {
   activeProfile, listProfileNames, lockProfileNames, mergeProfiles, normalizedProfileKey,
@@ -241,6 +244,35 @@ router.get("/facility/context", async (req, res): Promise<void> => {
     : { facility: null, role: null };
   res.json(GetFacilityContextResponse.parse(response));
 });
+
+router.post(
+  "/v2/run-requirements/preview",
+  requireV2Session,
+  requireV2Csrf,
+  mutationRateLimit,
+  async (req, res): Promise<void> => {
+    const access = await membershipOrRespond(req, res);
+    if (!access) return;
+    const parsed = PreviewRunRequirementsBody.safeParse(req.body);
+    if (!parsed.success) { res.status(400).json({ error: "Choose a product, a supported whole case count, and valid source-based planning choices." }); return; }
+    const input = parsed.data;
+    const plan = await db.transaction(async (tx) => {
+      await lockProfileNames(tx, access.membership.facilityId);
+      const [profile] = await tx.select().from(facilityProductProfilesTable).where(and(
+        eq(facilityProductProfilesTable.facilityId, access.membership.facilityId),
+        eq(facilityProductProfilesTable.id, input.productProfileId),
+        isNull(facilityProductProfilesTable.mergedIntoId),
+      )).limit(1);
+      if (!profile) throw new HttpError(404, "The selected product profile is no longer available.");
+      const resolution = await loadNameResolution(tx, access.membership.facilityId);
+      if (input.review && (profile.revision !== input.review.expectedProfileRevision || resolution.revision !== input.review.expectedNameRevision)) {
+        throw new HttpError(409, "The product or remembered names changed. Refresh and review the requirements again.");
+      }
+      return buildRunRequirements({ ...profile, nameResolution: resolution }, input.targetCases, input.review?.options);
+    });
+    res.json(PreviewRunRequirementsResponse.parse(plan));
+  },
+);
 
 router.post(
   "/v2/session",

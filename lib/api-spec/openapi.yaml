@@ -25,6 +25,24 @@ tags:
   - name: dashboard
     description: Production overview
 paths:
+  /v2/run-requirements/preview:
+    post:
+      operationId: previewRunRequirements
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunRequirementsInput"
+      responses:
+        "200":
+          description: Requirements calculated from current facility-scoped source records.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunRequirementsPlan"
+        "400":
+          $ref: "#/components/responses/BadRequest"
   /healthz:
     get:
       operationId: healthCheck
@@ -1027,7 +1045,140 @@ components:
         productProfileId:
           type: [string, "null"]
           format: uuid
+        planning:
+          $ref: "#/components/schemas/RunPlanningReview"
       required: [label, targetCases]
+    RunPlanningReview:
+      type: object
+      additionalProperties: false
+      properties:
+        expectedProfileRevision: {type: integer, minimum: 0}
+        expectedNameRevision: {type: integer, minimum: 0}
+        options:
+          $ref: "#/components/schemas/RunPlanningOptions"
+      required: [expectedProfileRevision, expectedNameRevision, options]
+    RunPlanningOptions:
+      type: object
+      additionalProperties: false
+      properties:
+        unitsPerCase: {type: integer, minimum: 1, maximum: 1000}
+        sectionId: {type: string, maxLength: 200}
+        links:
+          type: array
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/RunRecipeLink"
+    RunRecipeLink:
+      type: object
+      additionalProperties: false
+      properties:
+        itemId: {type: string, maxLength: 200}
+        recipeId: {type: [string, "null"], maxLength: 200}
+        amountColumn: {type: string, maxLength: 100}
+        usageUnit: {type: string, enum: [oz, lb, g, kg, each]}
+        batchColumn: {type: integer, minimum: 1, maximum: 10000}
+        directIngredient: {type: boolean}
+      required: [itemId]
+    RunRequirementsInput:
+      type: object
+      additionalProperties: false
+      properties:
+        productProfileId: {type: string, format: uuid}
+        targetCases: {type: integer, minimum: 1, maximum: 1000000}
+        review:
+          $ref: "#/components/schemas/RunPlanningReview"
+      required: [productProfileId, targetCases]
+    RunPlanSection:
+      type: object
+      properties:
+        id: {type: string}
+        label: {type: string}
+        source: {type: string}
+        notes: {type: array, items: {type: string}}
+      required: [id, label, source, notes]
+    RunBatchColumn:
+      type: object
+      properties:
+        column: {type: integer}
+        label: {type: string}
+        unit: {type: [string, "null"]}
+        yield: {type: [number, "null"]}
+      required: [column, label, unit, yield]
+    RunRecipeChoice:
+      type: object
+      properties:
+        id: {type: string}
+        name: {type: string}
+        brand: {type: string}
+        kind: {type: string}
+        source: {type: string}
+        columns: {type: array, items: {$ref: "#/components/schemas/RunBatchColumn"}}
+        issues: {type: array, items: {type: string}}
+      required: [id, name, brand, kind, source, columns, issues]
+    RunIngredientRequirement:
+      type: object
+      properties:
+        name: {type: string}
+        unit: {type: string}
+        perBatch: {type: number}
+        exactRequired: {type: number}
+        wholeBatchRequired: {type: number}
+      required: [name, unit, perBatch, exactRequired, wholeBatchRequired]
+    RunRequirementItem:
+      type: object
+      properties:
+        id: {type: string}
+        name: {type: string}
+        originalName: {type: string}
+        source: {type: string}
+        station: {type: string}
+        amountChoices:
+          type: array
+          items:
+            type: object
+            properties:
+              column: {type: string}
+              value: {type: string}
+            required: [column, value]
+        amountColumn: {type: [string, "null"]}
+        usageUnit: {type: [string, "null"]}
+        perPizza: {type: [number, "null"]}
+        totalRequired: {type: [number, "null"]}
+        recipeId: {type: [string, "null"]}
+        directIngredient: {type: boolean}
+        batchColumn: {type: [integer, "null"]}
+        batchUnit: {type: [string, "null"]}
+        batchYield: {type: [number, "null"]}
+        batchesExact: {type: [number, "null"]}
+        wholeBatches: {type: [integer, "null"]}
+        remainder: {type: [number, "null"]}
+        ingredients: {type: array, items: {$ref: "#/components/schemas/RunIngredientRequirement"}}
+        instructions: {type: array, items: {type: string}}
+        issues: {type: array, items: {type: string}}
+      required: [id, name, originalName, source, station, amountChoices, amountColumn, usageUnit, perPizza, totalRequired, recipeId, directIngredient, batchColumn, batchUnit, batchYield, batchesExact, wholeBatches, remainder, ingredients, instructions, issues]
+    RunRequirementsPlan:
+      type: object
+      properties:
+        version: {type: integer, enum: [1]}
+        productLabel: {type: string}
+        profileRevision: {type: integer}
+        nameRevision: {type: integer}
+        targetCases: {type: integer}
+        unitsPerCase: {type: [integer, "null"]}
+        casePackSource: {type: string}
+        totalPizzas: {type: [integer, "null"]}
+        status: {type: string, enum: [ready, needs_review]}
+        options:
+          $ref: "#/components/schemas/RunPlanningOptions"
+        sections: {type: array, items: {$ref: "#/components/schemas/RunPlanSection"}}
+        sectionId: {type: [string, "null"]}
+        recipes: {type: array, items: {$ref: "#/components/schemas/RunRecipeChoice"}}
+        items: {type: array, items: {$ref: "#/components/schemas/RunRequirementItem"}}
+        batchPreparation: {type: array, items: {$ref: "#/components/schemas/RunRequirementItem"}}
+        preparation: {type: array, items: {type: string}}
+        packaging: {type: array, items: {type: string}}
+        issues: {type: array, items: {type: string}}
+      required: [version, productLabel, profileRevision, nameRevision, targetCases, unitsPerCase, casePackSource, totalPizzas, status, options, sections, sectionId, recipes, items, batchPreparation, preparation, packaging, issues]
     NameReference:
       type: object
       additionalProperties: false
@@ -1128,6 +1279,8 @@ components:
           additionalProperties: true
         nameResolution:
           $ref: "#/components/schemas/NameResolution"
+        runRequirements:
+          $ref: "#/components/schemas/RunRequirementsPlan"
         createdAt:
           type: string
           format: date-time

@@ -10,11 +10,14 @@ import { HttpError } from "./http-error";
 import { toContractRun } from "./run-contract";
 import { lockProfileNames } from "./profile-names";
 import { loadNameResolution, resolutionForProfile } from "./name-resolution";
+import { buildRunRequirements } from "./run-requirements";
+import type { RunPlanningReview } from "@workspace/api-zod";
 
 export interface RunSetupSnapshot {
   label: string;
   targetCases: number;
   productProfileId?: string | null;
+  planning?: RunPlanningReview;
 }
 
 function setupHash(setupSnapshot: RunSetupSnapshot) {
@@ -23,6 +26,7 @@ function setupHash(setupSnapshot: RunSetupSnapshot) {
       label: setupSnapshot.label.trim(),
       targetCases: setupSnapshot.targetCases,
       productProfileId: setupSnapshot.productProfileId ?? null,
+      ...(setupSnapshot.planning ? { planning: setupSnapshot.planning } : {}),
     }))
     .digest("hex");
 }
@@ -87,7 +91,17 @@ export async function createPlannedRun(input: {
         throw new HttpError(404, "The selected product profile is no longer available.");
       }
       if (productProfile?.mergedIntoId) throw new HttpError(409, "This product profile was merged. Refresh and review the surviving product before creating a run.");
-      const nameResolution = productProfile ? resolutionForProfile(productProfile, await loadNameResolution(tx, input.facilityId)) : undefined;
+      const resolution = productProfile ? await loadNameResolution(tx, input.facilityId) : undefined;
+      const nameResolution = productProfile && resolution ? resolutionForProfile(productProfile, resolution) : undefined;
+      const review = input.setupSnapshot.planning;
+      if (review && (!productProfile || !resolution)) throw new HttpError(400, "A requirements plan needs a selected product profile.");
+      if (review && productProfile && resolution &&
+        (review.expectedProfileRevision !== productProfile.revision || review.expectedNameRevision !== resolution.revision)) {
+        throw new HttpError(409, "The product or remembered names changed after requirements were reviewed. Refresh and review the plan before creating the run.");
+      }
+      const runRequirements = review && productProfile && resolution
+        ? buildRunRequirements({ ...productProfile, nameResolution: resolution }, input.setupSnapshot.targetCases, review.options)
+        : undefined;
       const productSnapshot = productProfile
         ? {
             id: productProfile.id,
@@ -99,6 +113,7 @@ export async function createPlannedRun(input: {
             updatedAt: productProfile.updatedAt,
             mergedIntoId: productProfile.mergedIntoId,
             ...(nameResolution ? { nameResolution } : {}),
+            ...(runRequirements ? { runRequirements } : {}),
           }
         : null;
       const [run] = await tx

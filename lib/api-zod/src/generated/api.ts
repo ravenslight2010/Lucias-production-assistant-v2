@@ -8,6 +8,178 @@
 import * as zod from 'zod';
 
 
+export const previewRunRequirementsBodyTargetCasesMax = 1000000;
+
+export const previewRunRequirementsBodyReviewExpectedProfileRevisionMin = 0;
+
+export const previewRunRequirementsBodyReviewExpectedNameRevisionMin = 0;
+
+export const previewRunRequirementsBodyReviewOptionsUnitsPerCaseMax = 1000;
+
+export const previewRunRequirementsBodyReviewOptionsSectionIdMax = 200;
+
+export const previewRunRequirementsBodyReviewOptionsLinksItemItemIdMax = 200;
+
+export const previewRunRequirementsBodyReviewOptionsLinksItemRecipeIdMax = 200;
+
+export const previewRunRequirementsBodyReviewOptionsLinksItemAmountColumnMax = 100;
+
+export const previewRunRequirementsBodyReviewOptionsLinksItemBatchColumnMax = 10000;
+
+export const previewRunRequirementsBodyReviewOptionsLinksMax = 200;
+
+
+
+export const PreviewRunRequirementsBody = zod.object({
+  "productProfileId": zod.string().uuid(),
+  "targetCases": zod.number().int().min(1).max(previewRunRequirementsBodyTargetCasesMax),
+  "review": zod.object({
+  "expectedProfileRevision": zod.number().int().min(previewRunRequirementsBodyReviewExpectedProfileRevisionMin),
+  "expectedNameRevision": zod.number().int().min(previewRunRequirementsBodyReviewExpectedNameRevisionMin),
+  "options": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(previewRunRequirementsBodyReviewOptionsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(previewRunRequirementsBodyReviewOptionsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(previewRunRequirementsBodyReviewOptionsLinksItemItemIdMax),
+  "recipeId": zod.string().max(previewRunRequirementsBodyReviewOptionsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(previewRunRequirementsBodyReviewOptionsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(previewRunRequirementsBodyReviewOptionsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(previewRunRequirementsBodyReviewOptionsLinksMax).optional()
+})
+}).optional()
+})
+
+export const previewRunRequirementsResponseOptionsUnitsPerCaseMax = 1000;
+
+export const previewRunRequirementsResponseOptionsSectionIdMax = 200;
+
+export const previewRunRequirementsResponseOptionsLinksItemItemIdMax = 200;
+
+export const previewRunRequirementsResponseOptionsLinksItemRecipeIdMax = 200;
+
+export const previewRunRequirementsResponseOptionsLinksItemAmountColumnMax = 100;
+
+export const previewRunRequirementsResponseOptionsLinksItemBatchColumnMax = 10000;
+
+export const previewRunRequirementsResponseOptionsLinksMax = 200;
+
+
+
+export const PreviewRunRequirementsResponse = zod.object({
+  "version": zod.literal(1),
+  "productLabel": zod.string(),
+  "profileRevision": zod.number().int(),
+  "nameRevision": zod.number().int(),
+  "targetCases": zod.number().int(),
+  "unitsPerCase": zod.number().int().nullable(),
+  "casePackSource": zod.string(),
+  "totalPizzas": zod.number().int().nullable(),
+  "status": zod.enum(['ready', 'needs_review']),
+  "options": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(previewRunRequirementsResponseOptionsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(previewRunRequirementsResponseOptionsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(previewRunRequirementsResponseOptionsLinksItemItemIdMax),
+  "recipeId": zod.string().max(previewRunRequirementsResponseOptionsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(previewRunRequirementsResponseOptionsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(previewRunRequirementsResponseOptionsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(previewRunRequirementsResponseOptionsLinksMax).optional()
+}),
+  "sections": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "source": zod.string(),
+  "notes": zod.array(zod.string())
+})),
+  "sectionId": zod.string().nullable(),
+  "recipes": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "brand": zod.string(),
+  "kind": zod.string(),
+  "source": zod.string(),
+  "columns": zod.array(zod.object({
+  "column": zod.number().int(),
+  "label": zod.string(),
+  "unit": zod.string().nullable(),
+  "yield": zod.number().nullable()
+})),
+  "issues": zod.array(zod.string())
+})),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "station": zod.string(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "batchPreparation": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "station": zod.string(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "preparation": zod.array(zod.string()),
+  "packaging": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})
+
+
 /**
  * Returns server health status
  * @summary Health check
@@ -284,6 +456,24 @@ export const listRunsResponseRunsItemSetupSnapshotLabelMax = 120;
 
 export const listRunsResponseRunsItemSetupSnapshotTargetCasesMax = 9007199254740991;
 
+export const listRunsResponseRunsItemSetupSnapshotPlanningExpectedProfileRevisionMin = 0;
+
+export const listRunsResponseRunsItemSetupSnapshotPlanningExpectedNameRevisionMin = 0;
+
+export const listRunsResponseRunsItemSetupSnapshotPlanningOptionsUnitsPerCaseMax = 1000;
+
+export const listRunsResponseRunsItemSetupSnapshotPlanningOptionsSectionIdMax = 200;
+
+export const listRunsResponseRunsItemSetupSnapshotPlanningOptionsLinksItemItemIdMax = 200;
+
+export const listRunsResponseRunsItemSetupSnapshotPlanningOptionsLinksItemRecipeIdMax = 200;
+
+export const listRunsResponseRunsItemSetupSnapshotPlanningOptionsLinksItemAmountColumnMax = 100;
+
+export const listRunsResponseRunsItemSetupSnapshotPlanningOptionsLinksItemBatchColumnMax = 10000;
+
+export const listRunsResponseRunsItemSetupSnapshotPlanningOptionsLinksMax = 200;
+
 export const listRunsResponseRunsItemProductSnapshotOneNameResolutionRulesItemSourceBrandMax = 120;
 
 export const listRunsResponseRunsItemProductSnapshotOneNameResolutionRulesItemSourceNameMax = 300;
@@ -291,6 +481,20 @@ export const listRunsResponseRunsItemProductSnapshotOneNameResolutionRulesItemSo
 export const listRunsResponseRunsItemProductSnapshotOneNameResolutionRulesItemTargetBrandMax = 120;
 
 export const listRunsResponseRunsItemProductSnapshotOneNameResolutionRulesItemTargetNameMax = 300;
+
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsOptionsUnitsPerCaseMax = 1000;
+
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsOptionsSectionIdMax = 200;
+
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemItemIdMax = 200;
+
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemRecipeIdMax = 200;
+
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemAmountColumnMax = 100;
+
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemBatchColumnMax = 10000;
+
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsOptionsLinksMax = 200;
 
 
 
@@ -318,7 +522,23 @@ export const ListRunsResponse = zod.object({
   "setupSnapshot": zod.object({
   "label": zod.string().min(1).max(listRunsResponseRunsItemSetupSnapshotLabelMax),
   "targetCases": zod.number().int().min(1).max(listRunsResponseRunsItemSetupSnapshotTargetCasesMax),
-  "productProfileId": zod.string().uuid().nullish()
+  "productProfileId": zod.string().uuid().nullish(),
+  "planning": zod.object({
+  "expectedProfileRevision": zod.number().int().min(listRunsResponseRunsItemSetupSnapshotPlanningExpectedProfileRevisionMin),
+  "expectedNameRevision": zod.number().int().min(listRunsResponseRunsItemSetupSnapshotPlanningExpectedNameRevisionMin),
+  "options": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(listRunsResponseRunsItemSetupSnapshotPlanningOptionsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(listRunsResponseRunsItemSetupSnapshotPlanningOptionsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(listRunsResponseRunsItemSetupSnapshotPlanningOptionsLinksItemItemIdMax),
+  "recipeId": zod.string().max(listRunsResponseRunsItemSetupSnapshotPlanningOptionsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(listRunsResponseRunsItemSetupSnapshotPlanningOptionsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(listRunsResponseRunsItemSetupSnapshotPlanningOptionsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(listRunsResponseRunsItemSetupSnapshotPlanningOptionsLinksMax).optional()
+})
+}).optional()
 }),
   "productSnapshot": zod.union([zod.object({
   "id": zod.string().uuid(),
@@ -340,6 +560,117 @@ export const ListRunsResponse = zod.object({
   "name": zod.string().min(1).max(listRunsResponseRunsItemProductSnapshotOneNameResolutionRulesItemTargetNameMax)
 })
 }))
+}).optional(),
+  "runRequirements": zod.object({
+  "version": zod.literal(1),
+  "productLabel": zod.string(),
+  "profileRevision": zod.number().int(),
+  "nameRevision": zod.number().int(),
+  "targetCases": zod.number().int(),
+  "unitsPerCase": zod.number().int().nullable(),
+  "casePackSource": zod.string(),
+  "totalPizzas": zod.number().int().nullable(),
+  "status": zod.enum(['ready', 'needs_review']),
+  "options": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsOptionsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsOptionsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemItemIdMax),
+  "recipeId": zod.string().max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsOptionsLinksMax).optional()
+}),
+  "sections": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "source": zod.string(),
+  "notes": zod.array(zod.string())
+})),
+  "sectionId": zod.string().nullable(),
+  "recipes": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "brand": zod.string(),
+  "kind": zod.string(),
+  "source": zod.string(),
+  "columns": zod.array(zod.object({
+  "column": zod.number().int(),
+  "label": zod.string(),
+  "unit": zod.string().nullable(),
+  "yield": zod.number().nullable()
+})),
+  "issues": zod.array(zod.string())
+})),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "station": zod.string(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "batchPreparation": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "station": zod.string(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "preparation": zod.array(zod.string()),
+  "packaging": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
 }).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -365,6 +696,24 @@ export const createRunBodySetupSnapshotLabelMax = 120;
 
 export const createRunBodySetupSnapshotTargetCasesMax = 9007199254740991;
 
+export const createRunBodySetupSnapshotPlanningExpectedProfileRevisionMin = 0;
+
+export const createRunBodySetupSnapshotPlanningExpectedNameRevisionMin = 0;
+
+export const createRunBodySetupSnapshotPlanningOptionsUnitsPerCaseMax = 1000;
+
+export const createRunBodySetupSnapshotPlanningOptionsSectionIdMax = 200;
+
+export const createRunBodySetupSnapshotPlanningOptionsLinksItemItemIdMax = 200;
+
+export const createRunBodySetupSnapshotPlanningOptionsLinksItemRecipeIdMax = 200;
+
+export const createRunBodySetupSnapshotPlanningOptionsLinksItemAmountColumnMax = 100;
+
+export const createRunBodySetupSnapshotPlanningOptionsLinksItemBatchColumnMax = 10000;
+
+export const createRunBodySetupSnapshotPlanningOptionsLinksMax = 200;
+
 
 
 export const CreateRunBody = zod.object({
@@ -372,7 +721,23 @@ export const CreateRunBody = zod.object({
   "setupSnapshot": zod.object({
   "label": zod.string().min(1).max(createRunBodySetupSnapshotLabelMax),
   "targetCases": zod.number().int().min(1).max(createRunBodySetupSnapshotTargetCasesMax),
-  "productProfileId": zod.string().uuid().nullish()
+  "productProfileId": zod.string().uuid().nullish(),
+  "planning": zod.object({
+  "expectedProfileRevision": zod.number().int().min(createRunBodySetupSnapshotPlanningExpectedProfileRevisionMin),
+  "expectedNameRevision": zod.number().int().min(createRunBodySetupSnapshotPlanningExpectedNameRevisionMin),
+  "options": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(createRunBodySetupSnapshotPlanningOptionsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(createRunBodySetupSnapshotPlanningOptionsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(createRunBodySetupSnapshotPlanningOptionsLinksItemItemIdMax),
+  "recipeId": zod.string().max(createRunBodySetupSnapshotPlanningOptionsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(createRunBodySetupSnapshotPlanningOptionsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(createRunBodySetupSnapshotPlanningOptionsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(createRunBodySetupSnapshotPlanningOptionsLinksMax).optional()
+})
+}).optional()
 })
 })
 
@@ -393,6 +758,24 @@ export const createRunResponseRunSetupSnapshotLabelMax = 120;
 
 export const createRunResponseRunSetupSnapshotTargetCasesMax = 9007199254740991;
 
+export const createRunResponseRunSetupSnapshotPlanningExpectedProfileRevisionMin = 0;
+
+export const createRunResponseRunSetupSnapshotPlanningExpectedNameRevisionMin = 0;
+
+export const createRunResponseRunSetupSnapshotPlanningOptionsUnitsPerCaseMax = 1000;
+
+export const createRunResponseRunSetupSnapshotPlanningOptionsSectionIdMax = 200;
+
+export const createRunResponseRunSetupSnapshotPlanningOptionsLinksItemItemIdMax = 200;
+
+export const createRunResponseRunSetupSnapshotPlanningOptionsLinksItemRecipeIdMax = 200;
+
+export const createRunResponseRunSetupSnapshotPlanningOptionsLinksItemAmountColumnMax = 100;
+
+export const createRunResponseRunSetupSnapshotPlanningOptionsLinksItemBatchColumnMax = 10000;
+
+export const createRunResponseRunSetupSnapshotPlanningOptionsLinksMax = 200;
+
 export const createRunResponseRunProductSnapshotOneNameResolutionRulesItemSourceBrandMax = 120;
 
 export const createRunResponseRunProductSnapshotOneNameResolutionRulesItemSourceNameMax = 300;
@@ -400,6 +783,20 @@ export const createRunResponseRunProductSnapshotOneNameResolutionRulesItemSource
 export const createRunResponseRunProductSnapshotOneNameResolutionRulesItemTargetBrandMax = 120;
 
 export const createRunResponseRunProductSnapshotOneNameResolutionRulesItemTargetNameMax = 300;
+
+export const createRunResponseRunProductSnapshotOneRunRequirementsOptionsUnitsPerCaseMax = 1000;
+
+export const createRunResponseRunProductSnapshotOneRunRequirementsOptionsSectionIdMax = 200;
+
+export const createRunResponseRunProductSnapshotOneRunRequirementsOptionsLinksItemItemIdMax = 200;
+
+export const createRunResponseRunProductSnapshotOneRunRequirementsOptionsLinksItemRecipeIdMax = 200;
+
+export const createRunResponseRunProductSnapshotOneRunRequirementsOptionsLinksItemAmountColumnMax = 100;
+
+export const createRunResponseRunProductSnapshotOneRunRequirementsOptionsLinksItemBatchColumnMax = 10000;
+
+export const createRunResponseRunProductSnapshotOneRunRequirementsOptionsLinksMax = 200;
 
 
 
@@ -429,7 +826,23 @@ export const CreateRunResponse = zod.object({
   "setupSnapshot": zod.object({
   "label": zod.string().min(1).max(createRunResponseRunSetupSnapshotLabelMax),
   "targetCases": zod.number().int().min(1).max(createRunResponseRunSetupSnapshotTargetCasesMax),
-  "productProfileId": zod.string().uuid().nullish()
+  "productProfileId": zod.string().uuid().nullish(),
+  "planning": zod.object({
+  "expectedProfileRevision": zod.number().int().min(createRunResponseRunSetupSnapshotPlanningExpectedProfileRevisionMin),
+  "expectedNameRevision": zod.number().int().min(createRunResponseRunSetupSnapshotPlanningExpectedNameRevisionMin),
+  "options": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(createRunResponseRunSetupSnapshotPlanningOptionsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(createRunResponseRunSetupSnapshotPlanningOptionsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(createRunResponseRunSetupSnapshotPlanningOptionsLinksItemItemIdMax),
+  "recipeId": zod.string().max(createRunResponseRunSetupSnapshotPlanningOptionsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(createRunResponseRunSetupSnapshotPlanningOptionsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(createRunResponseRunSetupSnapshotPlanningOptionsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(createRunResponseRunSetupSnapshotPlanningOptionsLinksMax).optional()
+})
+}).optional()
 }),
   "productSnapshot": zod.union([zod.object({
   "id": zod.string().uuid(),
@@ -451,6 +864,117 @@ export const CreateRunResponse = zod.object({
   "name": zod.string().min(1).max(createRunResponseRunProductSnapshotOneNameResolutionRulesItemTargetNameMax)
 })
 }))
+}).optional(),
+  "runRequirements": zod.object({
+  "version": zod.literal(1),
+  "productLabel": zod.string(),
+  "profileRevision": zod.number().int(),
+  "nameRevision": zod.number().int(),
+  "targetCases": zod.number().int(),
+  "unitsPerCase": zod.number().int().nullable(),
+  "casePackSource": zod.string(),
+  "totalPizzas": zod.number().int().nullable(),
+  "status": zod.enum(['ready', 'needs_review']),
+  "options": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(createRunResponseRunProductSnapshotOneRunRequirementsOptionsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(createRunResponseRunProductSnapshotOneRunRequirementsOptionsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(createRunResponseRunProductSnapshotOneRunRequirementsOptionsLinksItemItemIdMax),
+  "recipeId": zod.string().max(createRunResponseRunProductSnapshotOneRunRequirementsOptionsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(createRunResponseRunProductSnapshotOneRunRequirementsOptionsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(createRunResponseRunProductSnapshotOneRunRequirementsOptionsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(createRunResponseRunProductSnapshotOneRunRequirementsOptionsLinksMax).optional()
+}),
+  "sections": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "source": zod.string(),
+  "notes": zod.array(zod.string())
+})),
+  "sectionId": zod.string().nullable(),
+  "recipes": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "brand": zod.string(),
+  "kind": zod.string(),
+  "source": zod.string(),
+  "columns": zod.array(zod.object({
+  "column": zod.number().int(),
+  "label": zod.string(),
+  "unit": zod.string().nullable(),
+  "yield": zod.number().nullable()
+})),
+  "issues": zod.array(zod.string())
+})),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "station": zod.string(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "batchPreparation": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "station": zod.string(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "preparation": zod.array(zod.string()),
+  "packaging": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
 }).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -678,6 +1202,20 @@ export const listProductProfilesResponseProfilesItemNameResolutionRulesItemTarge
 
 export const listProductProfilesResponseProfilesItemNameResolutionRulesItemTargetNameMax = 300;
 
+export const listProductProfilesResponseProfilesItemRunRequirementsOptionsUnitsPerCaseMax = 1000;
+
+export const listProductProfilesResponseProfilesItemRunRequirementsOptionsSectionIdMax = 200;
+
+export const listProductProfilesResponseProfilesItemRunRequirementsOptionsLinksItemItemIdMax = 200;
+
+export const listProductProfilesResponseProfilesItemRunRequirementsOptionsLinksItemRecipeIdMax = 200;
+
+export const listProductProfilesResponseProfilesItemRunRequirementsOptionsLinksItemAmountColumnMax = 100;
+
+export const listProductProfilesResponseProfilesItemRunRequirementsOptionsLinksItemBatchColumnMax = 10000;
+
+export const listProductProfilesResponseProfilesItemRunRequirementsOptionsLinksMax = 200;
+
 export const listProductProfilesResponseReferenceNamesRulesItemSourceBrandMax = 120;
 
 export const listProductProfilesResponseReferenceNamesRulesItemSourceNameMax = 300;
@@ -709,6 +1247,117 @@ export const ListProductProfilesResponse = zod.object({
   "name": zod.string().min(1).max(listProductProfilesResponseProfilesItemNameResolutionRulesItemTargetNameMax)
 })
 }))
+}).optional(),
+  "runRequirements": zod.object({
+  "version": zod.literal(1),
+  "productLabel": zod.string(),
+  "profileRevision": zod.number().int(),
+  "nameRevision": zod.number().int(),
+  "targetCases": zod.number().int(),
+  "unitsPerCase": zod.number().int().nullable(),
+  "casePackSource": zod.string(),
+  "totalPizzas": zod.number().int().nullable(),
+  "status": zod.enum(['ready', 'needs_review']),
+  "options": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(listProductProfilesResponseProfilesItemRunRequirementsOptionsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(listProductProfilesResponseProfilesItemRunRequirementsOptionsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(listProductProfilesResponseProfilesItemRunRequirementsOptionsLinksItemItemIdMax),
+  "recipeId": zod.string().max(listProductProfilesResponseProfilesItemRunRequirementsOptionsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(listProductProfilesResponseProfilesItemRunRequirementsOptionsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(listProductProfilesResponseProfilesItemRunRequirementsOptionsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(listProductProfilesResponseProfilesItemRunRequirementsOptionsLinksMax).optional()
+}),
+  "sections": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "source": zod.string(),
+  "notes": zod.array(zod.string())
+})),
+  "sectionId": zod.string().nullable(),
+  "recipes": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "brand": zod.string(),
+  "kind": zod.string(),
+  "source": zod.string(),
+  "columns": zod.array(zod.object({
+  "column": zod.number().int(),
+  "label": zod.string(),
+  "unit": zod.string().nullable(),
+  "yield": zod.number().nullable()
+})),
+  "issues": zod.array(zod.string())
+})),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "station": zod.string(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "batchPreparation": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "station": zod.string(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "preparation": zod.array(zod.string()),
+  "packaging": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
 }).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -775,6 +1424,20 @@ export const importProductProfileResponseProfileNameResolutionRulesItemTargetBra
 
 export const importProductProfileResponseProfileNameResolutionRulesItemTargetNameMax = 300;
 
+export const importProductProfileResponseProfileRunRequirementsOptionsUnitsPerCaseMax = 1000;
+
+export const importProductProfileResponseProfileRunRequirementsOptionsSectionIdMax = 200;
+
+export const importProductProfileResponseProfileRunRequirementsOptionsLinksItemItemIdMax = 200;
+
+export const importProductProfileResponseProfileRunRequirementsOptionsLinksItemRecipeIdMax = 200;
+
+export const importProductProfileResponseProfileRunRequirementsOptionsLinksItemAmountColumnMax = 100;
+
+export const importProductProfileResponseProfileRunRequirementsOptionsLinksItemBatchColumnMax = 10000;
+
+export const importProductProfileResponseProfileRunRequirementsOptionsLinksMax = 200;
+
 
 
 export const ImportProductProfileResponse = zod.object({
@@ -798,6 +1461,117 @@ export const ImportProductProfileResponse = zod.object({
   "name": zod.string().min(1).max(importProductProfileResponseProfileNameResolutionRulesItemTargetNameMax)
 })
 }))
+}).optional(),
+  "runRequirements": zod.object({
+  "version": zod.literal(1),
+  "productLabel": zod.string(),
+  "profileRevision": zod.number().int(),
+  "nameRevision": zod.number().int(),
+  "targetCases": zod.number().int(),
+  "unitsPerCase": zod.number().int().nullable(),
+  "casePackSource": zod.string(),
+  "totalPizzas": zod.number().int().nullable(),
+  "status": zod.enum(['ready', 'needs_review']),
+  "options": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(importProductProfileResponseProfileRunRequirementsOptionsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(importProductProfileResponseProfileRunRequirementsOptionsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(importProductProfileResponseProfileRunRequirementsOptionsLinksItemItemIdMax),
+  "recipeId": zod.string().max(importProductProfileResponseProfileRunRequirementsOptionsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(importProductProfileResponseProfileRunRequirementsOptionsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(importProductProfileResponseProfileRunRequirementsOptionsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(importProductProfileResponseProfileRunRequirementsOptionsLinksMax).optional()
+}),
+  "sections": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "source": zod.string(),
+  "notes": zod.array(zod.string())
+})),
+  "sectionId": zod.string().nullable(),
+  "recipes": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "brand": zod.string(),
+  "kind": zod.string(),
+  "source": zod.string(),
+  "columns": zod.array(zod.object({
+  "column": zod.number().int(),
+  "label": zod.string(),
+  "unit": zod.string().nullable(),
+  "yield": zod.number().nullable()
+})),
+  "issues": zod.array(zod.string())
+})),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "station": zod.string(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "batchPreparation": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "station": zod.string(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "preparation": zod.array(zod.string()),
+  "packaging": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
 }).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -869,6 +1643,20 @@ export const renameProductProfileResponseProfileNameResolutionRulesItemTargetBra
 
 export const renameProductProfileResponseProfileNameResolutionRulesItemTargetNameMax = 300;
 
+export const renameProductProfileResponseProfileRunRequirementsOptionsUnitsPerCaseMax = 1000;
+
+export const renameProductProfileResponseProfileRunRequirementsOptionsSectionIdMax = 200;
+
+export const renameProductProfileResponseProfileRunRequirementsOptionsLinksItemItemIdMax = 200;
+
+export const renameProductProfileResponseProfileRunRequirementsOptionsLinksItemRecipeIdMax = 200;
+
+export const renameProductProfileResponseProfileRunRequirementsOptionsLinksItemAmountColumnMax = 100;
+
+export const renameProductProfileResponseProfileRunRequirementsOptionsLinksItemBatchColumnMax = 10000;
+
+export const renameProductProfileResponseProfileRunRequirementsOptionsLinksMax = 200;
+
 
 
 export const RenameProductProfileResponse = zod.object({
@@ -892,6 +1680,117 @@ export const RenameProductProfileResponse = zod.object({
   "name": zod.string().min(1).max(renameProductProfileResponseProfileNameResolutionRulesItemTargetNameMax)
 })
 }))
+}).optional(),
+  "runRequirements": zod.object({
+  "version": zod.literal(1),
+  "productLabel": zod.string(),
+  "profileRevision": zod.number().int(),
+  "nameRevision": zod.number().int(),
+  "targetCases": zod.number().int(),
+  "unitsPerCase": zod.number().int().nullable(),
+  "casePackSource": zod.string(),
+  "totalPizzas": zod.number().int().nullable(),
+  "status": zod.enum(['ready', 'needs_review']),
+  "options": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(renameProductProfileResponseProfileRunRequirementsOptionsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(renameProductProfileResponseProfileRunRequirementsOptionsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(renameProductProfileResponseProfileRunRequirementsOptionsLinksItemItemIdMax),
+  "recipeId": zod.string().max(renameProductProfileResponseProfileRunRequirementsOptionsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(renameProductProfileResponseProfileRunRequirementsOptionsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(renameProductProfileResponseProfileRunRequirementsOptionsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(renameProductProfileResponseProfileRunRequirementsOptionsLinksMax).optional()
+}),
+  "sections": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "source": zod.string(),
+  "notes": zod.array(zod.string())
+})),
+  "sectionId": zod.string().nullable(),
+  "recipes": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "brand": zod.string(),
+  "kind": zod.string(),
+  "source": zod.string(),
+  "columns": zod.array(zod.object({
+  "column": zod.number().int(),
+  "label": zod.string(),
+  "unit": zod.string().nullable(),
+  "yield": zod.number().nullable()
+})),
+  "issues": zod.array(zod.string())
+})),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "station": zod.string(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "batchPreparation": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "station": zod.string(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "preparation": zod.array(zod.string()),
+  "packaging": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
 }).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -934,6 +1833,20 @@ export const mergeProductProfileResponseProfileNameResolutionRulesItemTargetBran
 
 export const mergeProductProfileResponseProfileNameResolutionRulesItemTargetNameMax = 300;
 
+export const mergeProductProfileResponseProfileRunRequirementsOptionsUnitsPerCaseMax = 1000;
+
+export const mergeProductProfileResponseProfileRunRequirementsOptionsSectionIdMax = 200;
+
+export const mergeProductProfileResponseProfileRunRequirementsOptionsLinksItemItemIdMax = 200;
+
+export const mergeProductProfileResponseProfileRunRequirementsOptionsLinksItemRecipeIdMax = 200;
+
+export const mergeProductProfileResponseProfileRunRequirementsOptionsLinksItemAmountColumnMax = 100;
+
+export const mergeProductProfileResponseProfileRunRequirementsOptionsLinksItemBatchColumnMax = 10000;
+
+export const mergeProductProfileResponseProfileRunRequirementsOptionsLinksMax = 200;
+
 
 
 export const MergeProductProfileResponse = zod.object({
@@ -957,6 +1870,117 @@ export const MergeProductProfileResponse = zod.object({
   "name": zod.string().min(1).max(mergeProductProfileResponseProfileNameResolutionRulesItemTargetNameMax)
 })
 }))
+}).optional(),
+  "runRequirements": zod.object({
+  "version": zod.literal(1),
+  "productLabel": zod.string(),
+  "profileRevision": zod.number().int(),
+  "nameRevision": zod.number().int(),
+  "targetCases": zod.number().int(),
+  "unitsPerCase": zod.number().int().nullable(),
+  "casePackSource": zod.string(),
+  "totalPizzas": zod.number().int().nullable(),
+  "status": zod.enum(['ready', 'needs_review']),
+  "options": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(mergeProductProfileResponseProfileRunRequirementsOptionsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(mergeProductProfileResponseProfileRunRequirementsOptionsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(mergeProductProfileResponseProfileRunRequirementsOptionsLinksItemItemIdMax),
+  "recipeId": zod.string().max(mergeProductProfileResponseProfileRunRequirementsOptionsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(mergeProductProfileResponseProfileRunRequirementsOptionsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(mergeProductProfileResponseProfileRunRequirementsOptionsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(mergeProductProfileResponseProfileRunRequirementsOptionsLinksMax).optional()
+}),
+  "sections": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "source": zod.string(),
+  "notes": zod.array(zod.string())
+})),
+  "sectionId": zod.string().nullable(),
+  "recipes": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "brand": zod.string(),
+  "kind": zod.string(),
+  "source": zod.string(),
+  "columns": zod.array(zod.object({
+  "column": zod.number().int(),
+  "label": zod.string(),
+  "unit": zod.string().nullable(),
+  "yield": zod.number().nullable()
+})),
+  "issues": zod.array(zod.string())
+})),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "station": zod.string(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "batchPreparation": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "station": zod.string(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "preparation": zod.array(zod.string()),
+  "packaging": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
 }).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -993,6 +2017,24 @@ export const getRunResponseRunSetupSnapshotLabelMax = 120;
 
 export const getRunResponseRunSetupSnapshotTargetCasesMax = 9007199254740991;
 
+export const getRunResponseRunSetupSnapshotPlanningExpectedProfileRevisionMin = 0;
+
+export const getRunResponseRunSetupSnapshotPlanningExpectedNameRevisionMin = 0;
+
+export const getRunResponseRunSetupSnapshotPlanningOptionsUnitsPerCaseMax = 1000;
+
+export const getRunResponseRunSetupSnapshotPlanningOptionsSectionIdMax = 200;
+
+export const getRunResponseRunSetupSnapshotPlanningOptionsLinksItemItemIdMax = 200;
+
+export const getRunResponseRunSetupSnapshotPlanningOptionsLinksItemRecipeIdMax = 200;
+
+export const getRunResponseRunSetupSnapshotPlanningOptionsLinksItemAmountColumnMax = 100;
+
+export const getRunResponseRunSetupSnapshotPlanningOptionsLinksItemBatchColumnMax = 10000;
+
+export const getRunResponseRunSetupSnapshotPlanningOptionsLinksMax = 200;
+
 export const getRunResponseRunProductSnapshotOneNameResolutionRulesItemSourceBrandMax = 120;
 
 export const getRunResponseRunProductSnapshotOneNameResolutionRulesItemSourceNameMax = 300;
@@ -1000,6 +2042,20 @@ export const getRunResponseRunProductSnapshotOneNameResolutionRulesItemSourceNam
 export const getRunResponseRunProductSnapshotOneNameResolutionRulesItemTargetBrandMax = 120;
 
 export const getRunResponseRunProductSnapshotOneNameResolutionRulesItemTargetNameMax = 300;
+
+export const getRunResponseRunProductSnapshotOneRunRequirementsOptionsUnitsPerCaseMax = 1000;
+
+export const getRunResponseRunProductSnapshotOneRunRequirementsOptionsSectionIdMax = 200;
+
+export const getRunResponseRunProductSnapshotOneRunRequirementsOptionsLinksItemItemIdMax = 200;
+
+export const getRunResponseRunProductSnapshotOneRunRequirementsOptionsLinksItemRecipeIdMax = 200;
+
+export const getRunResponseRunProductSnapshotOneRunRequirementsOptionsLinksItemAmountColumnMax = 100;
+
+export const getRunResponseRunProductSnapshotOneRunRequirementsOptionsLinksItemBatchColumnMax = 10000;
+
+export const getRunResponseRunProductSnapshotOneRunRequirementsOptionsLinksMax = 200;
 
 
 
@@ -1027,7 +2083,23 @@ export const GetRunResponse = zod.object({
   "setupSnapshot": zod.object({
   "label": zod.string().min(1).max(getRunResponseRunSetupSnapshotLabelMax),
   "targetCases": zod.number().int().min(1).max(getRunResponseRunSetupSnapshotTargetCasesMax),
-  "productProfileId": zod.string().uuid().nullish()
+  "productProfileId": zod.string().uuid().nullish(),
+  "planning": zod.object({
+  "expectedProfileRevision": zod.number().int().min(getRunResponseRunSetupSnapshotPlanningExpectedProfileRevisionMin),
+  "expectedNameRevision": zod.number().int().min(getRunResponseRunSetupSnapshotPlanningExpectedNameRevisionMin),
+  "options": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(getRunResponseRunSetupSnapshotPlanningOptionsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(getRunResponseRunSetupSnapshotPlanningOptionsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(getRunResponseRunSetupSnapshotPlanningOptionsLinksItemItemIdMax),
+  "recipeId": zod.string().max(getRunResponseRunSetupSnapshotPlanningOptionsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(getRunResponseRunSetupSnapshotPlanningOptionsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(getRunResponseRunSetupSnapshotPlanningOptionsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(getRunResponseRunSetupSnapshotPlanningOptionsLinksMax).optional()
+})
+}).optional()
 }),
   "productSnapshot": zod.union([zod.object({
   "id": zod.string().uuid(),
@@ -1049,6 +2121,117 @@ export const GetRunResponse = zod.object({
   "name": zod.string().min(1).max(getRunResponseRunProductSnapshotOneNameResolutionRulesItemTargetNameMax)
 })
 }))
+}).optional(),
+  "runRequirements": zod.object({
+  "version": zod.literal(1),
+  "productLabel": zod.string(),
+  "profileRevision": zod.number().int(),
+  "nameRevision": zod.number().int(),
+  "targetCases": zod.number().int(),
+  "unitsPerCase": zod.number().int().nullable(),
+  "casePackSource": zod.string(),
+  "totalPizzas": zod.number().int().nullable(),
+  "status": zod.enum(['ready', 'needs_review']),
+  "options": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(getRunResponseRunProductSnapshotOneRunRequirementsOptionsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(getRunResponseRunProductSnapshotOneRunRequirementsOptionsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(getRunResponseRunProductSnapshotOneRunRequirementsOptionsLinksItemItemIdMax),
+  "recipeId": zod.string().max(getRunResponseRunProductSnapshotOneRunRequirementsOptionsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(getRunResponseRunProductSnapshotOneRunRequirementsOptionsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(getRunResponseRunProductSnapshotOneRunRequirementsOptionsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(getRunResponseRunProductSnapshotOneRunRequirementsOptionsLinksMax).optional()
+}),
+  "sections": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "source": zod.string(),
+  "notes": zod.array(zod.string())
+})),
+  "sectionId": zod.string().nullable(),
+  "recipes": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "brand": zod.string(),
+  "kind": zod.string(),
+  "source": zod.string(),
+  "columns": zod.array(zod.object({
+  "column": zod.number().int(),
+  "label": zod.string(),
+  "unit": zod.string().nullable(),
+  "yield": zod.number().nullable()
+})),
+  "issues": zod.array(zod.string())
+})),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "station": zod.string(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "batchPreparation": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "station": zod.string(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "preparation": zod.array(zod.string()),
+  "packaging": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
 }).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -1106,6 +2289,24 @@ export const applyRunCommandResponseRunSetupSnapshotLabelMax = 120;
 
 export const applyRunCommandResponseRunSetupSnapshotTargetCasesMax = 9007199254740991;
 
+export const applyRunCommandResponseRunSetupSnapshotPlanningExpectedProfileRevisionMin = 0;
+
+export const applyRunCommandResponseRunSetupSnapshotPlanningExpectedNameRevisionMin = 0;
+
+export const applyRunCommandResponseRunSetupSnapshotPlanningOptionsUnitsPerCaseMax = 1000;
+
+export const applyRunCommandResponseRunSetupSnapshotPlanningOptionsSectionIdMax = 200;
+
+export const applyRunCommandResponseRunSetupSnapshotPlanningOptionsLinksItemItemIdMax = 200;
+
+export const applyRunCommandResponseRunSetupSnapshotPlanningOptionsLinksItemRecipeIdMax = 200;
+
+export const applyRunCommandResponseRunSetupSnapshotPlanningOptionsLinksItemAmountColumnMax = 100;
+
+export const applyRunCommandResponseRunSetupSnapshotPlanningOptionsLinksItemBatchColumnMax = 10000;
+
+export const applyRunCommandResponseRunSetupSnapshotPlanningOptionsLinksMax = 200;
+
 export const applyRunCommandResponseRunProductSnapshotOneNameResolutionRulesItemSourceBrandMax = 120;
 
 export const applyRunCommandResponseRunProductSnapshotOneNameResolutionRulesItemSourceNameMax = 300;
@@ -1113,6 +2314,20 @@ export const applyRunCommandResponseRunProductSnapshotOneNameResolutionRulesItem
 export const applyRunCommandResponseRunProductSnapshotOneNameResolutionRulesItemTargetBrandMax = 120;
 
 export const applyRunCommandResponseRunProductSnapshotOneNameResolutionRulesItemTargetNameMax = 300;
+
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsOptionsUnitsPerCaseMax = 1000;
+
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsOptionsSectionIdMax = 200;
+
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsOptionsLinksItemItemIdMax = 200;
+
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsOptionsLinksItemRecipeIdMax = 200;
+
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsOptionsLinksItemAmountColumnMax = 100;
+
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsOptionsLinksItemBatchColumnMax = 10000;
+
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsOptionsLinksMax = 200;
 
 
 
@@ -1143,7 +2358,23 @@ export const ApplyRunCommandResponse = zod.object({
   "setupSnapshot": zod.object({
   "label": zod.string().min(1).max(applyRunCommandResponseRunSetupSnapshotLabelMax),
   "targetCases": zod.number().int().min(1).max(applyRunCommandResponseRunSetupSnapshotTargetCasesMax),
-  "productProfileId": zod.string().uuid().nullish()
+  "productProfileId": zod.string().uuid().nullish(),
+  "planning": zod.object({
+  "expectedProfileRevision": zod.number().int().min(applyRunCommandResponseRunSetupSnapshotPlanningExpectedProfileRevisionMin),
+  "expectedNameRevision": zod.number().int().min(applyRunCommandResponseRunSetupSnapshotPlanningExpectedNameRevisionMin),
+  "options": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(applyRunCommandResponseRunSetupSnapshotPlanningOptionsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(applyRunCommandResponseRunSetupSnapshotPlanningOptionsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(applyRunCommandResponseRunSetupSnapshotPlanningOptionsLinksItemItemIdMax),
+  "recipeId": zod.string().max(applyRunCommandResponseRunSetupSnapshotPlanningOptionsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(applyRunCommandResponseRunSetupSnapshotPlanningOptionsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(applyRunCommandResponseRunSetupSnapshotPlanningOptionsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(applyRunCommandResponseRunSetupSnapshotPlanningOptionsLinksMax).optional()
+})
+}).optional()
 }),
   "productSnapshot": zod.union([zod.object({
   "id": zod.string().uuid(),
@@ -1165,6 +2396,117 @@ export const ApplyRunCommandResponse = zod.object({
   "name": zod.string().min(1).max(applyRunCommandResponseRunProductSnapshotOneNameResolutionRulesItemTargetNameMax)
 })
 }))
+}).optional(),
+  "runRequirements": zod.object({
+  "version": zod.literal(1),
+  "productLabel": zod.string(),
+  "profileRevision": zod.number().int(),
+  "nameRevision": zod.number().int(),
+  "targetCases": zod.number().int(),
+  "unitsPerCase": zod.number().int().nullable(),
+  "casePackSource": zod.string(),
+  "totalPizzas": zod.number().int().nullable(),
+  "status": zod.enum(['ready', 'needs_review']),
+  "options": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsOptionsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsOptionsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsOptionsLinksItemItemIdMax),
+  "recipeId": zod.string().max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsOptionsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsOptionsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsOptionsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsOptionsLinksMax).optional()
+}),
+  "sections": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "source": zod.string(),
+  "notes": zod.array(zod.string())
+})),
+  "sectionId": zod.string().nullable(),
+  "recipes": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "brand": zod.string(),
+  "kind": zod.string(),
+  "source": zod.string(),
+  "columns": zod.array(zod.object({
+  "column": zod.number().int(),
+  "label": zod.string(),
+  "unit": zod.string().nullable(),
+  "yield": zod.number().nullable()
+})),
+  "issues": zod.array(zod.string())
+})),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "station": zod.string(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "batchPreparation": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "station": zod.string(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "preparation": zod.array(zod.string()),
+  "packaging": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
 }).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -1237,6 +2579,24 @@ export const getDashboardSummaryResponseActiveRunsItemSetupSnapshotLabelMax = 12
 
 export const getDashboardSummaryResponseActiveRunsItemSetupSnapshotTargetCasesMax = 9007199254740991;
 
+export const getDashboardSummaryResponseActiveRunsItemSetupSnapshotPlanningExpectedProfileRevisionMin = 0;
+
+export const getDashboardSummaryResponseActiveRunsItemSetupSnapshotPlanningExpectedNameRevisionMin = 0;
+
+export const getDashboardSummaryResponseActiveRunsItemSetupSnapshotPlanningOptionsUnitsPerCaseMax = 1000;
+
+export const getDashboardSummaryResponseActiveRunsItemSetupSnapshotPlanningOptionsSectionIdMax = 200;
+
+export const getDashboardSummaryResponseActiveRunsItemSetupSnapshotPlanningOptionsLinksItemItemIdMax = 200;
+
+export const getDashboardSummaryResponseActiveRunsItemSetupSnapshotPlanningOptionsLinksItemRecipeIdMax = 200;
+
+export const getDashboardSummaryResponseActiveRunsItemSetupSnapshotPlanningOptionsLinksItemAmountColumnMax = 100;
+
+export const getDashboardSummaryResponseActiveRunsItemSetupSnapshotPlanningOptionsLinksItemBatchColumnMax = 10000;
+
+export const getDashboardSummaryResponseActiveRunsItemSetupSnapshotPlanningOptionsLinksMax = 200;
+
 export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneNameResolutionRulesItemSourceBrandMax = 120;
 
 export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneNameResolutionRulesItemSourceNameMax = 300;
@@ -1244,6 +2604,20 @@ export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneNameReso
 export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneNameResolutionRulesItemTargetBrandMax = 120;
 
 export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneNameResolutionRulesItemTargetNameMax = 300;
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsOptionsUnitsPerCaseMax = 1000;
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsOptionsSectionIdMax = 200;
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemItemIdMax = 200;
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemRecipeIdMax = 200;
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemAmountColumnMax = 100;
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemBatchColumnMax = 10000;
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsOptionsLinksMax = 200;
 
 export const getDashboardSummaryResponseRecentRunsItemRevisionMin = 0;
 export const getDashboardSummaryResponseRecentRunsItemRevisionMax = 9007199254740991;
@@ -1262,6 +2636,24 @@ export const getDashboardSummaryResponseRecentRunsItemSetupSnapshotLabelMax = 12
 
 export const getDashboardSummaryResponseRecentRunsItemSetupSnapshotTargetCasesMax = 9007199254740991;
 
+export const getDashboardSummaryResponseRecentRunsItemSetupSnapshotPlanningExpectedProfileRevisionMin = 0;
+
+export const getDashboardSummaryResponseRecentRunsItemSetupSnapshotPlanningExpectedNameRevisionMin = 0;
+
+export const getDashboardSummaryResponseRecentRunsItemSetupSnapshotPlanningOptionsUnitsPerCaseMax = 1000;
+
+export const getDashboardSummaryResponseRecentRunsItemSetupSnapshotPlanningOptionsSectionIdMax = 200;
+
+export const getDashboardSummaryResponseRecentRunsItemSetupSnapshotPlanningOptionsLinksItemItemIdMax = 200;
+
+export const getDashboardSummaryResponseRecentRunsItemSetupSnapshotPlanningOptionsLinksItemRecipeIdMax = 200;
+
+export const getDashboardSummaryResponseRecentRunsItemSetupSnapshotPlanningOptionsLinksItemAmountColumnMax = 100;
+
+export const getDashboardSummaryResponseRecentRunsItemSetupSnapshotPlanningOptionsLinksItemBatchColumnMax = 10000;
+
+export const getDashboardSummaryResponseRecentRunsItemSetupSnapshotPlanningOptionsLinksMax = 200;
+
 export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneNameResolutionRulesItemSourceBrandMax = 120;
 
 export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneNameResolutionRulesItemSourceNameMax = 300;
@@ -1269,6 +2661,20 @@ export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneNameReso
 export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneNameResolutionRulesItemTargetBrandMax = 120;
 
 export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneNameResolutionRulesItemTargetNameMax = 300;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsOptionsUnitsPerCaseMax = 1000;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsOptionsSectionIdMax = 200;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemItemIdMax = 200;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemRecipeIdMax = 200;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemAmountColumnMax = 100;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemBatchColumnMax = 10000;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsOptionsLinksMax = 200;
 
 
 
@@ -1306,7 +2712,23 @@ export const GetDashboardSummaryResponse = zod.object({
   "setupSnapshot": zod.object({
   "label": zod.string().min(1).max(getDashboardSummaryResponseActiveRunsItemSetupSnapshotLabelMax),
   "targetCases": zod.number().int().min(1).max(getDashboardSummaryResponseActiveRunsItemSetupSnapshotTargetCasesMax),
-  "productProfileId": zod.string().uuid().nullish()
+  "productProfileId": zod.string().uuid().nullish(),
+  "planning": zod.object({
+  "expectedProfileRevision": zod.number().int().min(getDashboardSummaryResponseActiveRunsItemSetupSnapshotPlanningExpectedProfileRevisionMin),
+  "expectedNameRevision": zod.number().int().min(getDashboardSummaryResponseActiveRunsItemSetupSnapshotPlanningExpectedNameRevisionMin),
+  "options": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(getDashboardSummaryResponseActiveRunsItemSetupSnapshotPlanningOptionsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(getDashboardSummaryResponseActiveRunsItemSetupSnapshotPlanningOptionsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(getDashboardSummaryResponseActiveRunsItemSetupSnapshotPlanningOptionsLinksItemItemIdMax),
+  "recipeId": zod.string().max(getDashboardSummaryResponseActiveRunsItemSetupSnapshotPlanningOptionsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(getDashboardSummaryResponseActiveRunsItemSetupSnapshotPlanningOptionsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(getDashboardSummaryResponseActiveRunsItemSetupSnapshotPlanningOptionsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(getDashboardSummaryResponseActiveRunsItemSetupSnapshotPlanningOptionsLinksMax).optional()
+})
+}).optional()
 }),
   "productSnapshot": zod.union([zod.object({
   "id": zod.string().uuid(),
@@ -1328,6 +2750,117 @@ export const GetDashboardSummaryResponse = zod.object({
   "name": zod.string().min(1).max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneNameResolutionRulesItemTargetNameMax)
 })
 }))
+}).optional(),
+  "runRequirements": zod.object({
+  "version": zod.literal(1),
+  "productLabel": zod.string(),
+  "profileRevision": zod.number().int(),
+  "nameRevision": zod.number().int(),
+  "targetCases": zod.number().int(),
+  "unitsPerCase": zod.number().int().nullable(),
+  "casePackSource": zod.string(),
+  "totalPizzas": zod.number().int().nullable(),
+  "status": zod.enum(['ready', 'needs_review']),
+  "options": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsOptionsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsOptionsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemItemIdMax),
+  "recipeId": zod.string().max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsOptionsLinksMax).optional()
+}),
+  "sections": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "source": zod.string(),
+  "notes": zod.array(zod.string())
+})),
+  "sectionId": zod.string().nullable(),
+  "recipes": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "brand": zod.string(),
+  "kind": zod.string(),
+  "source": zod.string(),
+  "columns": zod.array(zod.object({
+  "column": zod.number().int(),
+  "label": zod.string(),
+  "unit": zod.string().nullable(),
+  "yield": zod.number().nullable()
+})),
+  "issues": zod.array(zod.string())
+})),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "station": zod.string(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "batchPreparation": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "station": zod.string(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "preparation": zod.array(zod.string()),
+  "packaging": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
 }).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -1361,7 +2894,23 @@ export const GetDashboardSummaryResponse = zod.object({
   "setupSnapshot": zod.object({
   "label": zod.string().min(1).max(getDashboardSummaryResponseRecentRunsItemSetupSnapshotLabelMax),
   "targetCases": zod.number().int().min(1).max(getDashboardSummaryResponseRecentRunsItemSetupSnapshotTargetCasesMax),
-  "productProfileId": zod.string().uuid().nullish()
+  "productProfileId": zod.string().uuid().nullish(),
+  "planning": zod.object({
+  "expectedProfileRevision": zod.number().int().min(getDashboardSummaryResponseRecentRunsItemSetupSnapshotPlanningExpectedProfileRevisionMin),
+  "expectedNameRevision": zod.number().int().min(getDashboardSummaryResponseRecentRunsItemSetupSnapshotPlanningExpectedNameRevisionMin),
+  "options": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(getDashboardSummaryResponseRecentRunsItemSetupSnapshotPlanningOptionsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(getDashboardSummaryResponseRecentRunsItemSetupSnapshotPlanningOptionsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(getDashboardSummaryResponseRecentRunsItemSetupSnapshotPlanningOptionsLinksItemItemIdMax),
+  "recipeId": zod.string().max(getDashboardSummaryResponseRecentRunsItemSetupSnapshotPlanningOptionsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(getDashboardSummaryResponseRecentRunsItemSetupSnapshotPlanningOptionsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(getDashboardSummaryResponseRecentRunsItemSetupSnapshotPlanningOptionsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(getDashboardSummaryResponseRecentRunsItemSetupSnapshotPlanningOptionsLinksMax).optional()
+})
+}).optional()
 }),
   "productSnapshot": zod.union([zod.object({
   "id": zod.string().uuid(),
@@ -1383,6 +2932,117 @@ export const GetDashboardSummaryResponse = zod.object({
   "name": zod.string().min(1).max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneNameResolutionRulesItemTargetNameMax)
 })
 }))
+}).optional(),
+  "runRequirements": zod.object({
+  "version": zod.literal(1),
+  "productLabel": zod.string(),
+  "profileRevision": zod.number().int(),
+  "nameRevision": zod.number().int(),
+  "targetCases": zod.number().int(),
+  "unitsPerCase": zod.number().int().nullable(),
+  "casePackSource": zod.string(),
+  "totalPizzas": zod.number().int().nullable(),
+  "status": zod.enum(['ready', 'needs_review']),
+  "options": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsOptionsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsOptionsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemItemIdMax),
+  "recipeId": zod.string().max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsOptionsLinksMax).optional()
+}),
+  "sections": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "source": zod.string(),
+  "notes": zod.array(zod.string())
+})),
+  "sectionId": zod.string().nullable(),
+  "recipes": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "brand": zod.string(),
+  "kind": zod.string(),
+  "source": zod.string(),
+  "columns": zod.array(zod.object({
+  "column": zod.number().int(),
+  "label": zod.string(),
+  "unit": zod.string().nullable(),
+  "yield": zod.number().nullable()
+})),
+  "issues": zod.array(zod.string())
+})),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "station": zod.string(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "batchPreparation": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "station": zod.string(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "preparation": zod.array(zod.string()),
+  "packaging": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
 }).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),

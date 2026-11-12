@@ -7,6 +7,7 @@
  */
 import type { NameResolution } from './nameResolution.ts';
 import type { ProductProfileProductData } from './productProfileProductData.ts';
+import type { RunRequirementsPlan } from './runRequirementsPlan.ts';
 
 export interface ProductProfile {
   id: string;
@@ -15,6 +16,7 @@ export interface ProductProfile {
   revision: number;
   productData: ProductProfileProductData;
   nameResolution?: NameResolution;
+  runRequirements?: RunRequirementsPlan;
   createdAt: Date;
   updatedAt: Date;
   /** @nullable */

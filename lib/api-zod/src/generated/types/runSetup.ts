@@ -5,6 +5,7 @@
  * Run-control API for Lucia's Production Assistant V2
  * OpenAPI spec version: 0.1.0
  */
+import type { RunPlanningReview } from './runPlanningReview.ts';
 
 export interface RunSetup {
   /**
@@ -19,4 +20,5 @@ export interface RunSetup {
   targetCases: number;
   /** @nullable */
   productProfileId?: string | null;
+  planning?: RunPlanningReview;
 }

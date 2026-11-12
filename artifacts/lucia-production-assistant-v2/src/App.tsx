@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { ClerkProvider, Show, SignIn, SignUp, useAuth, useClerk } from '@clerk/react';
+import { lazy, Suspense, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { ClerkProvider, Show, useAuth, useClerk } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
@@ -32,11 +32,14 @@ import { Link, Redirect, Route, Switch, Router as WouterRouter, useLocation, use
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import FacilityMembersPage from '@/components/facility-members-page';
-import StationLineupPage from '@/components/station-lineup-page';
-import RunStationProgressSection from '@/components/run-station-progress';
 import NotFound from '@/pages/not-found';
-import ImportsPage from '@/pages/imports';
+
+const SignInPage = lazy(() => import('@/pages/sign-in'));
+const SignUpPage = lazy(() => import('@/pages/sign-up'));
+const ImportsPage = lazy(() => import('@/pages/imports'));
+const FacilityMembersPage = lazy(() => import('@/components/facility-members-page'));
+const StationLineupPage = lazy(() => import('@/components/station-lineup-page'));
+const RunStationProgressSection = lazy(() => import('@/components/run-station-progress'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -760,14 +763,6 @@ const clerkAppearance = {
   },
 };
 
-function SignInPage() {
-  return <main className="clerk-page"><div><div className="clerk-intro"><Link href="/" aria-label="Lucia home"><Brand /></Link><h1>Welcome back</h1><p>Sign in to return to your facility’s current run state.</p></div><div className="clerk-frame"><SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} /></div></div></main>;
-}
-
-function SignUpPage() {
-  return <main className="clerk-page"><div><div className="clerk-intro"><Link href="/" aria-label="Lucia home"><Brand /></Link><h1>Set up your account</h1><p>Get your facility team working from one clear view.</p></div><div className="clerk-frame"><SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} /></div></div></main>;
-}
-
 function ClerkQueryClientCacheInvalidator() {
   const { addListener } = useClerk();
   const queryClientInstance = useQueryClient();
@@ -874,17 +869,19 @@ function RouterContent() {
       <V2SessionBootstrapper />
       <WorkerAvailabilityNotice health={health.data} />
       <ErrorBoundary resetKey={window.location.pathname}>
-        <Switch>
-          <Route path="/" component={HomeRoute} />
-          <Route path="/sign-in/*?" component={SignInPage} />
-          <Route path="/sign-up/*?" component={SignUpPage} />
-          <Route path="/runs" component={() => <Protected><RunsPage /></Protected>} />
-          <Route path="/imports" component={() => <Protected><SiteShell><ImportsPage /></SiteShell></Protected>} />
-          <Route path="/runs/:runId" component={() => <Protected><RunDetailPage /></Protected>} />
-          <Route path="/stations" component={() => <Protected><SiteShell><StationLineupPage /></SiteShell></Protected>} />
-          <Route path="/team" component={() => <Protected><FacilityTeamRoute /></Protected>} />
-          <Route component={NotFound} />
-        </Switch>
+        <Suspense fallback={<LoadingPage title="Loading your workspace" />}>
+          <Switch>
+            <Route path="/" component={HomeRoute} />
+            <Route path="/sign-in/*?" component={SignInPage} />
+            <Route path="/sign-up/*?" component={SignUpPage} />
+            <Route path="/runs" component={() => <Protected><RunsPage /></Protected>} />
+            <Route path="/imports" component={() => <Protected><SiteShell><ImportsPage /></SiteShell></Protected>} />
+            <Route path="/runs/:runId" component={() => <Protected><RunDetailPage /></Protected>} />
+            <Route path="/stations" component={() => <Protected><SiteShell><StationLineupPage /></SiteShell></Protected>} />
+            <Route path="/team" component={() => <Protected><FacilityTeamRoute /></Protected>} />
+            <Route component={NotFound} />
+          </Switch>
+        </Suspense>
       </ErrorBoundary>
     </ClerkProvider>
   );

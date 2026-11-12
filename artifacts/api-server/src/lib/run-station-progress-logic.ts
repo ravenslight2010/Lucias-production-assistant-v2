@@ -20,6 +20,11 @@ export type StoredRunStationProgressStatus = Exclude<
   RunStationProgressStatus,
   "paused"
 >;
+export type RunStationPreparationStatus =
+  | "not_started"
+  | "in_progress"
+  | "ready"
+  | "not_required";
 
 export type RunStationProgressItem = {
   stationId: string;
@@ -27,6 +32,8 @@ export type RunStationProgressItem = {
   area: FacilityStationArea;
   order: number;
   status: RunStationProgressStatus;
+  producedCount: number;
+  preparationStatus: RunStationPreparationStatus;
   revision: number;
   updatedAt: string | null;
 };
@@ -61,6 +68,8 @@ export function buildRunStationProgressRows(
       stationArea: station.area,
       stationOrder,
       status,
+      producedCount: 0,
+      preparationStatus: "not_started" as const,
       revision,
       updatedAt,
       updatedBy,

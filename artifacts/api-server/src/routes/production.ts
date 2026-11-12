@@ -30,6 +30,9 @@ import {
   GetRunResponse,
   GetRunStationProgressParams,
   GetRunStationProgressResponse,
+  UpdateRunStationProgressParams,
+  UpdateRunStationProgressBody,
+  UpdateRunStationProgressResponse,
   InviteFacilityMemberBody,
   InviteFacilityMemberResponse,
   ImportProductProfileBody,
@@ -76,7 +79,10 @@ import {
   resolveUntrackedClerkInvitation,
 } from "../lib/facility-invitation-service";
 import { executeRunCommand } from "../lib/run-command-service";
-import { getRunStationProgress } from "../lib/run-station-progress-service";
+import {
+  getRunStationProgress,
+  updateRunStationProgress,
+} from "../lib/run-station-progress-service";
 import { createPlannedRun } from "../lib/run-create-service";
 import { buildRunRequirements } from "../lib/run-requirements";
 import { importSchedule } from "../lib/schedule-import-service";
@@ -1398,6 +1404,36 @@ router.get(
       runId: params.data.runId,
     });
     res.json(GetRunStationProgressResponse.parse(progress));
+  },
+);
+
+router.patch(
+  "/v2/runs/:runId/stations/:stationId",
+  requireV2Session,
+  requireV2Csrf,
+  mutationRateLimit,
+  async (req, res): Promise<void> => {
+    const params = UpdateRunStationProgressParams.safeParse(req.params);
+    const update = UpdateRunStationProgressBody.safeParse(req.body);
+    if (!params.success || !update.success) {
+      res.status(400).json({ error: "Invalid station progress update." });
+      return;
+    }
+    const access = await membershipOrRespond(req, res);
+    if (!access) return;
+
+    const result = await updateRunStationProgress({
+      facilityId: access.membership.facilityId,
+      actorUserId: access.actorId,
+      runId: params.data.runId,
+      stationId: params.data.stationId,
+      update: update.data,
+    });
+    if (result.outcome === "conflict") {
+      res.status(409).json({ error: result.error, current: result.current });
+      return;
+    }
+    res.json(UpdateRunStationProgressResponse.parse(result));
   },
 );
 

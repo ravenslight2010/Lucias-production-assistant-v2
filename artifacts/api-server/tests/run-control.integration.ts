@@ -13,15 +13,21 @@ import {
   db,
   facilitiesTable,
   facilityMembersTable,
+  facilityStationLayoutsTable,
   pool,
   productionRunsTable,
   runCommandReceiptsTable,
   runCreateReceiptsTable,
   runEventsTable,
   runOutboxTable,
+  runStationProgressTable,
 } from "@workspace/db";
 import { createPlannedRun } from "../src/lib/run-create-service";
 import { executeRunCommand } from "../src/lib/run-command-service";
+import {
+  getRunStationProgress,
+  updateRunStationProgress,
+} from "../src/lib/run-station-progress-service";
 import { toContractRun } from "../src/lib/run-contract";
 import {
   issueV2Session,
@@ -292,6 +298,7 @@ test("signed HTTP requests enforce current facility roles without rotating the s
     .returning();
   const ownerId = `http-owner-${randomUUID()}`;
   const operatorId = `http-operator-${randomUUID()}`;
+  const operatorStationId = "operator-line-station";
   const memberships = await db
     .insert(facilityMembersTable)
     .values([
@@ -306,6 +313,18 @@ test("signed HTTP requests enforce current facility roles without rotating the s
     (membership) => membership.userId === operatorId,
   );
   assert.ok(operatorMembership);
+  await db.insert(facilityStationLayoutsTable).values({
+    facilityId: facility.id,
+    revision: 0,
+    stations: [
+      {
+        id: operatorStationId,
+        name: "Operator line",
+        area: "production_line",
+        isActive: true,
+      },
+    ],
+  });
 
   const clerkSessionId = `http-clerk-session-${randomUUID()}`;
   const ownerClerkSessionId = `http-owner-clerk-session-${randomUUID()}`;
@@ -408,6 +427,39 @@ test("signed HTTP requests enforce current facility roles without rotating the s
         commandType,
         expectedRevision,
       });
+
+    const stationUpdate = {
+      commandId: randomUUID(),
+      expectedRevision: 0,
+      producedCount: 4,
+      preparationStatus: "in_progress",
+    };
+    const savedStation = await send(
+      `/v2/runs/${run.id}/stations/${operatorStationId}`,
+      stationUpdate,
+      v2Session,
+      "PATCH",
+    );
+    assert.equal(savedStation.status, 200, "operators can record station progress");
+    const savedStationBody = (await savedStation.json()) as {
+      station: { producedCount: number; preparationStatus: string; revision: number };
+      replayed: boolean;
+    };
+    assert.equal(savedStationBody.station.producedCount, 4);
+    assert.equal(savedStationBody.station.preparationStatus, "in_progress");
+    assert.equal(savedStationBody.station.revision, 1);
+    assert.equal(savedStationBody.replayed, false);
+    const retriedStation = await send(
+      `/v2/runs/${run.id}/stations/${operatorStationId}`,
+      stationUpdate,
+      v2Session,
+      "PATCH",
+    );
+    assert.equal(retriedStation.status, 200, "station retries return the saved result");
+    assert.equal(
+      ((await retriedStation.json()) as { replayed: boolean }).replayed,
+      true,
+    );
 
     const started = await command("start", 0);
     assert.equal(started.status, 200, "operators can start runs");
@@ -564,6 +616,133 @@ test("signed HTTP requests enforce current facility roles without rotating the s
       server.close((error) => (error ? reject(error) : resolve())),
     );
   }
+});
+
+test("station progress saves counts safely and stays on the line timer", async () => {
+  const [facility] = await db
+    .insert(facilitiesTable)
+    .values({ name: "Station progress test facility" })
+    .returning();
+  const actorUserId = `station-progress-user-${randomUUID()}`;
+  const stationId = "prep-dough";
+  await db.insert(facilityStationLayoutsTable).values({
+    facilityId: facility.id,
+    revision: 0,
+    stations: [
+      { id: stationId, name: "Dough prep", area: "dough_sauce_prep", isActive: true },
+      { id: "archived-packer", name: "Old packer", area: "freezing_packaging", isActive: false },
+    ],
+  });
+  const created = await createPlannedRun({
+    facilityId: facility.id,
+    actorUserId,
+    requestId: randomUUID(),
+    setupSnapshot: { label: "Station progress run", targetCases: 30 },
+  });
+  assert.equal(created.outcome, "created");
+  if (created.outcome !== "created") return;
+
+  const preview = await getRunStationProgress({
+    facilityId: facility.id,
+    runId: created.run.id,
+  });
+  assert.equal(preview.initialized, false);
+  assert.deepEqual(preview.stations.map((station) => station.stationId), [stationId]);
+  assert.equal(preview.stations[0].producedCount, 0);
+  assert.equal(preview.stations[0].preparationStatus, "not_started");
+
+  const update = {
+    commandId: randomUUID(),
+    expectedRevision: 0,
+    producedCount: 12,
+    preparationStatus: "ready" as const,
+  };
+  const saved = await updateRunStationProgress({
+    facilityId: facility.id,
+    actorUserId,
+    runId: created.run.id,
+    stationId,
+    update,
+  });
+  assert.equal(saved.outcome, "accepted");
+  if (saved.outcome !== "accepted") return;
+  assert.equal(saved.replayed, false);
+  assert.equal(saved.station.producedCount, 12);
+  assert.equal(saved.station.preparationStatus, "ready");
+  assert.equal(saved.station.revision, 1);
+
+  const retry = await updateRunStationProgress({
+    facilityId: facility.id,
+    actorUserId,
+    runId: created.run.id,
+    stationId,
+    update,
+  });
+  assert.equal(retry.outcome, "accepted");
+  if (retry.outcome !== "accepted") return;
+  assert.equal(retry.replayed, true);
+  assert.equal(retry.station.revision, 1);
+
+  const stale = await updateRunStationProgress({
+    facilityId: facility.id,
+    actorUserId: `${actorUserId}-second-device`,
+    runId: created.run.id,
+    stationId,
+    update: { ...update, commandId: randomUUID(), producedCount: 99 },
+  });
+  assert.equal(stale.outcome, "conflict");
+  if (stale.outcome !== "conflict") return;
+  assert.equal(stale.current.producedCount, 12);
+  assert.equal(stale.current.revision, 1);
+  await assert.rejects(
+    updateRunStationProgress({
+      facilityId: randomUUID(),
+      actorUserId,
+      runId: created.run.id,
+      stationId,
+      update: { ...update, commandId: randomUUID() },
+    }),
+    (error: unknown) =>
+      Boolean(error && typeof error === "object" && "statusCode" in error && error.statusCode === 404),
+  );
+
+  const [runBeforeStart] = await db
+    .select()
+    .from(productionRunsTable)
+    .where(eq(productionRunsTable.id, created.run.id))
+    .limit(1);
+  assert.equal(runBeforeStart.status, "planned");
+  assert.equal(runBeforeStart.startedAt, null);
+
+  const started = await executeRunCommand({
+    facilityId: facility.id,
+    actorUserId,
+    runId: created.run.id,
+    command: { commandId: randomUUID(), commandType: "start", expectedRevision: 0 },
+  });
+  assert.equal(started.outcome, "accepted");
+  const running = await getRunStationProgress({ facilityId: facility.id, runId: created.run.id });
+  assert.equal(running.stations[0].status, "in_progress");
+  assert.equal(running.stations[0].producedCount, 12);
+  assert.equal(running.stations[0].preparationStatus, "ready");
+
+  const paused = await executeRunCommand({
+    facilityId: facility.id,
+    actorUserId,
+    runId: created.run.id,
+    command: { commandId: randomUUID(), commandType: "pause", expectedRevision: 1 },
+  });
+  assert.equal(paused.outcome, "accepted");
+  const pausedProgress = await getRunStationProgress({ facilityId: facility.id, runId: created.run.id });
+  assert.equal(pausedProgress.stations[0].status, "paused");
+  assert.equal(pausedProgress.stations[0].producedCount, 12);
+  assert.equal(pausedProgress.stations[0].preparationStatus, "ready");
+  const [stationRow] = await db
+    .select()
+    .from(runStationProgressTable)
+    .where(eq(runStationProgressTable.runId, created.run.id))
+    .limit(1);
+  assert.equal(stationRow.revision, 3);
 });
 
 test("independent signed-in sessions share canonical revisions and safe retries", async () => {

@@ -136,6 +136,16 @@ export const RunStationProgressStatus = {
   completed: 'completed',
 } as const;
 
+export type RunStationPreparationStatus = typeof RunStationPreparationStatus[keyof typeof RunStationPreparationStatus];
+
+
+export const RunStationPreparationStatus = {
+  not_started: 'not_started',
+  in_progress: 'in_progress',
+  ready: 'ready',
+  not_required: 'not_required',
+} as const;
+
 export interface RunStationProgress {
   /**
      * @minLength 1
@@ -156,11 +166,50 @@ export interface RunStationProgress {
   status: RunStationProgressStatus;
   /**
      * @minimum 0
+     * @maximum 2147483647
+     */
+  producedCount: number;
+  preparationStatus: RunStationPreparationStatus;
+  /**
+     * @minimum 0
      * @maximum 9007199254740991
      */
   revision: number;
   /** @nullable */
   updatedAt: string | null;
+}
+
+export interface RunStationProgressUpdate {
+  commandId: string;
+  /**
+     * @minimum 0
+     * @maximum 9007199254740991
+     */
+  expectedRevision: number;
+  /**
+     * @minimum 0
+     * @maximum 2147483647
+     */
+  producedCount: number;
+  preparationStatus: RunStationPreparationStatus;
+}
+
+export type RunStationProgressUpdateResultOutcome = typeof RunStationProgressUpdateResultOutcome[keyof typeof RunStationProgressUpdateResultOutcome];
+
+
+export const RunStationProgressUpdateResultOutcome = {
+  accepted: 'accepted',
+} as const;
+
+export interface RunStationProgressUpdateResult {
+  outcome: RunStationProgressUpdateResultOutcome;
+  replayed: boolean;
+  station: RunStationProgress;
+}
+
+export interface RunStationProgressConflict {
+  error: string;
+  current: RunStationProgress;
 }
 
 export interface RunStationProgressList {

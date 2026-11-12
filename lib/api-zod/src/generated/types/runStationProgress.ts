@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { FacilityStationArea } from './facilityStationArea.ts';
+import type { RunStationPreparationStatus } from './runStationPreparationStatus.ts';
 import type { RunStationProgressStatus } from './runStationProgressStatus.ts';
 
 export interface RunStationProgress {
@@ -26,6 +27,12 @@ export interface RunStationProgress {
      */
   order: number;
   status: RunStationProgressStatus;
+  /**
+     * @minimum 0
+     * @maximum 2147483647
+     */
+  producedCount: number;
+  preparationStatus: RunStationPreparationStatus;
   /**
      * @minimum 0
      * @maximum 9007199254740991

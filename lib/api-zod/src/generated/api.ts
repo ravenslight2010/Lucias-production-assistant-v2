@@ -2580,6 +2580,9 @@ export const getRunStationProgressResponseStationsItemStationNameMax = 80;
 export const getRunStationProgressResponseStationsItemOrderMin = 0;
 export const getRunStationProgressResponseStationsItemOrderMax = 9007199254740991;
 
+export const getRunStationProgressResponseStationsItemProducedCountMin = 0;
+export const getRunStationProgressResponseStationsItemProducedCountMax = 2147483647;
+
 export const getRunStationProgressResponseStationsItemRevisionMin = 0;
 export const getRunStationProgressResponseStationsItemRevisionMax = 9007199254740991;
 
@@ -2595,9 +2598,72 @@ export const GetRunStationProgressResponse = zod.object({
   "area": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']),
   "order": zod.number().int().min(getRunStationProgressResponseStationsItemOrderMin).max(getRunStationProgressResponseStationsItemOrderMax),
   "status": zod.enum(['not_started', 'in_progress', 'paused', 'completed']),
+  "producedCount": zod.number().int().min(getRunStationProgressResponseStationsItemProducedCountMin).max(getRunStationProgressResponseStationsItemProducedCountMax),
+  "preparationStatus": zod.enum(['not_started', 'in_progress', 'ready', 'not_required']),
   "revision": zod.number().int().min(getRunStationProgressResponseStationsItemRevisionMin).max(getRunStationProgressResponseStationsItemRevisionMax),
   "updatedAt": zod.coerce.date().nullable()
 })).max(getRunStationProgressResponseStationsMax)
+})
+
+
+/**
+ * Saves station production counts and preparation readiness. Station timer state remains derived from the production line timer.
+ * @summary Update production progress for a run station
+ */
+export const updateRunStationProgressPathRunIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+export const updateRunStationProgressPathStationIdMax = 80;
+
+
+
+export const UpdateRunStationProgressParams = zod.object({
+  "runId": zod.coerce.string().regex(updateRunStationProgressPathRunIdRegExp),
+  "stationId": zod.coerce.string().min(1).max(updateRunStationProgressPathStationIdMax)
+})
+
+export const updateRunStationProgressBodyExpectedRevisionMin = 0;
+export const updateRunStationProgressBodyExpectedRevisionMax = 9007199254740991;
+
+export const updateRunStationProgressBodyProducedCountMin = 0;
+export const updateRunStationProgressBodyProducedCountMax = 2147483647;
+
+
+
+export const UpdateRunStationProgressBody = zod.object({
+  "commandId": zod.string().uuid(),
+  "expectedRevision": zod.number().int().min(updateRunStationProgressBodyExpectedRevisionMin).max(updateRunStationProgressBodyExpectedRevisionMax),
+  "producedCount": zod.number().int().min(updateRunStationProgressBodyProducedCountMin).max(updateRunStationProgressBodyProducedCountMax),
+  "preparationStatus": zod.enum(['not_started', 'in_progress', 'ready', 'not_required'])
+})
+
+export const updateRunStationProgressResponseStationStationIdMax = 80;
+
+export const updateRunStationProgressResponseStationStationNameMax = 80;
+
+export const updateRunStationProgressResponseStationOrderMin = 0;
+export const updateRunStationProgressResponseStationOrderMax = 9007199254740991;
+
+export const updateRunStationProgressResponseStationProducedCountMin = 0;
+export const updateRunStationProgressResponseStationProducedCountMax = 2147483647;
+
+export const updateRunStationProgressResponseStationRevisionMin = 0;
+export const updateRunStationProgressResponseStationRevisionMax = 9007199254740991;
+
+
+
+export const UpdateRunStationProgressResponse = zod.object({
+  "outcome": zod.enum(['accepted']),
+  "replayed": zod.boolean(),
+  "station": zod.object({
+  "stationId": zod.string().min(1).max(updateRunStationProgressResponseStationStationIdMax),
+  "stationName": zod.string().min(1).max(updateRunStationProgressResponseStationStationNameMax),
+  "area": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']),
+  "order": zod.number().int().min(updateRunStationProgressResponseStationOrderMin).max(updateRunStationProgressResponseStationOrderMax),
+  "status": zod.enum(['not_started', 'in_progress', 'paused', 'completed']),
+  "producedCount": zod.number().int().min(updateRunStationProgressResponseStationProducedCountMin).max(updateRunStationProgressResponseStationProducedCountMax),
+  "preparationStatus": zod.enum(['not_started', 'in_progress', 'ready', 'not_required']),
+  "revision": zod.number().int().min(updateRunStationProgressResponseStationRevisionMin).max(updateRunStationProgressResponseStationRevisionMax),
+  "updatedAt": zod.coerce.date().nullable()
+})
 })
 
 

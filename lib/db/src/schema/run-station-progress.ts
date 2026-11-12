@@ -27,6 +27,10 @@ export const runStationProgressTable = pgTable(
     status: varchar("status", { length: 16 })
       .notNull()
       .default("not_started"),
+    producedCount: integer("produced_count").notNull().default(0),
+    preparationStatus: varchar("preparation_status", { length: 16 })
+      .notNull()
+      .default("not_started"),
     revision: integer("revision").notNull().default(0),
     updatedAt: timestamp("updated_at", { withTimezone: true }),
     updatedBy: text("updated_by"),
@@ -39,6 +43,14 @@ export const runStationProgressTable = pgTable(
     check(
       "run_station_progress_status_chk",
       sql`${table.status} in ('not_started', 'in_progress', 'completed')`,
+    ),
+    check(
+      "run_station_progress_produced_count_nonnegative_chk",
+      sql`${table.producedCount} >= 0`,
+    ),
+    check(
+      "run_station_progress_preparation_status_chk",
+      sql`${table.preparationStatus} in ('not_started', 'in_progress', 'ready', 'not_required')`,
     ),
     check(
       "run_station_progress_revision_nonnegative_chk",

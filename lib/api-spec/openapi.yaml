@@ -716,6 +716,55 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+  /v2/runs/{runId}/stations/{stationId}:
+    patch:
+      operationId: updateRunStationProgress
+      tags: [runs]
+      summary: Update production progress for a run station
+      description: Saves station production counts and preparation readiness. Station timer state remains derived from the production line timer.
+      security:
+        - v2Session: []
+      parameters:
+        - in: path
+          name: runId
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+        - in: path
+          name: stationId
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 80
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunStationProgressUpdate"
+      responses:
+        "200":
+          description: Saved station progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunStationProgressUpdateResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: The station changed since it was loaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunStationProgressConflict"
   /dashboard/summary:
     get:
       operationId: getDashboardSummary
@@ -874,6 +923,9 @@ components:
     RunStationProgressStatus:
       type: string
       enum: [not_started, in_progress, paused, completed]
+    RunStationPreparationStatus:
+      type: string
+      enum: [not_started, in_progress, ready, not_required]
     RunStationProgress:
       type: object
       additionalProperties: false
@@ -894,6 +946,12 @@ components:
           maximum: 9007199254740991
         status:
           $ref: "#/components/schemas/RunStationProgressStatus"
+        producedCount:
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+        preparationStatus:
+          $ref: "#/components/schemas/RunStationPreparationStatus"
         revision:
           type: integer
           minimum: 0
@@ -901,7 +959,46 @@ components:
         updatedAt:
           type: ["string", "null"]
           format: date-time
-      required: [stationId, stationName, area, order, status, revision, updatedAt]
+      required: [stationId, stationName, area, order, status, producedCount, preparationStatus, revision, updatedAt]
+    RunStationProgressUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        commandId:
+          type: string
+          format: uuid
+        expectedRevision:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        producedCount:
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+        preparationStatus:
+          $ref: "#/components/schemas/RunStationPreparationStatus"
+      required: [commandId, expectedRevision, producedCount, preparationStatus]
+    RunStationProgressUpdateResult:
+      type: object
+      additionalProperties: false
+      properties:
+        outcome:
+          type: string
+          enum: [accepted]
+        replayed:
+          type: boolean
+        station:
+          $ref: "#/components/schemas/RunStationProgress"
+      required: [outcome, replayed, station]
+    RunStationProgressConflict:
+      type: object
+      additionalProperties: false
+      properties:
+        error:
+          type: string
+        current:
+          $ref: "#/components/schemas/RunStationProgress"
+      required: [error, current]
     RunStationProgressList:
       type: object
       additionalProperties: false

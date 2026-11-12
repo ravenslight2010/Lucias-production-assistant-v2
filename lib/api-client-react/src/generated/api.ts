@@ -58,7 +58,10 @@ import type {
   RunList,
   RunRequirementsInput,
   RunRequirementsPlan,
+  RunStationProgressConflict,
   RunStationProgressList,
+  RunStationProgressUpdate,
+  RunStationProgressUpdateResult,
   ScheduleImportInput,
   ScheduleImportResult,
   UnauthorizedResponse,
@@ -2186,6 +2189,99 @@ export function useGetRunStationProgress<TData = Awaited<ReturnType<typeof getRu
 
 
 
+
+export const getUpdateRunStationProgressUrl = (runId: string,
+    stationId: string,) => {
+
+
+
+
+  return `/api/v2/runs/${runId}/stations/${stationId}`
+}
+
+/**
+ * Saves station production counts and preparation readiness. Station timer state remains derived from the production line timer.
+ * @summary Update production progress for a run station
+ */
+export const updateRunStationProgress = async (runId: string,
+    stationId: string,
+    runStationProgressUpdate: RunStationProgressUpdate, options?: Parameters<typeof customFetch>[1]): Promise<RunStationProgressUpdateResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<RunStationProgressUpdateResult>(getUpdateRunStationProgressUrl(runId,stationId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(runStationProgressUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateRunStationProgressMutationKey = () => ['updateRunStationProgress'] as const;
+
+export const getUpdateRunStationProgressMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | RunStationProgressConflict>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRunStationProgress>>, TError,UpdateRunStationProgressMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateRunStationProgress>>, TError,UpdateRunStationProgressMutationVariables, TContext> => {
+
+const mutationKey = getUpdateRunStationProgressMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateRunStationProgress>>, UpdateRunStationProgressMutationVariables> = (props) => {
+          const {runId,stationId,data} = props ?? {};
+
+          return  updateRunStationProgress(runId,stationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateRunStationProgressMutationResult = NonNullable<Awaited<ReturnType<typeof updateRunStationProgress>>>
+    export type UpdateRunStationProgressMutationBody = BodyType<RunStationProgressUpdate>
+    export type UpdateRunStationProgressMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | RunStationProgressConflict>
+    export type UpdateRunStationProgressMutationVariables = {runId: string;stationId: string;data: BodyType<RunStationProgressUpdate>}
+
+    /**
+ * Saves station production counts and preparation readiness. Station timer state remains derived from the production line timer.
+ * @summary Update production progress for a run station
+ */
+export const useUpdateRunStationProgress = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | RunStationProgressConflict>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRunStationProgress>>, TError,UpdateRunStationProgressMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateRunStationProgress>>,
+        TError,
+        UpdateRunStationProgressMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateRunStationProgressMutationOptions(options));
+    }
 
 export const getGetDashboardSummaryUrl = () => {
 

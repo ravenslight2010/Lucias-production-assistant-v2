@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   facilityStationLayoutsTable,
@@ -166,7 +166,7 @@ export async function executeRunCommand(input: {
         .update(runStationProgressTable)
         .set({
           status: storedStationStatusForRun(updated.status),
-          revision: updated.revision,
+          revision: sql`${runStationProgressTable.revision} + 1`,
           updatedAt: now,
           updatedBy: actorUserId,
         })

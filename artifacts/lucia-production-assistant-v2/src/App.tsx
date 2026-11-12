@@ -30,6 +30,7 @@ import {
 import type { HealthStatus, Run, RunCommandRequest, RunStatus } from '@workspace/api-client-react';
 import { Link, Redirect, Route, Switch, Router as WouterRouter, useLocation, useRoute } from 'wouter';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { OperationalSetupSummary } from '@/components/operational-setup-summary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
@@ -611,6 +612,7 @@ function RunDetailPage() {
                 <div className="property-row"><span>Captured revision</span><strong className="mono">#{run.productSnapshot.revision}</strong></div>
                 <div className="property-row"><span>Source profile last updated</span><strong>{formatDateTime(run.productSnapshot.updatedAt)}</strong></div>
                 <p style={{ marginTop: 14 }}>This is the immutable product profile captured for this run. It may differ from the profile currently in the facility list.</p>
+                <OperationalSetupSummary data={run.productSnapshot.productData} title="Captured recipe and process details" />
                 <details className="profile-bundle"><summary>View captured source data</summary><pre>{JSON.stringify(run.productSnapshot.productData, null, 2)}</pre></details>
               </>
               : <div className="notice" role="status">No product profile snapshot was attached when this run was created. The run setup remains unchanged.</div>}

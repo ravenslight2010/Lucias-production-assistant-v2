@@ -16,6 +16,8 @@ import {
   useRenameProductProfile,
 } from '@workspace/api-client-react';
 import type { ProductProfile, ProductProfileImportInput, ScheduleImportInput } from '@workspace/api-client-react';
+import { OperationalSetupSummary } from '../components/operational-setup-summary';
+import { filterShippingWorkbookByBrand, parseOperationalWorkbook, type OperationalImportKind, type OperationalWorkbookData } from '../importing/operational';
 import {
   IMPORT_KINDS,
   parseProductSpecProfiles,
@@ -56,15 +58,60 @@ function errorText(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
-function toSparseWorkbook(workbook: ParsedWorkbook) {
+function isOperationalKind(kind: ImportKind | ''): kind is OperationalImportKind {
+  return kind === 'premix' || kind === 'cheese' || kind === 'shipping' || kind === 'sauce_guide' || kind === 'dough_guide';
+}
+
+function toSparseWorkbook(workbook: ParsedWorkbook, selectedSheetNames?: string[]) {
+  const selected = selectedSheetNames ? new Set(selectedSheetNames) : null;
   return {
     format: 'lucia.workbook.sparse.v1',
-    sheets: workbook.sheets.map((sheet) => ({
+    sheets: workbook.sheets.filter((sheet) => !selected || selected.has(sheet.name)).map((sheet) => ({
       name: sheet.name,
       cells: sheet.rows.flatMap((row, rowIndex) => row.flatMap((value, columnIndex) =>
         value === null || value === '' ? [] : [{ r: rowIndex, c: columnIndex, v: value }],
       )),
     })),
+  };
+}
+
+function operationalProductData(workbook: ParsedWorkbook, kind: OperationalImportKind, selectedSheetNames: string[]) {
+  const structured: OperationalWorkbookData = parseOperationalWorkbook(workbook, kind, selectedSheetNames);
+  return {
+    ...toSparseWorkbook(workbook, selectedSheetNames),
+    structured,
+  };
+}
+
+function shippingProductData(workbook: ParsedWorkbook, selectedSheetNames: string[], brand: string) {
+  const structured = filterShippingWorkbookByBrand(
+    parseOperationalWorkbook(workbook, 'shipping', selectedSheetNames),
+    brand,
+  );
+  const matchingRows = new Map(structured.sheets.map((sheet) => [sheet.name, new Set(sheet.shippingRecords.map((record) => record.sourceRow - 1))]));
+  const rawSheets = workbook.sheets
+    .filter((sheet) => selectedSheetNames.includes(sheet.name))
+    .map((sheet) => {
+      const keepRows = matchingRows.get(sheet.name) ?? new Set<number>();
+      const headerRow = sheet.rows.findIndex((row) => {
+        const text = row.map((value) => typeof value === 'string' ? value.toLocaleLowerCase() : '').join(' ');
+        return /\bpizza\b/.test(text) && /\bbox\b/.test(text) && /pallet/.test(text);
+      });
+      if (headerRow >= 0) keepRows.add(headerRow);
+      return {
+        name: sheet.name,
+        cells: sheet.rows.flatMap((row, rowIndex) => keepRows.has(rowIndex)
+          ? row.flatMap((value, columnIndex) =>
+            value === null || value === '' ? [] : [{ r: rowIndex, c: columnIndex, v: value }],
+          )
+          : [],
+        ),
+      };
+    });
+  return {
+    format: 'lucia.workbook.sparse.v1',
+    sheets: rawSheets,
+    structured,
   };
 }
 
@@ -109,6 +156,42 @@ const visualPreviewWorkbook: ParsedWorkbook = {
 
 const visualPreviewProducts = parseProductSpecProfiles(visualPreviewWorkbook);
 
+const visualOperationalWorkbook: ParsedWorkbook = {
+  fileName: 'Sample_Premix_Sheets.xlsx',
+  sizeBytes: 18_240,
+  sheetCount: 2,
+  cellCount: 25,
+  kind: 'premix',
+  kindConfidence: 'high',
+  sheets: [
+    {
+      name: 'Sample Brand - Classic',
+      rows: [
+        ['Sample Brand Premix'],
+        ['Ingredient', 'Per Pizza (oz)', 'Per Batch (lbs)'],
+        ['Flour blend', 0.15, 12],
+        ['Seasoning', 0.01, 0.8],
+        ['Total', 0.16, 12.8],
+        ['Mixes', 2],
+        ['PULL FOR MIX'],
+        ['Flour blend', 12],
+      ],
+    },
+    {
+      name: 'Sample Brand - Pepperoni',
+      rows: [
+        ['Pepperoni Premix'],
+        ['Ingredient', 'Per Pizza (oz)', 'Per Batch (lbs)'],
+        ['Flour blend', 0.16, 12.8],
+        ['Seasoning', 0.02, 1.6],
+        ['Total', 0.18, 14.4],
+      ],
+    },
+  ],
+};
+
+const visualOperationalPreview = parseOperationalWorkbook(visualOperationalWorkbook, 'premix', ['Sample Brand - Classic']);
+
 function toProductSpecData(workbook: ParsedWorkbook, draft: ProductSpecDraft) {
   return {
     ...toSparseWorkbook(workbook),
@@ -151,8 +234,15 @@ function WorkbookReview({
   const [workbook, setWorkbook] = useState<ParsedWorkbook | null>(() => initialWorkbook ?? null);
   const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [kind, setKind] = useState<ImportKind | ''>(() => initialWorkbook?.kind ?? '');
+  const [selectedOperationalSheets, setSelectedOperationalSheets] = useState<string[]>(() =>
+    initialWorkbook && isOperationalKind(initialWorkbook.kind ?? '')
+      ? initialWorkbook.sheets.slice(0, 1).map((sheet) => sheet.name)
+      : [],
+  );
+  const [sheetFilter, setSheetFilter] = useState('');
   const [brand, setBrand] = useState('');
   const [flavor, setFlavor] = useState('');
+  const [shippingProfileId, setShippingProfileId] = useState('');
   const [productSpecDrafts, setProductSpecDrafts] = useState<ProductSpecDraft[]>(() =>
     initialWorkbook?.kind === 'product_specs' ? parseProductSpecProfiles(initialWorkbook) : [],
   );
@@ -177,11 +267,33 @@ function WorkbookReview({
     }
     return [...groups.values()].sort((a, b) => a.brand.localeCompare(b.brand) || a.flavor.localeCompare(b.flavor));
   }, [schedulePreview]);
+  const operationalPreview = useMemo(
+    () => workbook && isOperationalKind(kind)
+      ? parseOperationalWorkbook(workbook, kind, selectedOperationalSheets)
+      : null,
+    [workbook, kind, selectedOperationalSheets],
+  );
+  const visibleOperationalSheets = useMemo(() => {
+    const query = sheetFilter.trim().toLocaleLowerCase();
+    return workbook?.sheets.filter((sheet) => !query || sheet.name.toLocaleLowerCase().includes(query)) ?? [];
+  }, [workbook, sheetFilter]);
+  const operationalSheetCellCounts = useMemo(
+    () => new Map((workbook?.sheets ?? []).map((sheet) => [
+      sheet.name,
+      sheet.rows.reduce<number>((count, row) =>
+        count + row.reduce<number>((rowCount, value) => rowCount + Number(value !== null && value !== ''), 0),
+      0),
+    ])),
+    [workbook],
+  );
   const [scheduleProfileChoices, setScheduleProfileChoices] = useState<Record<string, string>>({});
   const activeProfileByProduct = useMemo(
     () => new Map(profiles.map((profile) => [scheduleProductKey(profile.brand, profile.flavor), profile])),
     [profiles],
   );
+  const selectedShippingProfile = kind === 'shipping'
+    ? profiles.find((profile) => profile.id === shippingProfileId)
+    : undefined;
   const resolvedScheduleProducts = scheduleProducts.map((product) => {
     const chosenId = scheduleProfileChoices[product.key] || activeProfileByProduct.get(product.key)?.id || '';
     return { ...product, chosenId, selectedProfile: profiles.find((profile) => profile.id === chosenId) };
@@ -189,8 +301,10 @@ function WorkbookReview({
   const hasScheduleMappings = profilesReady && resolvedScheduleProducts.length > 0 && resolvedScheduleProducts.every((product) => Boolean(product.selectedProfile));
   const hasProductSpecDrafts = kind === 'product_specs' && productSpecDrafts.length > 0;
   const unsavedProductSpecCount = productSpecDrafts.filter((draft) => draft.saveState !== 'saved').length;
-  const matchingProfile = profilesReady && brand.trim() && flavor.trim()
-    ? activeProfileByProduct.get(scheduleProductKey(brand, flavor))
+  const profileBrand = kind === 'shipping' ? selectedShippingProfile?.brand ?? '' : brand;
+  const profileFlavor = kind === 'shipping' ? selectedShippingProfile?.flavor ?? '' : flavor;
+  const matchingProfile = profilesReady && profileBrand.trim() && profileFlavor.trim()
+    ? activeProfileByProduct.get(scheduleProductKey(profileBrand, profileFlavor))
     : undefined;
 
   const chooseFile = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -205,6 +319,9 @@ function WorkbookReview({
     setScheduleImportDate(localDateString());
     setScheduleProfileChoices({});
     setProductSpecDrafts([]);
+    setSelectedOperationalSheets([]);
+    setShippingProfileId('');
+    setSheetFilter('');
     setWorkbook(null);
     setSourceFile(file);
     try {
@@ -212,6 +329,9 @@ function WorkbookReview({
       setWorkbook(parsed);
       setKind(parsed.kind ?? '');
       setProductSpecDrafts(parsed.kind === 'product_specs' ? parseProductSpecProfiles(parsed) : []);
+      setSelectedOperationalSheets(parsed.kind && isOperationalKind(parsed.kind)
+        ? parsed.sheets.slice(0, 1).map((sheet) => sheet.name)
+        : []);
     } catch (error) {
       setParseError(errorText(error, 'This workbook could not be opened.'));
     } finally {
@@ -386,8 +506,12 @@ function WorkbookReview({
       }
       return;
     }
-    const cleanBrand = brand.trim();
-    const cleanFlavor = flavor.trim();
+    if (kind === 'shipping' && !selectedShippingProfile) {
+      setValidation('Choose an existing product profile. Shipping guides are attached to that profile without creating a new flavor.');
+      return;
+    }
+    const cleanBrand = (selectedShippingProfile?.brand ?? brand).trim();
+    const cleanFlavor = (selectedShippingProfile?.flavor ?? flavor).trim();
     if (!cleanBrand || cleanBrand.length > 120 || !cleanFlavor || cleanFlavor.length > 120) {
       setValidation('Brand and flavor are required and must each be 120 characters or fewer.');
       return;
@@ -396,10 +520,18 @@ function WorkbookReview({
       setValidation('Product profiles are still loading. Wait for them to load before importing this workbook.');
       return;
     }
+    if (isOperationalKind(kind) && selectedOperationalSheets.length === 0) {
+      setValidation('Select at least one worksheet that belongs to this product profile.');
+      return;
+    }
     setValidation('');
     setSavedMessage('');
     try {
-      const productData = toSparseWorkbook(workbook);
+      const productData = isOperationalKind(kind)
+        ? kind === 'shipping'
+          ? shippingProductData(workbook, selectedOperationalSheets, cleanBrand)
+          : operationalProductData(workbook, kind, selectedOperationalSheets)
+        : toSparseWorkbook(workbook);
       const productDataSize = JSON.stringify(productData).length;
       if (productDataSize > 700_000) {
         setValidation('The compact workbook data is over the 700,000-character API limit. Remove excess content from the source workbook and review it again.');
@@ -456,6 +588,10 @@ function WorkbookReview({
     }]);
   };
 
+  const sourcePreviewSheets = isOperationalKind(kind) && selectedOperationalSheets.length
+    ? workbook?.sheets.filter((sheet) => selectedOperationalSheets.includes(sheet.name)) ?? []
+    : workbook?.sheets.slice(0, 4) ?? [];
+
   return (
     <section className="panel import-panel" aria-labelledby="workbook-heading">
       <div className="eyebrow">Reviewed source</div>
@@ -480,9 +616,13 @@ function WorkbookReview({
           </div>
           <div className="workbook-sheet">
             <strong>Workbook content preview</strong>
-            <div className="field-help" style={{ marginTop: 4 }}>Showing the first 6 populated cells per sheet, for up to 4 sheets. Lucia has not normalized these into operational fields; the compact import retains every populated source cell.</div>
+            <div className="field-help" style={{ marginTop: 4 }}>
+              {isOperationalKind(kind)
+                ? 'Showing the first 6 populated cells in each selected worksheet. The importer also extracts recipe, process, batch, and shipping fields for review.'
+                : 'Showing the first 6 populated cells per sheet, for up to 4 sheets. Product specifications are detected separately; the compact import retains the source cells.'}
+            </div>
           </div>
-          {workbook.sheets.slice(0, 4).map((sheet) => {
+          {sourcePreviewSheets.map((sheet) => {
             const previewCells = sheet.rows.flatMap((row, r) => row.flatMap((value, c) =>
               value === null || value === '' ? [] : [{ r, c, value }],
             )).slice(0, 6);
@@ -493,7 +633,8 @@ function WorkbookReview({
               </div> : <div className="field-help" style={{ marginTop: 7 }}>No populated cells in this worksheet.</div>}
             </div>;
           })}
-          {workbook.sheets.length > 4 && <div className="workbook-sheet field-help">Preview limited to the first 4 of {workbook.sheets.length} worksheets. All source cells are retained in the compact import payload.</div>}
+          {sourcePreviewSheets.length === 0 && isOperationalKind(kind) && <div className="workbook-sheet field-help">Choose worksheets below to preview their source and extracted fields.</div>}
+          {!isOperationalKind(kind) && workbook.sheets.length > 4 && <div className="workbook-sheet field-help">Preview limited to the first 4 of {workbook.sheets.length} worksheets. All source cells are retained in the compact import payload.</div>}
         </div>
         <form onSubmit={(event) => void submit(event)} noValidate>
           <div className="form-field">
@@ -501,6 +642,9 @@ function WorkbookReview({
             <select id="workbook-kind" data-testid="select-workbook-kind" value={kind} disabled={previewMode} onChange={(event) => {
               const nextKind = event.target.value as ImportKind | '';
               setKind(nextKind);
+              if (isOperationalKind(nextKind) && selectedOperationalSheets.length === 0 && workbook.sheets.length > 0) {
+                setSelectedOperationalSheets([workbook.sheets[0].name]);
+              }
               if (nextKind === 'product_specs' && workbook && !productSpecDrafts.length) {
                 setProductSpecDrafts(parseProductSpecProfiles(workbook));
               }
@@ -510,10 +654,60 @@ function WorkbookReview({
             </select>
             <span className="field-help">Detected: {workbook.kind ? `${kindLabels[workbook.kind]} (${workbook.kindConfidence === 'high' ? 'high confidence' : 'review suggested'})` : 'No confident type; choose one after reviewing.'}</span>
           </div>
-          {kind !== 'schedule' && !hasProductSpecDrafts && <div className="import-fields">
+          {isOperationalKind(kind) && <fieldset className="operational-sheet-picker">
+            <legend>Choose worksheets for this profile</legend>
+            <p className="field-help">Select only tabs that belong to the Brand and Flavor below. If a workbook contains different products, import those tabs separately so each run gets the right setup.</p>
+            <div className="operational-sheet-actions">
+              <span>{selectedOperationalSheets.length} of {workbook.sheets.length} selected</span>
+              <button className="button button-quiet" type="button" onClick={() => setSelectedOperationalSheets(workbook.sheets.map((sheet) => sheet.name))} disabled={previewMode || selectedOperationalSheets.length === workbook.sheets.length}>Select all</button>
+              <button className="button button-quiet" type="button" onClick={() => setSelectedOperationalSheets([])} disabled={previewMode || selectedOperationalSheets.length === 0}>Clear</button>
+            </div>
+            {workbook.sheets.length > 12 && <div className="form-field" style={{ marginTop: 8 }}>
+              <label htmlFor="operational-sheet-filter">Filter worksheets</label>
+              <input id="operational-sheet-filter" type="search" maxLength={120} value={sheetFilter} onChange={(event) => setSheetFilter(event.target.value)} placeholder="Type a worksheet name" disabled={previewMode} />
+            </div>}
+            <div className="operational-sheet-list" role="group" aria-label="Workbook worksheets">
+              {visibleOperationalSheets.map((sheet, index) => {
+                const checked = selectedOperationalSheets.includes(sheet.name);
+                const checkboxId = `operational-sheet-${index}-${sheet.name.replace(/[^a-z0-9]+/gi, '-').slice(0, 30)}`;
+                return <label className="operational-sheet-option" htmlFor={checkboxId} key={sheet.name}>
+                  <input
+                    id={checkboxId}
+                    type="checkbox"
+                    checked={checked}
+                    disabled={previewMode}
+                    onChange={(event) => setSelectedOperationalSheets((current) =>
+                      event.target.checked
+                        ? [...current, sheet.name]
+                        : current.filter((name) => name !== sheet.name),
+                    )}
+                  />
+                  <span>{sheet.name}</span>
+                  <small>{operationalSheetCellCounts.get(sheet.name) ?? 0} populated cells</small>
+                </label>;
+              })}
+              {visibleOperationalSheets.length === 0 && <p className="field-help">No worksheet names match that filter.</p>}
+            </div>
+          </fieldset>}
+          {kind === 'shipping' && <div className="form-field" style={{ marginTop: 12 }}>
+            <label htmlFor="shipping-profile">Existing product profile</label>
+            <select id="shipping-profile" value={shippingProfileId} onChange={(event) => setShippingProfileId(event.target.value)} required disabled={previewMode || !profilesReady || profiles.length === 0}>
+              <option value="">Choose a product profile</option>
+              {profiles.filter((profile) => !profile.mergedIntoId).map((profile) => <option key={profile.id} value={profile.id}>{profile.brand} / {profile.flavor}</option>)}
+            </select>
+            <span className="field-help">Shipping rows are matched to the selected profile’s brand and stored with that profile. This does not create a run flavor or modify other profiles.</span>
+            {!profilesReady && <span className="field-help" role="status">Loading active profiles…</span>}
+            {profilesReady && profiles.length === 0 && <span className="field-help">Create a product profile before attaching its shipping reference.</span>}
+          </div>}
+          {kind !== 'schedule' && kind !== 'shipping' && !hasProductSpecDrafts && <div className="import-fields">
             <div className="form-field"><label htmlFor="profile-brand">Brand</label><input id="profile-brand" autoComplete="organization" maxLength={120} value={brand} onChange={(event) => setBrand(event.target.value)} required disabled={previewMode} /></div>
             <div className="form-field"><label htmlFor="profile-flavor">Flavor</label><input id="profile-flavor" maxLength={120} value={flavor} onChange={(event) => setFlavor(event.target.value)} required disabled={previewMode} /></div>
           </div>}
+          {operationalPreview && <OperationalSetupSummary
+            data={operationalPreview}
+            title={`Normalized ${isOperationalKind(kind) ? kindLabels[kind] : 'workbook'} preview`}
+            defaultOpen
+          />}
           {kind === 'product_specs' && productSpecDrafts.length === 0 && <div className="notice" role="status">
             No complete product sections were detected automatically. You can still import the full workbook to one profile; every source cell will be retained.
           </div>}
@@ -613,7 +807,7 @@ function WorkbookReview({
                 {importer.isPending ? <LoaderCircle size={16} className="spin" /> : <ArrowDownToLine size={16} />}
                 {importer.isPending ? 'Saving product profiles…' : unsavedProductSpecCount ? `Save ${unsavedProductSpecCount} product ${unsavedProductSpecCount === 1 ? 'profile' : 'profiles'}` : 'All profiles saved'}
               </button>
-              : <button className="button button-primary" type="submit" disabled={previewMode || !online || importer.isPending || !kind} data-testid="button-import-profile">
+              : <button className="button button-primary" type="submit" disabled={previewMode || !online || importer.isPending || !kind || (isOperationalKind(kind) && selectedOperationalSheets.length === 0) || (kind === 'shipping' && !selectedShippingProfile)} data-testid="button-import-profile">
               {importer.isPending ? <LoaderCircle size={16} className="spin" /> : <ArrowDownToLine size={16} />}
               {importer.isPending ? 'Saving source profile…' : matchingProfile ? 'Add workbook to profile' : 'Save product profile'}
               </button>}
@@ -713,6 +907,7 @@ function ProfileCard({ profile, profiles }: { profile: ProductProfile; profiles:
         </div>
         <span className="status status-running">Active profile</span>
       </div>
+      <OperationalSetupSummary data={profile.productData} title="Recipe and process details" />
       {editing && <form onSubmit={saveRename} noValidate className="import-fields" style={{ marginTop: 10 }}>
         <div className="form-field"><label htmlFor={`rename-brand-${profile.id}`}>Brand</label><input id={`rename-brand-${profile.id}`} value={brand} maxLength={120} onChange={(event) => setBrand(event.target.value)} /></div>
         <div className="form-field"><label htmlFor={`rename-flavor-${profile.id}`}>Flavor</label><input id={`rename-flavor-${profile.id}`} value={flavor} maxLength={120} onChange={(event) => setFlavor(event.target.value)} /></div>
@@ -796,13 +991,17 @@ export default function ImportsPage() {
 }
 
 export function ImportsVisualPreviewPage() {
+  const operationalMode = typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('kind') === 'operational';
   return (
     <main className="workspace">
       <div className="page-head">
         <div>
           <div className="eyebrow">Development-only visual check</div>
           <h1>Importer preview</h1>
-          <p className="page-subtitle">Synthetic product-spec data shown in the real importer components.</p>
+          <p className="page-subtitle">
+            Synthetic {operationalMode ? 'premix and process' : 'product-spec'} data shown in the real importer components.
+          </p>
         </div>
       </div>
       <div className="notice visual-preview-banner" role="status">
@@ -815,37 +1014,59 @@ export function ImportsVisualPreviewPage() {
           profiles={[]}
           profilesReady
           previewMode
-          initialWorkbook={visualPreviewWorkbook}
+          initialWorkbook={operationalMode ? visualOperationalWorkbook : visualPreviewWorkbook}
         />
-        <section aria-labelledby="visual-preview-products-heading">
-          <div className="section-heading">
-            <div>
-              <div className="eyebrow">Sample output</div>
-              <h2 id="visual-preview-products-heading">Detected product profiles</h2>
-            </div>
-            <span className="eyebrow">{visualPreviewProducts.length} preview only</span>
-          </div>
-          <div className="profile-list">
-            {visualPreviewProducts.map((product, index) => (
-              <article className="panel profile-card" key={product.id}>
+        {operationalMode
+          ? <section aria-labelledby="visual-preview-operations-heading">
+              <div className="section-heading">
+                <div>
+                  <div className="eyebrow">Sample output</div>
+                  <h2 id="visual-preview-operations-heading">Operational profile snapshot</h2>
+                </div>
+                <span className="eyebrow">Preview only</span>
+              </div>
+              <article className="panel profile-card">
                 <div className="profile-card-head">
                   <div>
-                    <div className="eyebrow">Sample profile {index + 1}</div>
-                    <h3>{product.brand}</h3>
-                    <div className="profile-meta">{product.flavor} · Product specifications</div>
+                    <div className="eyebrow">Sample profile</div>
+                    <h3>Sample Brand / Classic</h3>
+                    <div className="profile-meta">Premix · saved source snapshot</div>
                   </div>
                   <span className="import-state">Preview only</span>
                 </div>
-                <div className="profile-bundle">
-                  {product.sections.map((section) => `${section.sheet} · rows ${section.headerRow}–${section.endRow}`).join('; ')}
-                </div>
+                <OperationalSetupSummary data={visualOperationalPreview} title="Recipe and process details" defaultOpen />
               </article>
-            ))}
-          </div>
-          <div className="notice" role="note">
-            These cards are generated from the same product-section parser used by imports. They are not saved profiles.
-          </div>
-        </section>
+              <div className="notice" role="note">This sample shows how selected operational fields appear in a future run’s captured profile.</div>
+            </section>
+          : <section aria-labelledby="visual-preview-products-heading">
+              <div className="section-heading">
+                <div>
+                  <div className="eyebrow">Sample output</div>
+                  <h2 id="visual-preview-products-heading">Detected product profiles</h2>
+                </div>
+                <span className="eyebrow">{visualPreviewProducts.length} preview only</span>
+              </div>
+              <div className="profile-list">
+                {visualPreviewProducts.map((product, index) => (
+                  <article className="panel profile-card" key={product.id}>
+                    <div className="profile-card-head">
+                      <div>
+                        <div className="eyebrow">Sample profile {index + 1}</div>
+                        <h3>{product.brand}</h3>
+                        <div className="profile-meta">{product.flavor} · Product specifications</div>
+                      </div>
+                      <span className="import-state">Preview only</span>
+                    </div>
+                    <div className="profile-bundle">
+                      {product.sections.map((section) => `${section.sheet} · rows ${section.headerRow}–${section.endRow}`).join('; ')}
+                    </div>
+                  </article>
+                ))}
+              </div>
+              <div className="notice" role="note">
+                These cards are generated from the same product-section parser used by imports. They are not saved profiles.
+              </div>
+            </section>}
       </div>
     </main>
   );

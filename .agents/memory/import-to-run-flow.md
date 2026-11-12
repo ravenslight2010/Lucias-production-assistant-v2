@@ -19,6 +19,12 @@ During import, prefix cheese recipe names and mix names with their brand names t
 
 **How to apply:** Do not advance to a lower-priority workbook type until the higher-priority one is working and verified, unless the user changes the order. Apply the brand prefix when creating imported cheese and mix recipe names.
 
+Brand prefixes also distinguish recipe identities during rename/merge; they are not merely display labels. Per-pizza weight or ratio can change between products while the recipe batch size usually stays the same.
+
+**Why:** The user explained, “the per pizza wieght/ratio changes, but the batch size usually stays the same,” and clarified that this is also why the brand name is included.
+
+**How to apply:** Keep shared batch-recipe identity and formula separate from each product's per-pizza usage. Do not collapse recipes across brands because their short names match, or infer identical batch sizes from “usually.” Explicitly merged aliases must not overwrite product-specific weights or ratios.
+
 Keep the Kroger spec workbook's products in separate Kroger profiles, even though its internal headings say Corner Booth.
 
 **Why:** The user explicitly chose separate Kroger profiles rather than sharing the matching Corner Booth brand/flavor profiles.

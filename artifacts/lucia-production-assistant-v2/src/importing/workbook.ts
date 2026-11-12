@@ -172,9 +172,15 @@ export function parseProductSpecProfiles(workbook: ParsedWorkbook): ProductSpecP
       }
     }
 
-    const nextHeaderRowFor = (header: (typeof headers)[number]) => headers
-      .filter((candidate) => candidate.column === header.column && candidate.row > header.row)
-      .reduce((next, candidate) => Math.min(next, candidate.row), sheet.rows.length);
+    const nextRows = new Map<(typeof headers)[number], number>();
+    const nextRowByColumn = new Map<number, number>();
+    for (let index = headers.length - 1; index >= 0; index--) {
+      const header = headers[index];
+      nextRows.set(header, nextRowByColumn.get(header.column) ?? sheet.rows.length);
+      nextRowByColumn.set(header.column, header.row);
+    }
+    const nextHeaderRowFor = (header: (typeof headers)[number]) =>
+      nextRows.get(header) ?? sheet.rows.length;
     const validHeaders = headers.filter((header) =>
       findTargetWeightRow(sheet, header.row, header.column, nextHeaderRowFor(header)) !== null,
     );

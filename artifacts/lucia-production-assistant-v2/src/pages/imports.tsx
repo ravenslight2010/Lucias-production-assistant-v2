@@ -896,6 +896,7 @@ function WorkbookReview({
                     title="Extracted spec preview"
                     brand={draft.brand}
                     flavor={draft.flavor}
+                    defaultOpen={previewMode && index === 0}
                   />}
                   {draft.saveState === 'saving' && <div className="field-help" role="status">Saving this profile…</div>}
                   {draft.saveState === 'saved' && <div className="notice" role="status">Saved. This profile will not be duplicated if you retry the batch.</div>}

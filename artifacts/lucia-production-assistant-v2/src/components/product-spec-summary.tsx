@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+import { parsePreservedProductSpec } from "../importing/product-spec";
 import type { ProductSpecData, ProductSpecSectionData } from "../importing/product-spec";
 
 type RecordValue = Record<string, unknown>;
@@ -54,6 +56,13 @@ function findProductSpecData(value: unknown): ProductSpecData[] {
       found.push(current);
       return;
     }
+    if (isRecord(current) && !isProductSpecData(current.structured)) {
+      const preserved = parsePreservedProductSpec(current);
+      if (preserved) {
+        found.push(preserved);
+        return;
+      }
+    }
     if (Array.isArray(current)) {
       current.slice(0, 100).forEach((entry) => visit(entry, depth + 1));
       return;
@@ -88,7 +97,7 @@ export function ProductSpecSummary({
   brand?: string;
   flavor?: string;
 }) {
-  const productSpecs = findProductSpecData(data);
+  const productSpecs = useMemo(() => findProductSpecData(data), [data]);
   if (!productSpecs.length) return null;
   const sectionCount = productSpecs.reduce((sum, item) => sum + item.sections.length, 0);
   const ingredientCount = productSpecs.reduce((sum, item) => sum + amountCount(item), 0);

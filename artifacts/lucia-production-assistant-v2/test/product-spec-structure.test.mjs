@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseProductSpecData } from "../src/importing/product-spec.ts";
+import { parsePreservedProductSpec, parseProductSpecData } from "../src/importing/product-spec.ts";
 import { parseProductSpecProfiles } from "../src/importing/workbook.ts";
 
 const workbook = (rows) => ({
@@ -70,4 +70,54 @@ test("does not let an incomplete product section borrow the next section's targe
   const data = parseProductSpecData(source, profiles[0]);
   assert.equal(data.sections[0].targetWeight, "3");
   assert.equal(data.sections[0].weightSpecRange, "2.5 - 3.5");
+});
+
+test("keeps adjacent packaging tables out of ingredient amounts and product boundaries", () => {
+  const source = workbook([
+    ["Sample Pizzas", "MR12CH14", null, "Shipping notes", "CODE12"],
+    ["Crust", 13, null, "Shipping Box", '12" shipper'],
+    ["Sauce", 3, null, "Cases per pallet", 54],
+    ["TARGET WEIGHT", 16],
+    ["WEIGHT SPEC RANGE", "15.75 - 16.25"],
+  ]);
+  const profiles = parseProductSpecProfiles(source);
+  assert.equal(profiles.length, 1);
+  const data = parseProductSpecData(source, profiles[0]);
+  assert.equal(data.sections[0].targetWeight, "16");
+  assert.deepEqual(data.sections[0].ingredients[0].amounts, [
+    { column: "B", value: "13" },
+  ]);
+});
+
+test("reads older preserved spec sections without changing their saved source", () => {
+  const source = workbook([
+    ["Sample Pizzas", "Cheese"],
+    ["Crust", 8],
+    ["Cheese", 4],
+    ["TARGET WEIGHT", 12],
+    ["WEIGHT SPEC RANGE", "11.75 - 12.25"],
+  ]);
+  const profile = parseProductSpecProfiles(source)[0];
+  const preserved = {
+    format: "lucia.workbook.sparse.v1",
+    selectedProduct: {
+      brand: "Renamed brand",
+      flavor: "Renamed flavor",
+      sections: profile.sections.map(({ endColumn, ...section }) => section),
+    },
+    sheets: source.sheets.map((sheet) => ({
+      name: sheet.name,
+      cells: sheet.rows.flatMap((row, r) => row.flatMap((v, c) =>
+        v == null ? [] : [{ r, c, v }],
+      )),
+    })),
+  };
+  const before = JSON.stringify(preserved);
+  const data = parsePreservedProductSpec(preserved);
+  assert.ok(data);
+  assert.equal(data.brand, "Renamed brand");
+  assert.equal(data.flavor, "Renamed flavor");
+  assert.equal(data.sections[0].targetWeight, "12");
+  assert.equal(data.sections[0].ingredients.length, 2);
+  assert.equal(JSON.stringify(preserved), before);
 });

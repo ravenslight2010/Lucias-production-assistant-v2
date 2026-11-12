@@ -15,7 +15,7 @@ import {
   useRenameProductProfile,
 } from '@workspace/api-client-react';
 import type { ProductProfile, ProductProfileImportInput } from '@workspace/api-client-react';
-import { IMPORT_KINDS, parseWorkbookFile, type ImportKind, type ParsedWorkbook } from '../importing/workbook';
+import { IMPORT_KINDS, parseScheduleWorkbook, parseWorkbookFile, type ImportKind, type ParsedWorkbook } from '../importing/workbook';
 
 const kindLabels: Record<ImportKind, string> = {
   product_specs: 'Product specifications',
@@ -73,7 +73,12 @@ function WorkbookReview() {
   const [parseError, setParseError] = useState('');
   const [validation, setValidation] = useState('');
   const [savedMessage, setSavedMessage] = useState('');
+  const [scheduleVisibleRows, setScheduleVisibleRows] = useState(50);
   const importer = useImportProductProfile({ request: { credentials: 'include' } });
+  const schedulePreview = useMemo(
+    () => workbook && kind === 'schedule' ? parseScheduleWorkbook(workbook) : null,
+    [workbook, kind],
+  );
 
   const chooseFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.currentTarget.files?.[0];
@@ -81,6 +86,7 @@ function WorkbookReview() {
     setParseError('');
     setValidation('');
     setSavedMessage('');
+    setScheduleVisibleRows(50);
     setWorkbook(null);
     setSourceFile(file);
     try {
@@ -178,27 +184,48 @@ function WorkbookReview() {
           {workbook.sheets.length > 4 && <div className="workbook-sheet field-help">Preview limited to the first 4 of {workbook.sheets.length} worksheets. All source cells are retained in the compact import payload.</div>}
         </div>
         <form onSubmit={(event) => void submit(event)} noValidate>
-          <div className="import-fields">
+          {kind !== 'schedule' && <div className="import-fields">
             <div className="form-field"><label htmlFor="profile-brand">Brand</label><input id="profile-brand" autoComplete="organization" maxLength={120} value={brand} onChange={(event) => setBrand(event.target.value)} required /></div>
             <div className="form-field"><label htmlFor="profile-flavor">Flavor</label><input id="profile-flavor" maxLength={120} value={flavor} onChange={(event) => setFlavor(event.target.value)} required /></div>
-          </div>
+          </div>}
           <div className="form-field">
             <label htmlFor="workbook-kind">Workbook type</label>
-            <select id="workbook-kind" value={kind} onChange={(event) => setKind(event.target.value as ImportKind | '')} required>
+            <select id="workbook-kind" data-testid="select-workbook-kind" value={kind} onChange={(event) => setKind(event.target.value as ImportKind | '')} required>
               <option value="">Select type to continue</option>
               {IMPORT_KINDS.map((item) => <option key={item} value={item}>{kindLabels[item]}{item === 'schedule' ? ' · preview only' : ''}</option>)}
             </select>
             <span className="field-help">Detected: {workbook.kind ? `${kindLabels[workbook.kind]} (${workbook.kindConfidence === 'high' ? 'high confidence' : 'review suggested'})` : 'No confident type; choose one after reviewing.'}</span>
           </div>
-          {kind === 'schedule' && <div className="notice" role="status"><AlertTriangle size={15} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />Schedule workbooks can be previewed, but cannot be saved as product profiles. Schedule rows need a separate run-mapping review.</div>}
-          {validation && <div className="error-banner" role="alert">{validation}</div>}
-          {importer.isError && <div className={errorStatus(importer.error) === 409 ? 'notice' : 'error-banner'} role="alert">{errorStatus(importer.error) === 409 ? 'The source conflicts with a change made elsewhere. Refresh profiles and review the current setup before retrying.' : errorText(importer.error, 'The profile was not saved. Check the connection and try again.')}</div>}
-          {savedMessage && <div className="notice" role="status"><ShieldCheck size={15} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />{savedMessage}</div>}
-          <button className="button button-primary" type="submit" disabled={!online || importer.isPending || !kind || kind === 'schedule'} data-testid="button-import-profile">
-            {importer.isPending ? <LoaderCircle size={16} className="spin" /> : <ArrowDownToLine size={16} />}
-            {importer.isPending ? 'Saving source profile…' : 'Save product profile'}
-          </button>
-          {!online && <p className="field-help" style={{ marginTop: 10 }}>Offline: workbook review is available, but profiles cannot be saved.</p>}
+          {kind === 'schedule' && schedulePreview && <section className="schedule-review" aria-labelledby="schedule-preview-heading" data-testid="schedule-preview" style={{ marginTop: 16, padding: 16, border: '1px solid hsl(var(--border))', borderRadius: 12, background: 'hsl(var(--muted) / .35)' }}>
+            <div className="schedule-review-head" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div><div className="eyebrow">Read-only review</div><h3 id="schedule-preview-heading">Parsed production schedule</h3></div>
+              <span className="schedule-count" data-testid="text-schedule-run-count" style={{ padding: '7px 10px', borderRadius: 999, background: 'hsl(var(--primary) / .09)', color: 'hsl(var(--primary))', font: '500 11px var(--app-font-mono)' }}>{schedulePreview.runs.length} parsed {schedulePreview.runs.length === 1 ? 'row' : 'rows'}</span>
+            </div>
+            <div className="notice" role="status"><AlertTriangle size={15} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />Preview only. These schedule rows are not saved, applied, or created as production runs.</div>
+            {schedulePreview.runs.length ? <div className="schedule-table-wrap" style={{ overflowX: 'auto', border: '1px solid hsl(var(--border))', borderRadius: 9, background: 'hsl(var(--card))' }}>
+              <table className="schedule-table" style={{ width: '100%', minWidth: 550, borderCollapse: 'collapse', textAlign: 'left', fontSize: 12 }}>
+                <thead><tr>{['Date', 'Brand', 'Flavor', 'Cases', 'Source'].map((heading) => <th key={heading} scope="col" style={{ padding: '10px 12px', color: 'hsl(var(--muted-foreground))', borderBottom: '1px solid hsl(var(--border))', font: '500 10px var(--app-font-mono)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{heading}</th>)}</tr></thead>
+                <tbody>{schedulePreview.runs.slice(0, scheduleVisibleRows).map((run, index) => <tr key={`${run.source.sheet}:${run.source.row}`} data-testid={`schedule-row-${index}`}>
+                  <td style={{ padding: '11px 12px', whiteSpace: 'nowrap', borderBottom: '1px solid hsl(var(--border))', fontFamily: 'var(--app-font-mono)' }}>{run.date}</td><td style={{ padding: '11px 12px', borderBottom: '1px solid hsl(var(--border))' }}>{run.brand}</td><td style={{ padding: '11px 12px', borderBottom: '1px solid hsl(var(--border))' }}>{run.flavor || '—'}</td><td style={{ padding: '11px 12px', borderBottom: '1px solid hsl(var(--border))', fontVariantNumeric: 'tabular-nums' }}>{run.casesPlanned.toLocaleString()}</td><td style={{ padding: '11px 12px', borderBottom: '1px solid hsl(var(--border))', color: 'hsl(var(--muted-foreground))', fontFamily: 'var(--app-font-mono)' }}>{run.source.sheet} · row {run.source.row}</td>
+                </tr>)}</tbody>
+              </table>
+            </div> : <div className="schedule-empty" data-testid="empty-schedule-rows">No schedule rows were recognized. Check the worksheet headers and date values.</div>}
+            {schedulePreview.runs.length > scheduleVisibleRows && <div className="control-row" style={{ justifyContent: 'center', marginTop: 12 }}><button className="button button-secondary" type="button" data-testid="button-show-more-schedule-rows" onClick={() => setScheduleVisibleRows((count) => Math.min(count + 50, schedulePreview.runs.length))}>Show next {Math.min(50, schedulePreview.runs.length - scheduleVisibleRows)} rows</button></div>}
+            {schedulePreview.errors.length > 0 && <div className="notice schedule-warnings" aria-label="Parser warnings" style={{ marginTop: 14 }}>
+              <strong>Parser warnings · {schedulePreview.errors.length}</strong>
+              <ul style={{ margin: '8px 0 0', paddingLeft: 20, lineHeight: 1.55 }}>{schedulePreview.errors.map((warning, index) => <li key={`${warning.sheet}:${warning.row}:${index}`} data-testid={`schedule-warning-${index}`}>{warning.sheet} · row {warning.row}: {warning.message}</li>)}</ul>
+            </div>}
+          </section>}
+          {kind !== 'schedule' && <>
+            {validation && <div className="error-banner" role="alert">{validation}</div>}
+            {importer.isError && <div className={errorStatus(importer.error) === 409 ? 'notice' : 'error-banner'} role="alert">{errorStatus(importer.error) === 409 ? 'The source conflicts with a change made elsewhere. Refresh profiles and review the current setup before retrying.' : errorText(importer.error, 'The profile was not saved. Check the connection and try again.')}</div>}
+            {savedMessage && <div className="notice" role="status"><ShieldCheck size={15} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />{savedMessage}</div>}
+            <button className="button button-primary" type="submit" disabled={!online || importer.isPending || !kind} data-testid="button-import-profile">
+              {importer.isPending ? <LoaderCircle size={16} className="spin" /> : <ArrowDownToLine size={16} />}
+              {importer.isPending ? 'Saving source profile…' : 'Save product profile'}
+            </button>
+            {!online && <p className="field-help" style={{ marginTop: 10 }}>Offline: workbook review is available, but profiles cannot be saved.</p>}
+          </>}
         </form>
       </>}
     </section>

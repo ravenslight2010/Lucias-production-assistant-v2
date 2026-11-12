@@ -377,11 +377,11 @@ function EmptyState({ title, copy, action }: { title: string; copy: string; acti
 function RunsPage() {
   const online = useConnection();
   const [isCreating, setIsCreating] = useState(false);
-  const [name, setName] = useState('');
+  const [brand, setBrand] = useState('');
+  const [productProfileId, setProductProfileId] = useState('');
   const [targetCases, setTargetCases] = useState('1');
   const [validation, setValidation] = useState('');
   const [filter, setFilter] = useState<RunStatus | 'all'>('all');
-  const [productProfileId, setProductProfileId] = useState('');
   const queryArgs = { limit: 100 };
   const queryKey = getListRunsQueryKey(queryArgs);
   const runsQuery = useListRuns(queryArgs, {
@@ -397,28 +397,34 @@ function RunsPage() {
   const createAttempt = useRef<{ fingerprint: string; requestId: string } | null>(null);
   const allRuns = runsQuery.data?.runs ?? [];
   const runs = filter === 'all' ? allRuns : allRuns.filter((run) => run.status === filter);
+  const profiles = profilesQuery.data?.profiles ?? [];
+  const brands = [...new Set(profiles.map((profile) => profile.brand))].sort((a, b) => a.localeCompare(b));
+  const flavors = profiles
+    .filter((profile) => profile.brand === brand)
+    .sort((a, b) => a.flavor.localeCompare(b.flavor));
+  const selectedProfile = profiles.find((profile) => profile.id === productProfileId);
 
   const handleCreate = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const cleaned = name.trim();
     const countValue = Number(targetCases);
-    if (!cleaned || cleaned.length > 120 || !Number.isSafeInteger(countValue) || countValue < 1) {
-      setValidation('Enter a label and a whole target case count of at least one.');
+    if (!selectedProfile || !Number.isSafeInteger(countValue) || countValue < 1) {
+      setValidation('Choose a brand and flavor, then enter a whole target case count of at least one.');
       return;
     }
     setValidation('');
-    const fingerprint = JSON.stringify({ label: cleaned, targetCases: countValue, productProfileId: productProfileId || null });
+    const label = `${selectedProfile.brand} / ${selectedProfile.flavor}`;
+    const fingerprint = JSON.stringify({ label, targetCases: countValue, productProfileId: selectedProfile.id });
     if (!createAttempt.current || createAttempt.current.fingerprint !== fingerprint) {
       createAttempt.current = { fingerprint, requestId: crypto.randomUUID() };
     }
     createRun.mutate({
       data: {
         requestId: createAttempt.current.requestId,
-        setupSnapshot: { label: cleaned, targetCases: countValue, ...(productProfileId ? { productProfileId } : {}) },
+        setupSnapshot: { label, targetCases: countValue, productProfileId: selectedProfile.id },
       },
     }, {
       onSuccess: (created) => {
-        setName('');
+        setBrand('');
         setTargetCases('1');
         setProductProfileId('');
         setIsCreating(false);
@@ -437,29 +443,44 @@ function RunsPage() {
         <OfflineNotice hasCache={Boolean(runsQuery.data)} />
         <div className="page-head">
           <div><div className="eyebrow">Facility runs</div><h1>Production runs</h1><p className="page-subtitle">A shared record of what is prepared, running, paused, and complete.</p></div>
-          <button className="button button-primary" type="button" onClick={() => { setIsCreating((open) => !open); setValidation(''); }} disabled={!online} data-testid="button-toggle-create-run">
+          <button className="button button-primary" type="button" onClick={() => { setIsCreating((open) => !open); setValidation(''); }} disabled={!online || profilesQuery.isLoading || profilesQuery.isError || profiles.length === 0} data-testid="button-toggle-create-run">
             <Plus size={16} /> {isCreating ? 'Close form' : 'New run'}
           </button>
         </div>
         {runsQuery.isLoading && !runsQuery.data && <><div className="skeleton" /><div className="skeleton" /><div className="skeleton" /></>}
         {runsQuery.isError && !runsQuery.data && <DataError message={getErrorMessage(runsQuery.error, 'Runs could not be loaded.')} onRetry={() => void runsQuery.refetch()} />}
         {runsQuery.isError && runsQuery.data && <div className="error-banner" role="status">Refresh failed. Showing cached run records.</div>}
+        {profilesQuery.isLoading && !profilesQuery.data && <div className="skeleton" aria-label="Loading product profiles" />}
+        {profilesQuery.isError && !profilesQuery.data && <DataError message={getErrorMessage(profilesQuery.error, 'Product profiles could not be loaded.')} onRetry={() => void profilesQuery.refetch()} />}
+        {profilesQuery.isError && profilesQuery.data && <div className="error-banner" role="status">Could not refresh product profiles. Run setup is paused until the profile list is available.</div>}
+        {profilesQuery.data && profiles.length === 0 && <section className="panel empty-state" data-testid="empty-run-profiles">
+          <div className="empty-mark"><Factory size={21} /></div>
+          <h3>Product setup comes first</h3>
+          <p>Import a product workbook to create an approved facility profile. Then select its brand and flavor here to start a run.</p>
+          <Link href="/imports" className="button button-primary" data-testid="link-import-product-setup">Go to product profiles <ArrowRight size={15} /></Link>
+        </section>}
         {isCreating && <form className="panel form-card" onSubmit={handleCreate} noValidate>
           <div className="eyebrow">New planned run</div><h2>Set up this production run</h2>
-          <div className="form-field"><label htmlFor="run-name">Run label</label><input id="run-name" data-testid="input-run-name" autoFocus maxLength={120} value={name} onChange={(event) => setName(event.target.value)} aria-describedby={validation ? 'run-error' : 'run-label-help'} required /><span className="field-help" id="run-label-help">A clear label helps the next operator identify this run.</span></div>
-          <div className="form-field"><label htmlFor="run-target-cases">Target cases</label><input id="run-target-cases" data-testid="input-run-target-cases" type="number" inputMode="numeric" min={1} step={1} value={targetCases} onChange={(event) => setTargetCases(event.target.value)} aria-describedby={validation ? 'run-error' : undefined} required /></div>
           <div className="form-field">
-            <label htmlFor="run-product-profile">Imported product profile <span className="field-help">(optional)</span></label>
-            <select id="run-product-profile" value={productProfileId} onChange={(event) => setProductProfileId(event.target.value)} style={{ width: '100%', minHeight: 48, padding: '0 13px', border: '1px solid hsl(var(--input))', borderRadius: 8, background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }} disabled={profilesQuery.isLoading || profilesQuery.isError}>
-              <option value="">{profilesQuery.isLoading ? 'Loading profiles…' : profilesQuery.isError ? 'Profiles could not be loaded' : 'No product profile'}</option>
-              {(profilesQuery.data?.profiles ?? []).map((profile) => <option key={profile.id} value={profile.id}>{profile.brand} / {profile.flavor} · rev {profile.revision}</option>)}
+            <label htmlFor="run-brand">Brand</label>
+            <select id="run-brand" data-testid="select-run-brand" autoFocus value={brand} onChange={(event) => { setBrand(event.target.value); setProductProfileId(''); setValidation(''); }} aria-describedby={validation ? 'run-error' : 'run-brand-help'} required disabled={!profiles.length} style={{ width: '100%', minHeight: 48, padding: '0 13px', border: '1px solid hsl(var(--input))', borderRadius: 8, background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}>
+              <option value="">Select a brand</option>
+              {brands.map((item) => <option key={item} value={item}>{item}</option>)}
             </select>
-            {profilesQuery.isError && <span className="field-help" role="status">Profile selection is unavailable. Retry on Product profiles before creating a run with product setup.</span>}
-            {productProfileId && <span className="field-help">The selected profile is captured as a run snapshot at creation. Later profile changes will not alter it.</span>}
+            <span className="field-help" id="run-brand-help">Choose a brand to see its available flavors.</span>
           </div>
+          <div className="form-field">
+            <label htmlFor="run-flavor">Flavor</label>
+            <select id="run-flavor" data-testid="select-run-flavor" value={productProfileId} onChange={(event) => { setProductProfileId(event.target.value); setValidation(''); }} aria-describedby={validation ? 'run-error' : 'run-flavor-help'} required disabled={!brand || !flavors.length} style={{ width: '100%', minHeight: 48, padding: '0 13px', border: '1px solid hsl(var(--input))', borderRadius: 8, background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}>
+              <option value="">{brand ? 'Select a flavor' : 'Choose a brand first'}</option>
+              {flavors.map((profile) => <option key={profile.id} value={profile.id}>{profile.flavor} · rev {profile.revision}</option>)}
+            </select>
+            <span className="field-help" id="run-flavor-help">The selected profile is captured as an immutable snapshot when the run is created.</span>
+          </div>
+          <div className="form-field"><label htmlFor="run-target-cases">Target cases</label><input id="run-target-cases" data-testid="input-run-target-cases" type="number" inputMode="numeric" min={1} step={1} value={targetCases} onChange={(event) => setTargetCases(event.target.value)} aria-describedby={validation ? 'run-error' : undefined} required /></div>
           {validation && <span className="field-help" id="run-error" role="alert">{validation}</span>}
           {createRun.isError && <div className="error-banner" role="alert">{getErrorMessage(createRun.error, 'Run could not be created.')}</div>}
-          <div className="control-row"><button className="button button-primary" type="submit" disabled={!online || createRun.isPending}>{createRun.isPending ? <LoaderCircle size={16} /> : <Plus size={16} />} {createRun.isPending ? 'Saving planned run…' : 'Create planned run'}</button><button className="button button-secondary" type="button" onClick={() => setIsCreating(false)}>Cancel</button></div>
+          <div className="control-row"><button className="button button-primary" type="submit" disabled={!online || createRun.isPending || !selectedProfile}>{createRun.isPending ? <LoaderCircle size={16} /> : <Plus size={16} />} {createRun.isPending ? 'Saving planned run…' : 'Create planned run'}</button><button className="button button-secondary" type="button" onClick={() => { setIsCreating(false); setValidation(''); }} data-testid="button-cancel-create-run">Cancel</button></div>
         </form>}
         <div className="section-heading" style={{ marginTop: 26 }}>
           <h2>{filter === 'all' ? 'All facility runs' : `${filter[0].toUpperCase()}${filter.slice(1)} runs`}</h2>
@@ -469,7 +490,10 @@ function RunsPage() {
           </select>
         </div>
         {runsQuery.data && <section className="panel run-list" aria-label="Facility production runs">
-          {runs.length ? runs.map((run) => <RunRow key={run.id} run={run} />) : <EmptyState title={filter === 'all' ? 'No runs to show' : `No ${filter} runs`} copy={filter === 'all' ? 'Create a planned run to give your next shift a shared starting point.' : 'Try another status or create a new planned run.'} action={filter === 'all' ? <button className="button button-secondary" type="button" onClick={() => setIsCreating(true)} disabled={!online}>Create a run <ArrowRight size={15} /></button> : undefined} />}
+          {runs.length ? runs.map((run) => <RunRow key={run.id} run={run} />) : <EmptyState title={filter === 'all' ? 'No runs to show' : `No ${filter} runs`} copy={filter === 'all' ? 'Create a planned run to give your next shift a shared starting point.' : 'Try another status or create a new planned run.'} action={filter === 'all' ? profiles.length
+            ? <button className="button button-secondary" type="button" onClick={() => setIsCreating(true)} disabled={!online}>Create a run <ArrowRight size={15} /></button>
+            : profilesQuery.data ? <Link href="/imports" className="button button-secondary" data-testid="link-empty-import-profiles">Set up product profiles <ArrowRight size={15} /></Link>
+              : undefined : undefined} />}
         </section>}
         {!online && runsQuery.data && <p className="field-help" style={{ marginTop: 14 }}>Cached run list only. Creating and lifecycle controls are unavailable offline.</p>}
       </main>

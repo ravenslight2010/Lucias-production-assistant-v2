@@ -1,5 +1,6 @@
 import type { OperationalWorkbookData } from '../importing/operational';
 import { DoughDetailsSummary } from './dough-details-summary';
+import { CheeseDetailsSummary } from './cheese-details-summary';
 
 type RecordValue = Record<string, unknown>;
 
@@ -73,9 +74,10 @@ function RecipeSummary({ recipe }: { recipe: unknown }) {
   const metrics = Array.isArray(recipe.metrics) ? recipe.metrics.filter(isRecord) : [];
   const notes = Array.isArray(recipe.notes) ? recipe.notes.filter((item): item is string => typeof item === 'string') : [];
   const name = asText(recipe.name) || 'Recipe';
-  return <details className="operational-recipe" open={isRecord(recipe.dough)}>
+  return <details className="operational-recipe" open={isRecord(recipe.dough) || isRecord(recipe.cheese)}>
     <summary>{name} <span>{ingredients.length} ingredients · {steps.length} steps</span></summary>
     <DoughDetailsSummary data={recipe.dough} />
+    <CheeseDetailsSummary data={recipe.cheese} />
     {ingredients.length > 0 && <div>
       <strong>Ingredients</strong>
       <ul className="operational-items">{ingredients.map((ingredient, index) => <li key={`${asText(ingredient.sourceRow)}:${index}`}>
@@ -90,7 +92,7 @@ function RecipeSummary({ recipe }: { recipe: unknown }) {
     </div>}
     {equipment.length > 0 && <div><strong>Materials / equipment</strong><ul className="operational-items">{equipment.map((item, index) => <li key={`${index}:${item}`}>{item}</li>)}</ul></div>}
     {metrics.length > 0 && <div>
-      <strong>Batch and pull metrics</strong>
+      <strong>{recipe.cheese ? 'Source cellulose metrics' : 'Batch and pull metrics'}</strong>
       <ul className="operational-items">{metrics.map((metric, index) => <li key={`${asText(metric.sourceRow)}:${index}`}>
         {asText(metric.name)} <AmountList amounts={metric.amounts} />
       </li>)}</ul>
@@ -119,6 +121,10 @@ export function OperationalSetupSummary({
       {workbooks.map((workbook, workbookIndex) => <section className="operational-workbook" key={`${workbook.title}:${workbookIndex}`}>
         <h4>{workbook.title} <span>{workbook.importKind.replaceAll('_', ' ')}</span></h4>
         {workbook.revision && <p className="field-help">Revision {workbook.revision}</p>}
+        {isRecord(workbook.cheeseSelection) && Array.isArray(workbook.cheeseSelection.keys) && <p className="field-help">
+          {workbook.cheeseSelection.keys.length} explicitly selected cheese formulas.
+          {workbook.cheeseSelection.reviewedAsReference === true && ' Source discrepancies were acknowledged as reference data, not corrected recipes.'}
+        </p>}
         {workbook.warnings.length > 0 && <div className="notice" role="status">
           Review parser notes:
           <ul className="operational-items">{workbook.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>
@@ -128,7 +134,8 @@ export function OperationalSetupSummary({
           {sheet.notes.length > 0 && <ul className="operational-items">{sheet.notes.map((note, index) => <li key={index}>{note}</li>)}</ul>}
           {sheet.recipes.map((recipe, index) => <RecipeSummary recipe={recipe} key={`${sheet.name}:${index}`} />)}
           {sheet.productMappings.length > 0 && <p className="field-help">
-            Applies to: {sheet.productMappings.map((mapping) => `${mapping.product}: ${mapping.recipe}`).join(' · ')}
+            {workbook.importKind === 'cheese' ? 'Source product/recipe references (not automatically applied): ' : 'Applies to: '}
+            {sheet.productMappings.map((mapping) => `${mapping.product}: ${mapping.recipe}`).join(' · ')}
           </p>}
           {sheet.shippingRecords.length > 0 && <div className="operational-shipping-list">
             {sheet.shippingRecords.filter(isRecord).slice(0, 12).map((record, index) => <div key={`${asText(record.sourceRow)}:${index}`}>

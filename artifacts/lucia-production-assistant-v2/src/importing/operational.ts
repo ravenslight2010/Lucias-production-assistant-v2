@@ -1,6 +1,8 @@
 import type { ImportKind, ParsedWorkbook, WorkbookCell, WorkbookSheet } from './workbook';
 import { extractDoughDetails } from './dough.ts';
 import type { DoughDetails } from './dough';
+import { parseCheeseSheet } from './cheese.ts';
+import type { CheeseDetails, CheeseSelection } from './cheese';
 
 export type OperationalImportKind = Exclude<ImportKind, 'product_specs' | 'schedule'>;
 
@@ -30,6 +32,7 @@ export type OperationalRecipe = {
   notes: string[];
   metrics: OperationalIngredient[];
   dough?: DoughDetails;
+  cheese?: CheeseDetails;
 };
 export type OperationalProductMapping = {
   sourceRow: number;
@@ -58,6 +61,7 @@ export type OperationalWorkbookData = {
   selectedSheetNames: string[];
   sheets: OperationalSheet[];
   warnings: string[];
+  cheeseSelection?: CheeseSelection;
 };
 
 const normalizeText = (value: string) => value.normalize('NFKC').trim().replace(/\s+/g, ' ');
@@ -87,7 +91,7 @@ function textRows(sheet: WorkbookSheet) {
   })).filter((row) => row.text);
 }
 
-function titleAndRevision(workbook: ParsedWorkbook, sheet: WorkbookSheet) {
+function titleAndRevision(workbook: ParsedWorkbook, sheet: WorkbookSheet, scanAllRevisions = false) {
   const rows = sheet.rows.slice(0, 8);
   const allText = rows.flatMap(rowStrings);
   const title = allText.find((text) =>
@@ -97,7 +101,8 @@ function titleAndRevision(workbook: ParsedWorkbook, sheet: WorkbookSheet) {
     ?? allText[0]
     ?? sheet.name
     ?? workbook.fileName;
-  const revisionText = allText.find((text) => /\brev(?:ision)?\.?\s*[#:-]?\s*[a-z0-9.]+/i.test(text));
+  const revisionText = (scanAllRevisions ? sheet.rows.flatMap(rowStrings) : allText)
+    .find((text) => /\brev(?:ision)?\.?\s*[#:-]?\s*[a-z0-9.]+/i.test(text));
   const revision = revisionText?.match(/\brev(?:ision)?\.?\s*[#:-]?\s*([a-z0-9.]+)/i)?.[1] ?? null;
   return { title, revision };
 }
@@ -322,57 +327,6 @@ function nearestRecipeHeading(sheet: WorkbookSheet, labelColumn: number, headerR
   return preferred && !isGeneric(preferred) ? preferred : sheet.name;
 }
 
-function parseCheeseRecipes(sheet: WorkbookSheet): OperationalSheet {
-  const recipes: OperationalRecipe[] = [];
-  const seen = new Set<string>();
-  for (let headerRow = 0; headerRow < sheet.rows.length; headerRow++) {
-    const unitColumns = sheet.rows[headerRow]
-      .map((value, column) => ({ value: cellText(value), column }))
-      .filter(({ value }) => /^lbs?\.?$/i.test(value));
-    for (const { column: unitColumn } of unitColumns) {
-      if (unitColumn === 0) continue;
-      const labelColumn = unitColumn - 1;
-      const name = nearestHeading(sheet, labelColumn, headerRow);
-      if (!name) continue;
-      const ingredients: OperationalIngredient[] = [];
-      let total: OperationalIngredient | undefined;
-      let endRow = headerRow;
-      for (let rowIndex = headerRow + 1; rowIndex < Math.min(sheet.rows.length, headerRow + 35); rowIndex++) {
-        const row = sheet.rows[rowIndex];
-        const label = cellText(row[labelColumn]);
-        if (!label) continue;
-        const amounts = amountCells(sheet, rowIndex, labelColumn, headerRow);
-        const targetAmount = row[unitColumn];
-        if (isTotal(label)) {
-          total = { name: label, sourceRow: rowIndex + 1, amounts };
-          endRow = rowIndex;
-          break;
-        }
-        if (isNumeric(targetAmount)) {
-          ingredients.push({ name: label, sourceRow: rowIndex + 1, amounts: [{ column: unitColumn + 1, label: 'LBS', value: targetAmount }] });
-          endRow = rowIndex;
-        }
-      }
-      const key = `${sheet.name}:${headerRow}:${labelColumn}:${name}`;
-      if (!total || !ingredients.length || seen.has(key)) continue;
-      seen.add(key);
-      recipes.push({
-        name,
-        source: { sheet: sheet.name, startRow: headerRow + 2, endRow: endRow + 1 },
-        ingredients,
-        total,
-        steps: [],
-        equipment: [],
-        notes: [],
-        metrics: [],
-      });
-    }
-  }
-  const productMappings = parseMappings(sheet, Math.min(sheet.rows.length, 16));
-  const notes = recipes.length ? [] : [`No complete cheese-mix tables were confidently detected in worksheet "${sheet.name}".`];
-  return { name: sheet.name, recipes, productMappings, shippingRecords: [], notes };
-}
-
 function parsePremixRecipes(sheet: WorkbookSheet): OperationalSheet {
   const recipes: OperationalRecipe[] = [];
   for (let headerRow = 0; headerRow < sheet.rows.length; headerRow++) {
@@ -489,11 +443,11 @@ export function parseOperationalWorkbook(
   const selected = selectedSheetNames ? new Set(selectedSheetNames) : null;
   const sourceSheets = selected ? workbook.sheets.filter((sheet) => selected.has(sheet.name)) : workbook.sheets;
   const metadataSheet = sourceSheets[0] ?? workbook.sheets[0] ?? { name: workbook.fileName, rows: [] };
-  const metadata = titleAndRevision(workbook, metadataSheet);
+  const metadata = titleAndRevision(workbook, metadataSheet, kind === 'cheese');
   const sheets = sourceSheets.map((sheet) => {
     if (kind === 'shipping') return parseShippingRecords(sheet);
     if (kind === 'premix') return parsePremixRecipes(sheet);
-    if (kind === 'cheese') return parseCheeseRecipes(sheet);
+    if (kind === 'cheese') return parseCheeseSheet(sheet);
     return parseGeneralRecipe(workbook, sheet, kind === 'dough_guide');
   });
   const warnings = sheets.flatMap((sheet) => sheet.notes.filter((note) => /no .*confidently detected|no populated/i.test(note)));

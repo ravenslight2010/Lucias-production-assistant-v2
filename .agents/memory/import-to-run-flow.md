@@ -25,8 +25,14 @@ Keep the Kroger spec workbook's products in separate Kroger profiles, even thoug
 
 **How to apply:** Use Kroger as the destination brand for those customer specs, preserve the original source labels, and do not automatically rename existing profiles or run snapshots.
 
-Dough discrepancy acknowledgement means the source was reviewed for reference, not that its recipe was corrected or approved for automatic calculation.
+Recipe discrepancy acknowledgement means the source was reviewed for reference, not that its recipe was corrected or approved for automatic calculation.
 
-**Why:** The uploaded dough procedures contain conflicting table/instruction quantities, missing weights, repeated step numbers, and alternative batch columns. Choosing a value silently could change a production recipe.
+**Why:** The uploaded dough procedures and cheese workbook contain conflicting quantities, incomplete formulas, and alternative batch or applicator definitions. Choosing a value silently could change a production recipe.
 
 **How to apply:** Preserve both source statements and review warnings in downstream run data. Do not treat an acknowledged warning as permission to invent missing quantities or automatically resolve recipe conflicts.
+
+Keep cheese applicator formulas and sub-mixes distinct. Similar recipe names are not evidence that formulas are interchangeable, and source shorthand is not an approved alias.
+
+**Why:** Customer tabs reuse recipe names and may require more than one blend or a separately prepared sub-mix for one product.
+
+**How to apply:** Require an explicit choice of the source formulas for a product; retain applicator labels, original names, and provenance rather than merging by display name or silently expanding sub-mixes.

@@ -28,6 +28,7 @@ import {
 } from '../importing/operational';
 import { parseProductSpecData, type ProductSpecData } from '../importing/product-spec';
 import { doughPortionChoices, scopeDoughWorkbook } from '../importing/dough';
+import { cheeseRecipeChoices, scopeCheeseWorkbook } from '../importing/cheese';
 import {
   IMPORT_KINDS,
   parseProductSpecProfiles,
@@ -231,6 +232,32 @@ const visualDoughWorkbook: ParsedWorkbook = {
 };
 const visualDoughPreview = parseOperationalWorkbook(visualDoughWorkbook, 'dough_guide');
 
+const visualCheeseWorkbook: ParsedWorkbook = {
+  fileName: 'Sample_Cheese_Mix_Recipes.xlsx', sizeBytes: 4096, sheetCount: 2, cellCount: 40,
+  kind: 'cheese', kindConfidence: 'high',
+  sheets: [
+    { name: 'Sample Customer A', rows: [
+      ['Sample cheese', null, 'Revision 1'],
+      ['Cheese Shredder Setting: #2'],
+      ['Pepperoni: Shared Cheese Mix'],
+      ['Shared Cheese Mix', null, null, 'Shared Cheese Mix'],
+      ['For 1st Cheese Applicator', null, null, 'For 2nd Cheese Applicator'],
+      [null, 'LBS', null, null, 'LBS'],
+      ['Mozzarella', 20, null, 'Mozzarella', 30],
+      ['Cellulose', 0.3, null, 'Cellulose', 0.3],
+      ['Total', 20.3, null, 'Total', 31.3],
+      [null, 'LBS', null, null, 'LBS'],
+      ['Cellulose', 0.3, null, 'Cellulose', 0.3],
+      ['Percent', 1.48, null, 'Percent', 0.96],
+    ] },
+    { name: 'Sample Customer B', rows: [
+      ['Shared Cheese Mix'], [null, 'LBS'], ['Mozzarella', 40], ['Total', 40],
+    ] },
+  ],
+};
+const visualCheeseData = parseOperationalWorkbook(visualCheeseWorkbook, 'cheese', ['Sample Customer A']);
+const visualCheesePreview = scopeCheeseWorkbook(visualCheeseData, cheeseRecipeChoices(visualCheeseData).map(c => c.key), true);
+
 function toProductSpecData(workbook: ParsedWorkbook, draft: ProductSpecDraft) {
   const candidate = {
     ...draft,
@@ -282,6 +309,12 @@ function WorkbookReview({
   const [doughPortionKey, setDoughPortionKey] = useState('');
   const [doughBatchColumn, setDoughBatchColumn] = useState(0);
   const [doughReviewConfirmed, setDoughReviewConfirmed] = useState(false);
+  const [cheeseKeys, setCheeseKeys] = useState<string[]>(() =>
+    initialWorkbook?.kind === 'cheese'
+      ? cheeseRecipeChoices(parseOperationalWorkbook(initialWorkbook, 'cheese', initialWorkbook.sheets.slice(0, 1).map(s => s.name))).map(c => c.key)
+      : [],
+  );
+  const [cheeseReviewConfirmed, setCheeseReviewConfirmed] = useState(false);
   const [kind, setKind] = useState<ImportKind | ''>(() => initialWorkbook?.kind ?? '');
   const [selectedOperationalSheets, setSelectedOperationalSheets] = useState<string[]>(() =>
     initialWorkbook && isOperationalKind(initialWorkbook.kind ?? '')
@@ -327,11 +360,28 @@ function WorkbookReview({
     ?? (doughChoices.length === 1 ? doughChoices[0] : null);
   const selectedDoughBatch = doughChoice?.batches.find(batch => batch.column === doughBatchColumn)
     ?? (doughChoice?.batches.length === 1 ? doughChoice.batches[0] : null);
-  const operationalPreview = useMemo(() =>
+  const doughScopedPreview = useMemo(() =>
     workbook && unscopedOperationalPreview && doughChoice && selectedDoughBatch
       ? scopeDoughWorkbook(workbook, unscopedOperationalPreview, doughChoice.key, selectedDoughBatch.column)
       : unscopedOperationalPreview,
   [workbook, unscopedOperationalPreview, doughChoice, selectedDoughBatch]);
+  const cheeseChoices = useMemo(() => cheeseRecipeChoices(unscopedOperationalPreview), [unscopedOperationalPreview]);
+  const validCheeseKeys = useMemo(() => cheeseKeys.filter(key => cheeseChoices.some(choice => choice.key === key)), [cheeseKeys, cheeseChoices]);
+  const operationalPreview = useMemo(() =>
+    kind === 'cheese' && unscopedOperationalPreview && validCheeseKeys.length
+      ? scopeCheeseWorkbook(unscopedOperationalPreview, validCheeseKeys)
+      : doughScopedPreview,
+  [kind, unscopedOperationalPreview, validCheeseKeys, doughScopedPreview]);
+  const cheeseIssueCount = kind === 'cheese' && validCheeseKeys.length
+    ? operationalPreview?.sheets.reduce((sum, sheet) => sum + sheet.recipes.reduce((n, r) => n + (r.cheese?.issues.length ?? 0), 0), 0) ?? 0
+    : 0;
+  useEffect(() => {
+    if (!previewMode) {
+      setCheeseKeys([]);
+      setCheeseReviewConfirmed(false);
+    }
+  }, [workbook, kind, selectedOperationalSheets, previewMode]);
+  useEffect(() => { setCheeseReviewConfirmed(false); }, [cheeseKeys]);
   const doughReviewIssueCount = kind === 'dough_guide'
     ? operationalPreview?.sheets.reduce((count, sheet) =>
       count + sheet.recipes.reduce((sum, recipe) => sum + (recipe.dough?.issues.length ?? 0), 0), 0) ?? 0
@@ -718,14 +768,25 @@ function WorkbookReview({
       setValidation('Review the dough source discrepancies and acknowledge saving them as reference data before continuing.');
       return;
     }
+    if (kind === 'cheese' && (selectedOperationalSheets.length !== 1 || !validCheeseKeys.length)) {
+      setValidation('Choose one customer worksheet and explicitly select the cheese recipes needed for this product.');
+      return;
+    }
+    if (kind === 'cheese' && cheeseIssueCount > 0 && !cheeseReviewConfirmed) {
+      setValidation('Review the cheese source discrepancies and acknowledge saving them as reference data before continuing.');
+      return;
+    }
     setValidation('');
     setSavedMessage('');
     try {
       const reviewedDoughData = kind === 'dough_guide' && workbook && unscopedOperationalPreview && doughChoice && selectedDoughBatch
         ? scopeDoughWorkbook(workbook, unscopedOperationalPreview, doughChoice.key, selectedDoughBatch.column, doughReviewConfirmed)
         : undefined;
+      const reviewedData = kind === 'cheese' && unscopedOperationalPreview
+        ? scopeCheeseWorkbook(unscopedOperationalPreview, validCheeseKeys, cheeseReviewConfirmed)
+        : reviewedDoughData;
       const productData = isOperationalKind(kind)
-        ? operationalProductData(workbook, kind, selectedOperationalSheets, reviewedDoughData)
+        ? operationalProductData(workbook, kind, selectedOperationalSheets, reviewedData)
         : toSparseWorkbook(workbook);
       const productDataSize = JSON.stringify(productData).length;
       if (productDataSize > 700_000) {
@@ -837,6 +898,7 @@ function WorkbookReview({
             <select id="workbook-kind" data-testid="select-workbook-kind" value={kind} disabled={previewMode} onChange={(event) => {
               const nextKind = event.target.value as ImportKind | '';
               setKind(nextKind);
+              if (nextKind === 'cheese' && selectedOperationalSheets.length > 1) setSelectedOperationalSheets(selectedOperationalSheets.slice(0, 1));
               if (isOperationalKind(nextKind) && selectedOperationalSheets.length === 0 && workbook.sheets.length > 0) {
                 setSelectedOperationalSheets([workbook.sheets[0].name]);
               }
@@ -854,7 +916,7 @@ function WorkbookReview({
             <p className="field-help">Select only tabs that belong to the Brand and Flavor below. If a workbook contains different products, import those tabs separately so each run gets the right setup.</p>
             <div className="operational-sheet-actions">
               <span>{selectedOperationalSheets.length} of {workbook.sheets.length} selected</span>
-              <button className="button button-quiet" type="button" onClick={() => setSelectedOperationalSheets(workbook.sheets.map((sheet) => sheet.name))} disabled={previewMode || selectedOperationalSheets.length === workbook.sheets.length}>Select all</button>
+              {kind !== 'cheese' && <button className="button button-quiet" type="button" onClick={() => setSelectedOperationalSheets(workbook.sheets.map((sheet) => sheet.name))} disabled={previewMode || selectedOperationalSheets.length === workbook.sheets.length}>Select all</button>}
               <button className="button button-quiet" type="button" onClick={() => setSelectedOperationalSheets([])} disabled={previewMode || selectedOperationalSheets.length === 0}>Clear</button>
             </div>
             {workbook.sheets.length > 12 && <div className="form-field" style={{ marginTop: 8 }}>
@@ -873,7 +935,7 @@ function WorkbookReview({
                     disabled={previewMode || (kind === 'shipping' && shippingScopeLocked)}
                     onChange={(event) => setSelectedOperationalSheets((current) =>
                       event.target.checked
-                        ? [...current, sheet.name]
+                        ? kind === 'cheese' ? [sheet.name] : [...current, sheet.name]
                         : current.filter((name) => name !== sheet.name),
                     )}
                   />
@@ -910,6 +972,35 @@ function WorkbookReview({
             <div className="form-field"><label htmlFor="profile-brand">Brand</label><input id="profile-brand" autoComplete="organization" maxLength={120} value={brand} onChange={(event) => setBrand(event.target.value)} required disabled={previewMode} /></div>
             <div className="form-field"><label htmlFor="profile-flavor">Flavor</label><input id="profile-flavor" maxLength={120} value={flavor} onChange={(event) => setFlavor(event.target.value)} required disabled={previewMode} /></div>
           </div>}
+          {kind === 'cheese' && <fieldset className="operational-sheet-picker">
+            <legend>Cheese recipes for this product</legend>
+            <p className="field-help">
+              Choose one customer tab above, then every required formula below, including separate applicator blends and sub-mixes.
+              Names include the customer tab to distinguish duplicates. Source shorthand is not automatically matched or substituted.
+              Saving adds a preserved source; it does not replace earlier recipe sources or change existing run snapshots.
+            </p>
+            <div className="operational-sheet-list">
+              {cheeseChoices.map(choice => <label className="operational-sheet-option" key={choice.key}>
+                <input type="checkbox" checked={validCheeseKeys.includes(choice.key)} disabled={previewMode || importer.isPending}
+                  onChange={event => {
+                    setCheeseKeys(current => event.target.checked ? [...current, choice.key] : current.filter(key => key !== choice.key));
+                    setSavedMessage('');
+                    setValidation('');
+                  }} />
+                <span>{choice.recipe.name}{' '}
+                  <small style={{ display: 'block' }}>Row {choice.recipe.cheese?.headerRow} · column {choice.recipe.cheese?.sourceColumn}{choice.recipe.cheese?.applicator ? ` · ${choice.recipe.cheese.applicator}` : ''}</small>
+                </span>
+              </label>)}
+              {!cheeseChoices.length && <p className="field-help">No cheese formulas were detected in the selected customer tab. Review the source before importing.</p>}
+            </div>
+            {cheeseIssueCount > 0 && <label className="operational-sheet-option">
+              <input type="checkbox" checked={cheeseReviewConfirmed} disabled={previewMode || importer.isPending} onChange={event => {
+                setCheeseReviewConfirmed(event.target.checked);
+                if (event.target.checked) setValidation(current => current.startsWith('Review the cheese source discrepancies') ? '' : current);
+              }} />
+              <span>I reviewed the {cheeseIssueCount} cheese source discrepancies. Save these values as reference data, not corrected recipes.</span>
+            </label>}
+          </fieldset>}
           {kind === 'dough_guide' && doughChoices.length > 0 && <div className="import-fields">
             <div className="form-field">
               <label htmlFor="dough-portion">Dough-ball variant for this product</label>
@@ -1242,10 +1333,12 @@ export default function ImportsPage() {
 }
 
 export function ImportsVisualPreviewPage() {
+  const cheeseMode = typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('kind') === 'cheese';
   const doughMode = typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).get('kind') === 'dough';
   const operationalMode = typeof window !== 'undefined' &&
-    (new URLSearchParams(window.location.search).get('kind') === 'operational' || doughMode);
+    (new URLSearchParams(window.location.search).get('kind') === 'operational' || doughMode || cheeseMode);
   return (
     <main className="workspace">
       <div className="page-head">
@@ -1253,7 +1346,7 @@ export function ImportsVisualPreviewPage() {
           <div className="eyebrow">Development-only visual check</div>
           <h1>Importer preview</h1>
           <p className="page-subtitle">
-            Synthetic {doughMode ? 'dough procedure' : operationalMode ? 'premix and process' : 'product-spec'} data shown in the real importer components.
+            Synthetic {cheeseMode ? 'cheese recipe' : doughMode ? 'dough procedure' : operationalMode ? 'premix and process' : 'product-spec'} data shown in the real importer components.
           </p>
         </div>
       </div>
@@ -1267,7 +1360,7 @@ export function ImportsVisualPreviewPage() {
           profiles={[]}
           profilesReady
           previewMode
-          initialWorkbook={doughMode ? visualDoughWorkbook : operationalMode ? visualOperationalWorkbook : visualPreviewWorkbook}
+          initialWorkbook={cheeseMode ? visualCheeseWorkbook : doughMode ? visualDoughWorkbook : operationalMode ? visualOperationalWorkbook : visualPreviewWorkbook}
         />
         {operationalMode
           ? <section aria-labelledby="visual-preview-operations-heading">
@@ -1283,11 +1376,11 @@ export function ImportsVisualPreviewPage() {
                   <div>
                     <div className="eyebrow">Sample profile</div>
                     <h3>Sample Brand / Classic</h3>
-                <div className="profile-meta">{doughMode ? 'Dough guide' : 'Premix'} · saved source snapshot</div>
+                <div className="profile-meta">{cheeseMode ? 'Cheese' : doughMode ? 'Dough guide' : 'Premix'} · saved source snapshot</div>
                   </div>
                   <span className="import-state">Preview only</span>
                 </div>
-                <OperationalSetupSummary data={doughMode ? visualDoughPreview : visualOperationalPreview} title="Recipe and process details" defaultOpen />
+                <OperationalSetupSummary data={cheeseMode ? visualCheesePreview : doughMode ? visualDoughPreview : visualOperationalPreview} title="Recipe and process details" defaultOpen />
               </article>
               <div className="notice" role="note">This sample shows how selected operational fields appear in a future run’s captured profile.</div>
             </section>

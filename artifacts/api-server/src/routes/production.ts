@@ -1,6 +1,7 @@
 import { and, count, desc, eq, gt, inArray, isNull, lte, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { doughImportSelectionIdentity } from "../lib/dough-import-selection";
+import { cheeseImportSelectionIdentity } from "../lib/cheese-import-selection";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { clerkClient } from "@clerk/express";
 import {
@@ -1007,6 +1008,7 @@ router.post(
     assertRunPermission(access.membership.role, "create");
     const normalizedKey = normalizedProfileKey(brand, flavor);
     let doughSelection: string | null = null;
+    let cheeseSelection: string | null = null;
     if (input.importKind === "dough_guide") {
       try {
         doughSelection = doughImportSelectionIdentity(input.productData);
@@ -1015,10 +1017,19 @@ router.post(
         return;
       }
     }
+    if (input.importKind === "cheese") {
+      try {
+        cheeseSelection = cheeseImportSelectionIdentity(input.productData);
+      } catch {
+        res.status(400).json({ error: "Choose cheese formulas from one customer tab and review source discrepancies before saving." });
+        return;
+      }
+    }
     const dataHash = createHash("sha256")
       .update(JSON.stringify({
         brand, flavor, kind: input.importKind, sourceHash: input.sourceHash,
         ...(doughSelection ? { doughSelection } : {}),
+        ...(cheeseSelection ? { cheeseSelection } : {}),
       }))
       .digest("hex");
     try {

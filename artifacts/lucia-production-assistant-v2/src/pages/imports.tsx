@@ -29,6 +29,7 @@ import {
 import { parseProductSpecData, type ProductSpecData } from '../importing/product-spec';
 import { doughPortionChoices, scopeDoughWorkbook } from '../importing/dough';
 import { cheeseRecipeChoices, scopeCheeseWorkbook } from '../importing/cheese';
+import { sauceIssueCount } from '../importing/sauce';
 import {
   IMPORT_KINDS,
   parseProductSpecProfiles,
@@ -258,6 +259,26 @@ const visualCheeseWorkbook: ParsedWorkbook = {
 const visualCheeseData = parseOperationalWorkbook(visualCheeseWorkbook, 'cheese', ['Sample Customer A']);
 const visualCheesePreview = scopeCheeseWorkbook(visualCheeseData, cheeseRecipeChoices(visualCheeseData).map(c => c.key), true);
 
+const visualSauceWorkbook: ParsedWorkbook = {
+  fileName: 'Sample_Sauce_Procedure.xlsx', sizeBytes: 4096, sheetCount: 1, cellCount: 25,
+  kind: 'sauce_guide', kindConfidence: 'high',
+  sheets: [{ name: 'Sauce procedure', rows: [
+    ['Sample Sauce Procedure', null, 'Revision 1'],
+    ['MATERIALS'], ['Sauce barrel'], ['Scale'], [],
+    ['DRUM BATCH', 'Full', 'Half'],
+    ['Water', 23, 11.5, 'Add 2 pounds if preparing a day prior'],
+    ['Sauce mix', 4, 2],
+    ['TOTAL WEIGHT', 27, 13.5], [],
+    ['1. Set water to 25 and fill barrel'],
+    ['2. Mix thoroughly'],
+    ['3. If sauce is too thick, have a supervisor review consistency.'],
+  ] }],
+};
+const visualSaucePreview = {
+  ...parseOperationalWorkbook(visualSauceWorkbook, 'sauce_guide'),
+  sauceReview: { reviewedAsReference: true },
+};
+
 function toProductSpecData(workbook: ParsedWorkbook, draft: ProductSpecDraft) {
   const candidate = {
     ...draft,
@@ -315,6 +336,7 @@ function WorkbookReview({
       : [],
   );
   const [cheeseReviewConfirmed, setCheeseReviewConfirmed] = useState(false);
+  const [sauceReviewConfirmed, setSauceReviewConfirmed] = useState(false);
   const [kind, setKind] = useState<ImportKind | ''>(() => initialWorkbook?.kind ?? '');
   const [selectedOperationalSheets, setSelectedOperationalSheets] = useState<string[]>(() =>
     initialWorkbook && isOperationalKind(initialWorkbook.kind ?? '')
@@ -382,6 +404,8 @@ function WorkbookReview({
     }
   }, [workbook, kind, selectedOperationalSheets, previewMode]);
   useEffect(() => { setCheeseReviewConfirmed(false); }, [cheeseKeys]);
+  useEffect(() => { setSauceReviewConfirmed(false); }, [unscopedOperationalPreview]);
+  const sauceReviewIssueCount = kind === 'sauce_guide' ? sauceIssueCount(operationalPreview) : 0;
   const doughReviewIssueCount = kind === 'dough_guide'
     ? operationalPreview?.sheets.reduce((count, sheet) =>
       count + sheet.recipes.reduce((sum, recipe) => sum + (recipe.dough?.issues.length ?? 0), 0), 0) ?? 0
@@ -776,13 +800,19 @@ function WorkbookReview({
       setValidation('Review the cheese source discrepancies and acknowledge saving them as reference data before continuing.');
       return;
     }
+    if (kind === 'sauce_guide' && sauceReviewIssueCount > 0 && !sauceReviewConfirmed) {
+      setValidation('Review the sauce source discrepancies and acknowledge saving them as reference data before continuing.');
+      return;
+    }
     setValidation('');
     setSavedMessage('');
     try {
       const reviewedDoughData = kind === 'dough_guide' && workbook && unscopedOperationalPreview && doughChoice && selectedDoughBatch
         ? scopeDoughWorkbook(workbook, unscopedOperationalPreview, doughChoice.key, selectedDoughBatch.column, doughReviewConfirmed)
         : undefined;
-      const reviewedData = kind === 'cheese' && unscopedOperationalPreview
+      const reviewedData = kind === 'sauce_guide' && unscopedOperationalPreview
+        ? { ...unscopedOperationalPreview, sauceReview: { reviewedAsReference: sauceReviewConfirmed } }
+        : kind === 'cheese' && unscopedOperationalPreview
         ? scopeCheeseWorkbook(unscopedOperationalPreview, validCheeseKeys, cheeseReviewConfirmed)
         : reviewedDoughData;
       const productData = isOperationalKind(kind)
@@ -813,7 +843,7 @@ function WorkbookReview({
             ? matchingProfile
               ? `${workbook.fileName} was added to ${result.profile.brand} / ${result.profile.flavor}; the profile is now revision ${result.profile.revision}. Existing run snapshots stay unchanged.`
               : `${result.profile.brand} / ${result.profile.flavor} was saved as revision ${result.profile.revision}.`
-            : 'This source is already saved. No duplicate profile was created.');
+            : 'This source and selection are already saved. No duplicate source or new profile revision was created.');
           void client.invalidateQueries({ queryKey: getListProductProfilesQueryKey() });
           void client.invalidateQueries({ queryKey: getListImportBatchesQueryKey() });
         },
@@ -1039,6 +1069,16 @@ function WorkbookReview({
             }} />
             <span>I reviewed the {doughReviewIssueCount} source discrepancies. Save these values as reference data, not a corrected recipe.</span>
           </label>}
+          {kind === 'sauce_guide' && <p className="field-help">
+            Attach this guide only when it belongs to the selected product. A spec may name a sauce without a supplied recipe; no substitute guide is required or assigned automatically.
+          </p>}
+          {kind === 'sauce_guide' && sauceReviewIssueCount > 0 && <label className="operational-sheet-option">
+            <input type="checkbox" checked={sauceReviewConfirmed} disabled={previewMode || importer.isPending} onChange={event => {
+              setSauceReviewConfirmed(event.target.checked);
+              if (event.target.checked) setValidation(current => current.startsWith('Review the sauce source discrepancies') ? '' : current);
+            }} />
+            <span>I reviewed the {sauceReviewIssueCount} sauce source discrepancies. Save them as reference data, not corrected or approved formulas.</span>
+          </label>}
           {kind === 'product_specs' && productSpecDrafts.length === 0 && <div className="notice" role="status">
             No complete product sections were detected automatically. You can still import the full workbook to one profile; every source cell will be retained.
           </div>}
@@ -1094,7 +1134,7 @@ function WorkbookReview({
             <button className="button button-secondary" type="button" onClick={addManualProductSpecDraft} disabled={previewMode || importer.isPending}>Add profile manually</button>
           </section>}
           {kind !== 'schedule' && kind !== 'shipping' && !hasProductSpecDrafts && matchingProfile && !savedMessage && <div className="notice" role="status" data-testid="notice-existing-profile">
-            This matches active profile revision {matchingProfile.revision}. Import will add this workbook as another preserved source and create a new revision; existing run snapshots will not change.
+            This matches active profile revision {matchingProfile.revision}. A new workbook or changed recipe selection adds a preserved source and creates a new revision. Repeating the same workbook and selection does not add a duplicate or change the revision. Existing run snapshots will not change.
           </div>}
           {kind === 'schedule' && schedulePreview && <section className="schedule-review" aria-labelledby="schedule-preview-heading" data-testid="schedule-preview" style={{ marginTop: 16, padding: 16, border: '1px solid hsl(var(--border))', borderRadius: 12, background: 'hsl(var(--muted) / .35)' }}>
             <div className="schedule-review-head" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -1333,12 +1373,14 @@ export default function ImportsPage() {
 }
 
 export function ImportsVisualPreviewPage() {
+  const sauceMode = typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('kind') === 'sauce';
   const cheeseMode = typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).get('kind') === 'cheese';
   const doughMode = typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).get('kind') === 'dough';
   const operationalMode = typeof window !== 'undefined' &&
-    (new URLSearchParams(window.location.search).get('kind') === 'operational' || doughMode || cheeseMode);
+    (new URLSearchParams(window.location.search).get('kind') === 'operational' || doughMode || cheeseMode || sauceMode);
   return (
     <main className="workspace">
       <div className="page-head">
@@ -1346,7 +1388,7 @@ export function ImportsVisualPreviewPage() {
           <div className="eyebrow">Development-only visual check</div>
           <h1>Importer preview</h1>
           <p className="page-subtitle">
-            Synthetic {cheeseMode ? 'cheese recipe' : doughMode ? 'dough procedure' : operationalMode ? 'premix and process' : 'product-spec'} data shown in the real importer components.
+            Synthetic {sauceMode ? 'sauce procedure' : cheeseMode ? 'cheese recipe' : doughMode ? 'dough procedure' : operationalMode ? 'premix and process' : 'product-spec'} data shown in the real importer components.
           </p>
         </div>
       </div>
@@ -1360,7 +1402,7 @@ export function ImportsVisualPreviewPage() {
           profiles={[]}
           profilesReady
           previewMode
-          initialWorkbook={cheeseMode ? visualCheeseWorkbook : doughMode ? visualDoughWorkbook : operationalMode ? visualOperationalWorkbook : visualPreviewWorkbook}
+          initialWorkbook={sauceMode ? visualSauceWorkbook : cheeseMode ? visualCheeseWorkbook : doughMode ? visualDoughWorkbook : operationalMode ? visualOperationalWorkbook : visualPreviewWorkbook}
         />
         {operationalMode
           ? <section aria-labelledby="visual-preview-operations-heading">
@@ -1376,11 +1418,11 @@ export function ImportsVisualPreviewPage() {
                   <div>
                     <div className="eyebrow">Sample profile</div>
                     <h3>Sample Brand / Classic</h3>
-                <div className="profile-meta">{cheeseMode ? 'Cheese' : doughMode ? 'Dough guide' : 'Premix'} · saved source snapshot</div>
+                <div className="profile-meta">{sauceMode ? 'Sauce guide' : cheeseMode ? 'Cheese' : doughMode ? 'Dough guide' : 'Premix'} · saved source snapshot</div>
                   </div>
                   <span className="import-state">Preview only</span>
                 </div>
-                <OperationalSetupSummary data={cheeseMode ? visualCheesePreview : doughMode ? visualDoughPreview : visualOperationalPreview} title="Recipe and process details" defaultOpen />
+                <OperationalSetupSummary data={sauceMode ? visualSaucePreview : cheeseMode ? visualCheesePreview : doughMode ? visualDoughPreview : visualOperationalPreview} title="Recipe and process details" defaultOpen />
               </article>
               <div className="notice" role="note">This sample shows how selected operational fields appear in a future run’s captured profile.</div>
             </section>

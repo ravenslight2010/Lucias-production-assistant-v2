@@ -2,6 +2,7 @@ import { and, count, desc, eq, gt, inArray, isNull, lte, sql } from "drizzle-orm
 import { createHash } from "node:crypto";
 import { doughImportSelectionIdentity } from "../lib/dough-import-selection";
 import { cheeseImportSelectionIdentity } from "../lib/cheese-import-selection";
+import { sauceImportReviewIdentity } from "../lib/sauce-import-review";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { clerkClient } from "@clerk/express";
 import {
@@ -1009,6 +1010,7 @@ router.post(
     const normalizedKey = normalizedProfileKey(brand, flavor);
     let doughSelection: string | null = null;
     let cheeseSelection: string | null = null;
+    let sauceSelection: string | null = null;
     if (input.importKind === "dough_guide") {
       try {
         doughSelection = doughImportSelectionIdentity(input.productData);
@@ -1025,11 +1027,20 @@ router.post(
         return;
       }
     }
+    if (input.importKind === "sauce_guide") {
+      try {
+        sauceSelection = sauceImportReviewIdentity(input.productData);
+      } catch {
+        res.status(400).json({ error: "Review the sauce source discrepancies and save them as reference data before continuing." });
+        return;
+      }
+    }
     const dataHash = createHash("sha256")
       .update(JSON.stringify({
         brand, flavor, kind: input.importKind, sourceHash: input.sourceHash,
         ...(doughSelection ? { doughSelection } : {}),
         ...(cheeseSelection ? { cheeseSelection } : {}),
+        ...(sauceSelection ? { sauceSelection } : {}),
       }))
       .digest("hex");
     try {

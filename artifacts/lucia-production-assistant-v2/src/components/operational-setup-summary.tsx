@@ -74,10 +74,20 @@ function RecipeSummary({ recipe }: { recipe: unknown }) {
   const metrics = Array.isArray(recipe.metrics) ? recipe.metrics.filter(isRecord) : [];
   const notes = Array.isArray(recipe.notes) ? recipe.notes.filter((item): item is string => typeof item === 'string') : [];
   const name = asText(recipe.name) || 'Recipe';
-  return <details className="operational-recipe" open={isRecord(recipe.dough) || isRecord(recipe.cheese)}>
+  const sauce = isRecord(recipe.sauce) ? recipe.sauce : null;
+  const sauceIssues = sauce && Array.isArray(sauce.issues) ? sauce.issues.filter(isRecord) : [];
+  return <details className="operational-recipe" open={isRecord(recipe.dough) || isRecord(recipe.cheese) || Boolean(sauce)}>
     <summary>{name} <span>{ingredients.length} ingredients · {steps.length} steps</span></summary>
     <DoughDetailsSummary data={recipe.dough} />
     <CheeseDetailsSummary data={recipe.cheese} />
+    {sauce && <div className="field-help">
+      Source formula reference only. Alternative formulas, conditional additions, and native units have not been approved, converted, or applied automatically.
+      {sauceIssues.length > 0 && <div className="notice" role="status"><strong>Review sauce source discrepancies</strong>
+        <ul className="operational-items">{sauceIssues.map((issue, index) => <li key={index}>
+          {asText(issue.message)}{Array.isArray(issue.sourceRows) && issue.sourceRows.length > 0 && ` (source rows ${issue.sourceRows.filter(v => typeof v === 'number').join(', ')})`}
+        </li>)}</ul>
+      </div>}
+    </div>}
     {ingredients.length > 0 && <div>
       <strong>Ingredients</strong>
       <ul className="operational-items">{ingredients.map((ingredient, index) => <li key={`${asText(ingredient.sourceRow)}:${index}`}>
@@ -124,6 +134,9 @@ export function OperationalSetupSummary({
         {isRecord(workbook.cheeseSelection) && Array.isArray(workbook.cheeseSelection.keys) && <p className="field-help">
           {workbook.cheeseSelection.keys.length} explicitly selected cheese formulas.
           {workbook.cheeseSelection.reviewedAsReference === true && ' Source discrepancies were acknowledged as reference data, not corrected recipes.'}
+        </p>}
+        {isRecord(workbook.sauceReview) && workbook.sauceReview.reviewedAsReference === true && <p className="field-help">
+          Sauce source discrepancies were acknowledged as reference data, not corrected or approved formulas.
         </p>}
         {workbook.warnings.length > 0 && <div className="notice" role="status">
           Review parser notes:

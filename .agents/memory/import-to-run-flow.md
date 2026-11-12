@@ -27,9 +27,9 @@ Keep the Kroger spec workbook's products in separate Kroger profiles, even thoug
 
 Recipe discrepancy acknowledgement means the source was reviewed for reference, not that its recipe was corrected or approved for automatic calculation.
 
-**Why:** The uploaded dough procedures and cheese workbook contain conflicting quantities, incomplete formulas, and alternative batch or applicator definitions. Choosing a value silently could change a production recipe.
+**Why:** The uploaded dough, cheese, and sauce sources contain conflicting quantities, incomplete formulas, alternative batch or applicator definitions, and mixed-unit calculations. Choosing a value silently could change a production recipe.
 
-**How to apply:** Preserve both source statements and review warnings in downstream run data. Do not treat an acknowledged warning as permission to invent missing quantities or automatically resolve recipe conflicts.
+**How to apply:** Preserve both source statements and review warnings in downstream run data. Do not treat an acknowledged warning as permission to invent missing quantities or automatically resolve recipe conflicts. A source heading such as “Tested and Good” is not production approval. Keep native quantities and parallel calculations distinct unless their units and conversions are explicitly confirmed.
 
 Keep cheese applicator formulas and sub-mixes distinct. Similar recipe names are not evidence that formulas are interchangeable, and source shorthand is not an approved alias.
 

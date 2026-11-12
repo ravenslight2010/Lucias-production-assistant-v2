@@ -3,6 +3,8 @@ import { extractDoughDetails } from './dough.ts';
 import type { DoughDetails } from './dough';
 import { parseCheeseSheet } from './cheese.ts';
 import type { CheeseDetails, CheeseSelection } from './cheese';
+import { reviewSauceSheet } from './sauce.ts';
+import type { SauceDetails } from './sauce';
 
 export type OperationalImportKind = Exclude<ImportKind, 'product_specs' | 'schedule'>;
 
@@ -33,6 +35,7 @@ export type OperationalRecipe = {
   metrics: OperationalIngredient[];
   dough?: DoughDetails;
   cheese?: CheeseDetails;
+  sauce?: SauceDetails;
 };
 export type OperationalProductMapping = {
   sourceRow: number;
@@ -62,6 +65,7 @@ export type OperationalWorkbookData = {
   sheets: OperationalSheet[];
   warnings: string[];
   cheeseSelection?: CheeseSelection;
+  sauceReview?: { reviewedAsReference: boolean };
 };
 
 const normalizeText = (value: string) => value.normalize('NFKC').trim().replace(/\s+/g, ' ');
@@ -443,11 +447,12 @@ export function parseOperationalWorkbook(
   const selected = selectedSheetNames ? new Set(selectedSheetNames) : null;
   const sourceSheets = selected ? workbook.sheets.filter((sheet) => selected.has(sheet.name)) : workbook.sheets;
   const metadataSheet = sourceSheets[0] ?? workbook.sheets[0] ?? { name: workbook.fileName, rows: [] };
-  const metadata = titleAndRevision(workbook, metadataSheet, kind === 'cheese');
+  const metadata = titleAndRevision(workbook, metadataSheet, kind === 'cheese' || kind === 'sauce_guide');
   const sheets = sourceSheets.map((sheet) => {
     if (kind === 'shipping') return parseShippingRecords(sheet);
     if (kind === 'premix') return parsePremixRecipes(sheet);
     if (kind === 'cheese') return parseCheeseSheet(sheet);
+    if (kind === 'sauce_guide') return reviewSauceSheet(sheet, parseGeneralRecipe(workbook, sheet));
     return parseGeneralRecipe(workbook, sheet, kind === 'dough_guide');
   });
   const warnings = sheets.flatMap((sheet) => sheet.notes.filter((note) => /no .*confidently detected|no populated/i.test(note)));

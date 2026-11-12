@@ -63,6 +63,12 @@ export function RunRequirementsEditor({ profileId, targetCases, online, onReview
 }) {
   const callbackRef = useRef(onReviewChange);
   callbackRef.current = onReviewChange;
+  const requestEpoch = useRef(0);
+  const inputIdentity = useRef({ profileId, targetCases });
+  if (inputIdentity.current.profileId !== profileId || inputIdentity.current.targetCases !== targetCases) {
+    inputIdentity.current = { profileId, targetCases };
+    requestEpoch.current += 1;
+  }
 
   const [base, setBase] = useState<Base | null>(null);
   const [draft, setDraft] = useState<RunPlanningOptions | null>(null);
@@ -81,13 +87,14 @@ export function RunRequirementsEditor({ profileId, targetCases, online, onReview
     callbackRef.current(null);
     if (!validCases || !online) { setPhase(validCases ? 'error' : 'invalid'); setMessage(validCases ? 'Offline. Requirements load when the connection returns.' : 'Enter a whole target case count to calculate requirements.'); return; }
     const controller = new AbortController();
+    const epoch = requestEpoch.current;
     const keep = keepDraftOnReload.current;
     keepDraftOnReload.current = false;
     setPhase('loading');
     setMessage('');
     previewRunRequirements({ productProfileId: profileId, targetCases }, { credentials: 'include', signal: controller.signal })
       .then((result) => {
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || epoch !== requestEpoch.current) return;
         setBase({ profileRevision: result.profileRevision, nameRevision: result.nameRevision });
         setPlan(result);
         setDraft((previous) => {
@@ -106,7 +113,7 @@ export function RunRequirementsEditor({ profileId, targetCases, online, onReview
         setNonce((n) => n + 1);
       })
       .catch((error: unknown) => {
-        if (controller.signal.aborted || isAbort(error)) return;
+        if (controller.signal.aborted || isAbort(error) || epoch !== requestEpoch.current) return;
         setPhase('error');
         setMessage(errorText(error, 'Run requirements could not be loaded.'));
       });
@@ -115,21 +122,22 @@ export function RunRequirementsEditor({ profileId, targetCases, online, onReview
 
   // Explicit review recalculation, debounced and abortable.
   useEffect(() => {
-    if (!base || !draft || nonce === 0 || !online || !validCases) return;
+    if (!base || !draft || nonce === 0 || !online || !validCases || casesError) return;
     const controller = new AbortController();
+    const epoch = requestEpoch.current;
     const review: RunPlanningReview = { expectedProfileRevision: base.profileRevision, expectedNameRevision: base.nameRevision, options: draft };
     setPhase('calculating');
     const timer = window.setTimeout(() => {
       previewRunRequirements({ productProfileId: profileId, targetCases, review }, { credentials: 'include', signal: controller.signal })
         .then((result) => {
-          if (controller.signal.aborted) return;
+          if (controller.signal.aborted || epoch !== requestEpoch.current) return;
           setPlan(result);
           setPhase('current');
           setMessage('');
           callbackRef.current(review);
         })
         .catch((error: unknown) => {
-          if (controller.signal.aborted || isAbort(error)) return;
+          if (controller.signal.aborted || isAbort(error) || epoch !== requestEpoch.current) return;
           callbackRef.current(null);
           if (errorStatus(error) === 409) {
             setPhase('conflict');
@@ -141,9 +149,10 @@ export function RunRequirementsEditor({ profileId, targetCases, online, onReview
         });
     }, 350);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [nonce, base, draft, online, validCases, profileId, targetCases]);
+  }, [nonce, base, draft, online, validCases, casesError, profileId, targetCases]);
 
   const change = (next: (current: RunPlanningOptions) => RunPlanningOptions) => {
+    requestEpoch.current += 1;
     callbackRef.current(null);
     setDraft((current) => (current ? next(current) : current));
     setNonce((n) => n + 1);
@@ -164,6 +173,7 @@ export function RunRequirementsEditor({ profileId, targetCases, online, onReview
     setCasesInput(value);
     const parsed = Number(value);
     if (value.trim() === '' || !Number.isInteger(parsed) || parsed < 1 || parsed > 1000) {
+      requestEpoch.current += 1;
       callbackRef.current(null);
       setCasesError('Enter a whole number of pizzas per case from 1 to 1000.');
       setPhase('invalid');
@@ -174,6 +184,7 @@ export function RunRequirementsEditor({ profileId, targetCases, online, onReview
   };
 
   const reloadBase = (keepChoices: boolean) => {
+    requestEpoch.current += 1;
     callbackRef.current(null);
     keepDraftOnReload.current = keepChoices;
     setBase(null);

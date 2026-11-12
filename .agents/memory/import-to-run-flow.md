@@ -72,3 +72,9 @@ Do not resolve recipe, ingredient, or flavor aliases by searching all historical
 **Why:** Merging brands can otherwise make an old flavor alias from one brand rename an unrelated flavor in the destination brand merely because their labels match. Brand prefixes exist to prevent that confusion.
 
 **How to apply:** Preserve original brand context on imported sources, distinguish brand rename from brand merge, and check chains of flavor rename, brand merge, and later brand rename. Keep the destination's existing canonical names authoritative and retain the old source namespace for future imports.
+
+For run calculations, keep each per-pizza source line visible, but total it once when multiple lines explicitly link to the exact same selected formula and batch column. Scale that selected formula to the combined demand and round the shared batch count once; never group by a similar recipe name or by a shared yield alone.
+
+**Why:** Per-pizza quantities vary by product, while some products use the same batch formula more than once. Rounding every use separately can overstate batches; merging by a matching short name can combine different formulas.
+
+**How to apply:** Preview calculations against the selected product and remembered-name revisions. Preserve the original source lines and values, verify units and formula totals, and capture the reviewed calculation with a new run rather than changing historical run snapshots. A source-reference acknowledgment is not approval to correct or accept a conflicting formula.

@@ -115,6 +115,8 @@ export function buildRunRequirements(profile: Profile, targetCases: number, opti
   const recipes = new Map<string, Recipe>();
   const shipping: { count: number | null; pallet: number | null; source: string }[] = [];
   const preparation: string[] = [];
+  const preparationItems: RunRequirementsPlan["preparationItems"] = [];
+  const preparationItemIds = new Set<string>();
   const globalIssues: string[] = [];
   for (const doc of docs) {
     if (doc.data.format === "lucia.product-spec.v1") {
@@ -136,7 +138,43 @@ export function buildRunRequirements(profile: Profile, targetCases: number, opti
       for (const raw of rows(sheet.recipes)) {
         const premix = record(raw.premix) ? raw.premix : null;
         for (const pull of premix ? rows(premix.pullInstructions) : []) {
-          preparation.push(`${doc.file} · ${text(sheet.name)} · ${text(raw.name)} · row ${pull.sourceRow ?? "?"}: ${text(pull.text)}${numeric(pull.daysEarly) !== null ? ` (${pull.daysEarly} days early)` : ""}`);
+          const pullText = text(pull.text).trim();
+          const sourceRow = numeric(pull.sourceRow);
+          const sourceColumn = text(pull.sourceColumn).trim() || null;
+          const daysValue = numeric(pull.daysEarly);
+          const daysEarly = daysValue !== null && Number.isSafeInteger(daysValue) && daysValue <= 3650
+            ? daysValue
+            : null;
+          const itemName = text(raw.name).trim() || "Unnamed preparation item";
+          const source = `${doc.file} · ${text(sheet.name)} · ${itemName} · row ${sourceRow ?? "?"}`;
+          if (pullText) {
+            if (pullText.length > 1000 || itemName.length > 200 || source.length > 500 || (sourceColumn?.length ?? 0) > 32) {
+              throw new HttpError(413, "An early-pull source row is too long to capture safely. Review or split that workbook entry before creating a run.");
+            }
+            preparation.push(`${source}: ${pullText}${daysEarly !== null ? ` (${daysEarly} days early)` : ""}`);
+            const pullId = `pull_${id([
+              doc.id,
+              sheet.name,
+              raw.name,
+              sourceRow,
+              sourceColumn,
+              pullText,
+            ])}`;
+            if (!preparationItemIds.has(pullId)) {
+              preparationItemIds.add(pullId);
+              preparationItems.push({
+                id: pullId,
+                name: itemName,
+                instruction: pullText,
+                source,
+                sourceRow: sourceRow !== null && Number.isSafeInteger(sourceRow) && sourceRow > 0
+                  ? sourceRow
+                  : null,
+                sourceColumn,
+                daysEarly,
+              });
+            }
+          }
         }
         if (premix?.section === "preparation") continue;
         const cheese = record(raw.cheese) ? raw.cheese : null;
@@ -307,6 +345,7 @@ export function buildRunRequirements(profile: Profile, targetCases: number, opti
     } : null,
     sections: sections.map(({ raw: _raw, brand: _brand, ...s }) => s), sectionId: selected?.id ?? null,
     recipes: [...recipes.values()].map(r => r.choice), items, batchPreparation,
+    preparationItems,
     preparation: [...new Set(preparation)], packaging, issues: globalIssues,
   };
 }

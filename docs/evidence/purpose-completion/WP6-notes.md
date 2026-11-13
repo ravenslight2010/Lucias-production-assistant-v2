@@ -11,16 +11,23 @@
 - Active-run cards now include counts of stations that are not started, in
   progress, ready, or marked not required. The disposable pilot verification
   asserts those counts from saved station state.
+- The summary includes runs with failed quality measurements or unresolved
+  checks. The disposable pilot verifies that a failed measurement appears with
+  the correct run status and count.
 - The development-only dashboard preview at
   `/__visual-preview/dashboard` was checked at phone, tablet, and desktop
   widths. Browser logs showed no errors.
+- The early-pull checklist also has a synthetic development preview at
+  `/__visual-preview/preparation`; it was checked at 390×844, 768×1024, and
+  1440×900. Browser logs showed no errors, and its status buttons only change
+  local preview state.
 - Workspace typecheck, build, API/web tests, and disposable pilot verification
   passed after this change.
 
 ## Remaining
 
-The dashboard currently has no summary for run quality failures/unresolved
-checks or review-required imports. Import drafts are not persisted for the
-dashboard to query. Design the remaining attention state from existing V2 data
-and verify the signed-in dashboard, operator/manager actions, and actual
-phone-width behavior before calling dashboard coherence complete.
+Import drafts are not persisted for the dashboard to query, so the review queue
+is not yet surfaced. Verify the signed-in dashboard and early-pull checklist,
+operator/manager actions, and actual phone-width behavior before calling
+dashboard coherence complete. The published Reserved VM pilot remains
+unverified; this disposable test does not establish production readiness.

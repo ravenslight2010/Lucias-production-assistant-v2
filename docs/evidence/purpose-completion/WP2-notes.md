@@ -10,7 +10,13 @@
   `not_required`.
 - Imported preparation notes retain workbook, sheet, source row, and
   days-early information in the captured run requirements and render as
-  preparation references.
+  preparation references. The run snapshot also carries each early-pull row as
+  an individually identified item, preserving source workbook/sheet/row and
+  column when available.
+- Pull status is stored separately from the immutable run snapshot. Each item
+  supports not started, in progress, and completed, with revision checks and
+  command receipts for safe retries.
+- No station assignment is inferred when the workbook does not identify one.
 
 ## Existing test evidence
 
@@ -21,12 +27,13 @@
   per matching area and that missing counts do not appear complete.
 - `run-timer.test.mjs` checks running, paused, and completed elapsed-time
   behavior.
-- The WP0 workspace test suites passed.
+- `run-quality-checks.test.mjs` verifies stable IDs and source provenance for
+  imported early-pull items.
+- The disposable API pilot checks initial checklist state, a status update,
+  idempotent retry, and a stale-revision conflict.
 
 ## Remaining
 
-The current preparation selector confirms a station-level state, not each
-imported pull instruction. No source-to-station mapping is assumed. Keep pull
-notes review-only until the user confirms how operators should acknowledge
-them; then add only mappings supported by source data. Cross-session UI
-verification still requires the authenticated browser harness.
+Cross-session signed-in UI verification still requires the authenticated
+browser harness. Keep station assignment blank unless a source workbook
+provides a reliable mapping.

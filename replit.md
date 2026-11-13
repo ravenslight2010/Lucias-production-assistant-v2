@@ -60,11 +60,11 @@ Lucia's Production Assistant is for pizza-line production planning, scheduling, 
 ### Current capabilities and gaps
 
 - Facility identity, membership, invitations, revision-safe run lifecycle, run history, editable facility station lineups, and active-run dashboard summaries are implemented. Active cards include shared line time, station case counts, and preparation status.
-- Station status and elapsed timers follow the shared production-line timer. Revision-checked per-station counts and a station-level preparation-pull status exist. Imported pull instructions (including days-early notes) are visible as source references, but are not individually confirmed checklist items; stage workflow and multi-session floor verification remain incomplete.
+- Station status and elapsed timers follow the shared production-line timer. Revision-checked per-station counts and a station-level preparation status exist. Track each imported early-pull instruction as its own saved checklist item; do not invent station assignments when the source does not provide one. The checklist supports retry-safe, revision-checked status changes. Signed-in multi-session floor verification remains incomplete.
 - Workbook import supports product specifications, dough, cheese, sauce, premix, shipping references, name cleanup, and schedule-created planned runs. Run requirements are captured from reviewed source data. The signed-in real-workbook-to-floor day-plan path still needs end-to-end verification.
 - The run-requirements planner is pre-run calculation and source review. Run detail also shows count-based station progress; broader live production math still needs the golden-fixture and floor-flow checks listed in `docs/purpose-completion-status.md`.
 - Inventory supports facility balances/adjustments and run-level actual-use confirmation. The full confirmed-production-to-on-hand deduction path still needs end-to-end verification.
-- Run-tied ounce quality checks, customer-spec tolerances, and finished-weight ranges are implemented. Unfamiliar applicator rows remain unresolved until reviewed; the signed-in import-and-record path still needs end-to-end verification.
+- Run-tied ounce quality checks, customer-spec tolerances, and finished-weight ranges are implemented. Unfamiliar applicator rows remain unresolved until reviewed. The dashboard now summarizes failed and unresolved checks; the signed-in import-and-record path still needs end-to-end verification.
 - The separate-project Reserved VM pilot is still unverified; continue using only synthetic data in the disposable V2 database.
 
 ### Purpose-first build order

@@ -12,11 +12,11 @@ be ignored.
 |---|---|---|
 | WP0 — Repo hygiene and status docs | **Complete** | Product status is corrected below. PNPM 9.15.9 frozen install, typecheck, build, and web/API tests pass locally. See [WP0 notes](evidence/purpose-completion/WP0-notes.md). |
 | WP1 — Day-plan import | **Partial** | Product and process importers, name cleanup/merge, schedule-to-planned-run flow, and reviewed requirement snapshots exist. Synthetic signed-in browser regressions cover product snapshots and schedule imports, but they have not been run in this turn; see [WP1 notes](evidence/purpose-completion/WP1-notes.md). |
-| WP2 — Station execution | **Partial** | Shared line timer, station status, revision-checked counts, and station-level preparation-pull status exist. Source pull instructions are visible but not individually confirmable; source-to-station mapping, retries, and two-session floor verification remain. |
+| WP2 — Station execution | **Partial** | Shared line timer, station status, revision-checked counts, station-level prep readiness, and separately saved early-pull checklist items exist. Source rows remain unassigned to stations unless the source maps them; the disposable API pilot checks status changes, retries, and stale revisions. Signed-in two-session floor verification remains. |
 | WP3 — Live production math | **Partial** | Run detail uses captured requirements and station progress for remaining demand. Lowest reported case count per area, exact shared-batch totals, and no-guessed-value behavior have tests; imported family golden fixtures and live-refresh acceptance remain. |
 | WP4 — Inventory from production | **Partial** | Facility inventory, adjustments, and run-level actual-use confirmation exist. Integration coverage verifies stale-stock protection, confirmed deductions, retry safety, double-deduction prevention, and correction links. Opening-count and planned-only behavior still need explicit acceptance coverage. |
-| WP5 — Run-tied quality checks | **Partial** | Run-level ounce measurements, customer tolerances, finished-weight ranges, and unresolved-applicator blocking exist and are unit-tested. Signed-in recording and dashboard response to failed/unresolved checks still need end-to-end verification. |
-| WP6 — Dashboard coherence | **Partial** | Dashboard shows run totals, active timers, station-area counts, station preparation status, planned runs, and recent activity. The dashboard card preview was checked at phone, tablet, and desktop widths; quality failures and review-required imports are not yet surfaced there. |
+| WP5 — Run-tied quality checks | **Partial** | Run-level ounce measurements, customer tolerances, finished-weight ranges, unresolved-applicator blocking, and dashboard summaries for failed/unresolved checks exist. The disposable API pilot verifies the failed-check summary; the signed-in recording path remains unverified. |
+| WP6 — Dashboard coherence | **Partial** | Dashboard shows run totals, active timers, station-area counts, station preparation status, planned runs, recent activity, and quality-attention counts. The dashboard and early-pull previews have separate development-only visual routes; review-required imports and signed-in phone behavior remain unverified. |
 | WP7 — Hardening and CI | **Partial** | Local typecheck, build, and web/API test suites pass. GitHub Actions on the resulting changes has not been run; preserve the PNPM 9 lockfile format and require CI before pushing or publishing. |
 
 ## WP0 — Repo hygiene and truth in docs
@@ -40,9 +40,11 @@ be ignored.
 
 - [x] Station state and elapsed time follow the shared production-line timer.
 - [x] Run detail exposes revision-checked produced/completed counts, count-based remaining demand, and station-level preparation-pull status.
-- [ ] Connect source-backed pull instructions to individually confirmable checklist items only where the source data supports a reliable station mapping; otherwise retain the review-only reference.
+- [x] Captured early-pull instructions as individual source-traceable run items; saved status updates use revisions and retry receipts.
+- [x] Kept source pull items independent of stations where the workbooks do not identify a station.
 - [ ] Complete any stage actions supported by the V2 data model and verify update retries across two browser contexts.
-- [ ] Verify duplicate retries and cross-session refresh against a disposable database.
+- [x] Verify pull-item initial state, status updates, retry replay, and stale-revision conflict against a disposable database.
+- [ ] Verify the signed-in floor UI across two browser contexts.
 
 ## WP3 — Live production math (P1)
 
@@ -61,16 +63,18 @@ be ignored.
 
 - [x] Quality checks use the run snapshot, customer-specific limits, and unresolved states for unreviewed applicators.
 - [ ] Exercise in-range, out-of-range, unresolved, permission, and completed-run behavior through the signed-in UI.
-- [ ] Confirm dashboard attention state for failed or unresolved checks.
+- [x] Confirm the dashboard API returns failed and unresolved quality counts in the disposable pilot.
 
 ## WP6 — Dashboard coherence and UX
 
 - [x] Home/dashboard summary pages exist.
 - [x] Active-run cards summarize station preparation counts from shared progress state.
 - [x] Development-only dashboard card preview checked at phone, tablet, and desktop widths.
+- [x] Dashboard summarizes failed and unresolved quality checks; the disposable pilot asserts a failed-check count.
+- [x] Added an interactive development-only early-pull checklist preview using synthetic source rows.
 - [ ] Verify operator versus manager next actions and truthful active/blocked/done state.
-- [ ] Surface quality failures and any persisted import-review queue.
-- [ ] Verify the signed-in dashboard and any quality/import attention indicators at phone width.
+- [ ] Surface any persisted import-review queue.
+- [ ] Visually verify the signed-in dashboard and new early-pull checklist at phone width.
 
 ## WP7 — Hardening, tests, and CI
 

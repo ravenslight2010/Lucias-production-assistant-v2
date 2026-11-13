@@ -206,6 +206,67 @@ test("copies imported row role and coordinates into the saved requirements plan"
   assert.doesNotThrow(() => PreviewRunRequirementsResponse.parse(resolvedPlan));
 });
 
+test("captures each early-pull instruction as a stable, source-traceable run item", () => {
+  const profile = {
+    brand: "Lucia",
+    flavor: "Sauce",
+    revision: 2,
+    productData: {
+      sources: [{
+        brand: "Lucia",
+        sourceName: "Updated Pre-Mix Sheets.xlsx",
+        content: {
+          format: "lucia.operational-workbook.v1",
+          importKind: "premix",
+          sheets: [{
+            name: "Premix Pulls",
+            recipes: [{
+              name: "Lucia Pizza Sauce premix",
+              premix: {
+                pullInstructions: [
+                  { text: "Move from freezer to cooler", sourceRow: 14, sourceColumn: "B", daysEarly: 2 },
+                  { text: "Prepare only after thawing", sourceRow: 15, sourceColumn: "C" },
+                ],
+              },
+            }],
+          }],
+        },
+      }],
+    },
+  };
+  const first = buildRunRequirements(profile, 24, { unitsPerCase: 12 });
+  const second = buildRunRequirements(profile, 24, { unitsPerCase: 12 });
+
+  assert.equal(first.preparationItems.length, 2);
+  assert.deepEqual(first.preparationItems, second.preparationItems);
+  assert.deepEqual(first.preparationItems.map((item) => ({
+    name: item.name,
+    instruction: item.instruction,
+    source: item.source,
+    sourceRow: item.sourceRow,
+    sourceColumn: item.sourceColumn,
+    daysEarly: item.daysEarly,
+  })), [
+    {
+      name: "Lucia Pizza Sauce premix",
+      instruction: "Move from freezer to cooler",
+      source: "Updated Pre-Mix Sheets.xlsx · Premix Pulls · Lucia Pizza Sauce premix · row 14",
+      sourceRow: 14,
+      sourceColumn: "B",
+      daysEarly: 2,
+    },
+    {
+      name: "Lucia Pizza Sauce premix",
+      instruction: "Prepare only after thawing",
+      source: "Updated Pre-Mix Sheets.xlsx · Premix Pulls · Lucia Pizza Sauce premix · row 15",
+      sourceRow: 15,
+      sourceColumn: "C",
+      daysEarly: null,
+    },
+  ]);
+  assert.doesNotThrow(() => PreviewRunRequirementsResponse.parse(first));
+});
+
 test("unknown applicator variants remain unresolved until source-role review", () => {
   const profile = {
     brand: "Lucia",

@@ -48,6 +48,7 @@ const InventoryPage = lazy(() => import('@/components/inventory-page'));
 const RunStationProgressSection = lazy(() => import('@/components/run-station-progress'));
 const StationCalculatorVisualPreviewPage = lazy(() => import('@/pages/station-calculator-visual-preview'));
 const RunQualityChecksVisualPreviewPage = lazy(() => import('@/pages/run-quality-checks-visual-preview'));
+const RunPreparationVisualPreviewPage = lazy(() => import('@/pages/run-preparation-visual-preview'));
 const RunQualityChecksSection = lazy(() => import('@/components/run-quality-checks').then((module) => ({ default: module.RunQualityChecksSection })));
 
 const queryClient = new QueryClient({
@@ -1080,8 +1081,9 @@ function App() {
   const isVisualPreview = import.meta.env.DEV && visualPath === '/__visual-preview/imports';
   const isStationCalculatorPreview = import.meta.env.DEV && visualPath === '/__visual-preview/station-calculator';
   const isRunQualityChecksPreview = import.meta.env.DEV && visualPath === '/__visual-preview/quality-checks';
+  const isRunPreparationPreview = import.meta.env.DEV && visualPath === '/__visual-preview/preparation';
   const isDashboardVisualPreview = import.meta.env.DEV && visualPath === '/__visual-preview/dashboard';
-  if (!clerkPubKey && !isVisualPreview && !isStationCalculatorPreview && !isRunQualityChecksPreview && !isDashboardVisualPreview) {
+  if (!clerkPubKey && !isVisualPreview && !isStationCalculatorPreview && !isRunQualityChecksPreview && !isRunPreparationPreview && !isDashboardVisualPreview) {
     throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY in .env file');
   }
   return (
@@ -1095,6 +1097,8 @@ function App() {
             ? <Suspense fallback={<LoadingPage title="Loading station calculator preview" />}><StationCalculatorVisualPreviewPage /></Suspense>
             : isRunQualityChecksPreview
               ? <Suspense fallback={<LoadingPage title="Loading quality-check preview" />}><RunQualityChecksVisualPreviewPage /></Suspense>
+            : isRunPreparationPreview
+              ? <Suspense fallback={<LoadingPage title="Loading early-pull preview" />}><RunPreparationVisualPreviewPage /></Suspense>
             : <WouterRouter base={basePath}><RouterContent /></WouterRouter>}
         <Toaster />
       </TooltipProvider>

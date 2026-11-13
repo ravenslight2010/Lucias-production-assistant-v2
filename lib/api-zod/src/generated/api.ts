@@ -71,6 +71,22 @@ export const previewRunRequirementsResponseFinishedWeightSpecOneUnitMax = 20;
 
 export const previewRunRequirementsResponseFinishedWeightSpecOneSourceMax = 500;
 
+export const previewRunRequirementsResponsePreparationItemsItemIdMax = 300;
+
+export const previewRunRequirementsResponsePreparationItemsItemNameMax = 200;
+
+export const previewRunRequirementsResponsePreparationItemsItemInstructionMax = 1000;
+
+export const previewRunRequirementsResponsePreparationItemsItemSourceMax = 500;
+
+
+export const previewRunRequirementsResponsePreparationItemsItemSourceColumnMax = 32;
+
+export const previewRunRequirementsResponsePreparationItemsItemDaysEarlyMin = 0;
+export const previewRunRequirementsResponsePreparationItemsItemDaysEarlyMax = 3650;
+
+export const previewRunRequirementsResponsePreparationItemsMax = 500;
+
 
 
 export const PreviewRunRequirementsResponse = zod.object({
@@ -204,6 +220,15 @@ export const PreviewRunRequirementsResponse = zod.object({
   "issues": zod.array(zod.string())
 })),
   "preparation": zod.array(zod.string()),
+  "preparationItems": zod.array(zod.object({
+  "id": zod.string().min(1).max(previewRunRequirementsResponsePreparationItemsItemIdMax),
+  "name": zod.string().min(1).max(previewRunRequirementsResponsePreparationItemsItemNameMax),
+  "instruction": zod.string().min(1).max(previewRunRequirementsResponsePreparationItemsItemInstructionMax),
+  "source": zod.string().min(1).max(previewRunRequirementsResponsePreparationItemsItemSourceMax),
+  "sourceRow": zod.number().int().min(1).nullable(),
+  "sourceColumn": zod.string().max(previewRunRequirementsResponsePreparationItemsItemSourceColumnMax).nullable(),
+  "daysEarly": zod.number().int().min(previewRunRequirementsResponsePreparationItemsItemDaysEarlyMin).max(previewRunRequirementsResponsePreparationItemsItemDaysEarlyMax).nullable()
+})).max(previewRunRequirementsResponsePreparationItemsMax).optional(),
   "packaging": zod.array(zod.string()),
   "issues": zod.array(zod.string())
 })
@@ -531,6 +556,22 @@ export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsFinishedWe
 
 export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneSourceMax = 500;
 
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemIdMax = 300;
+
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemNameMax = 200;
+
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemInstructionMax = 1000;
+
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemSourceMax = 500;
+
+
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemSourceColumnMax = 32;
+
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMin = 0;
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax = 3650;
+
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsPreparationItemsMax = 500;
+
 
 
 export const ListRunsResponse = zod.object({
@@ -727,6 +768,15 @@ export const ListRunsResponse = zod.object({
   "issues": zod.array(zod.string())
 })),
   "preparation": zod.array(zod.string()),
+  "preparationItems": zod.array(zod.object({
+  "id": zod.string().min(1).max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemIdMax),
+  "name": zod.string().min(1).max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemNameMax),
+  "instruction": zod.string().min(1).max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemInstructionMax),
+  "source": zod.string().min(1).max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemSourceMax),
+  "sourceRow": zod.number().int().min(1).nullable(),
+  "sourceColumn": zod.string().max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemSourceColumnMax).nullable(),
+  "daysEarly": zod.number().int().min(listRunsResponseRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMin).max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax).nullable()
+})).max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsPreparationItemsMax).optional(),
   "packaging": zod.array(zod.string()),
   "issues": zod.array(zod.string())
 }).optional(),
@@ -861,6 +911,22 @@ export const createRunResponseRunProductSnapshotOneRunRequirementsFinishedWeight
 export const createRunResponseRunProductSnapshotOneRunRequirementsFinishedWeightSpecOneUnitMax = 20;
 
 export const createRunResponseRunProductSnapshotOneRunRequirementsFinishedWeightSpecOneSourceMax = 500;
+
+export const createRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemIdMax = 300;
+
+export const createRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemNameMax = 200;
+
+export const createRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemInstructionMax = 1000;
+
+export const createRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemSourceMax = 500;
+
+
+export const createRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemSourceColumnMax = 32;
+
+export const createRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMin = 0;
+export const createRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax = 3650;
+
+export const createRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsMax = 500;
 
 
 
@@ -1060,6 +1126,15 @@ export const CreateRunResponse = zod.object({
   "issues": zod.array(zod.string())
 })),
   "preparation": zod.array(zod.string()),
+  "preparationItems": zod.array(zod.object({
+  "id": zod.string().min(1).max(createRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemIdMax),
+  "name": zod.string().min(1).max(createRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemNameMax),
+  "instruction": zod.string().min(1).max(createRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemInstructionMax),
+  "source": zod.string().min(1).max(createRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemSourceMax),
+  "sourceRow": zod.number().int().min(1).nullable(),
+  "sourceColumn": zod.string().max(createRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemSourceColumnMax).nullable(),
+  "daysEarly": zod.number().int().min(createRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMin).max(createRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax).nullable()
+})).max(createRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsMax).optional(),
   "packaging": zod.array(zod.string()),
   "issues": zod.array(zod.string())
 }).optional(),
@@ -1351,6 +1426,22 @@ export const listProductProfilesResponseProfilesItemRunRequirementsFinishedWeigh
 
 export const listProductProfilesResponseProfilesItemRunRequirementsFinishedWeightSpecOneSourceMax = 500;
 
+export const listProductProfilesResponseProfilesItemRunRequirementsPreparationItemsItemIdMax = 300;
+
+export const listProductProfilesResponseProfilesItemRunRequirementsPreparationItemsItemNameMax = 200;
+
+export const listProductProfilesResponseProfilesItemRunRequirementsPreparationItemsItemInstructionMax = 1000;
+
+export const listProductProfilesResponseProfilesItemRunRequirementsPreparationItemsItemSourceMax = 500;
+
+
+export const listProductProfilesResponseProfilesItemRunRequirementsPreparationItemsItemSourceColumnMax = 32;
+
+export const listProductProfilesResponseProfilesItemRunRequirementsPreparationItemsItemDaysEarlyMin = 0;
+export const listProductProfilesResponseProfilesItemRunRequirementsPreparationItemsItemDaysEarlyMax = 3650;
+
+export const listProductProfilesResponseProfilesItemRunRequirementsPreparationItemsMax = 500;
+
 export const listProductProfilesResponseReferenceNamesRulesItemSourceBrandMax = 120;
 
 export const listProductProfilesResponseReferenceNamesRulesItemSourceNameMax = 300;
@@ -1514,6 +1605,15 @@ export const ListProductProfilesResponse = zod.object({
   "issues": zod.array(zod.string())
 })),
   "preparation": zod.array(zod.string()),
+  "preparationItems": zod.array(zod.object({
+  "id": zod.string().min(1).max(listProductProfilesResponseProfilesItemRunRequirementsPreparationItemsItemIdMax),
+  "name": zod.string().min(1).max(listProductProfilesResponseProfilesItemRunRequirementsPreparationItemsItemNameMax),
+  "instruction": zod.string().min(1).max(listProductProfilesResponseProfilesItemRunRequirementsPreparationItemsItemInstructionMax),
+  "source": zod.string().min(1).max(listProductProfilesResponseProfilesItemRunRequirementsPreparationItemsItemSourceMax),
+  "sourceRow": zod.number().int().min(1).nullable(),
+  "sourceColumn": zod.string().max(listProductProfilesResponseProfilesItemRunRequirementsPreparationItemsItemSourceColumnMax).nullable(),
+  "daysEarly": zod.number().int().min(listProductProfilesResponseProfilesItemRunRequirementsPreparationItemsItemDaysEarlyMin).max(listProductProfilesResponseProfilesItemRunRequirementsPreparationItemsItemDaysEarlyMax).nullable()
+})).max(listProductProfilesResponseProfilesItemRunRequirementsPreparationItemsMax).optional(),
   "packaging": zod.array(zod.string()),
   "issues": zod.array(zod.string())
 }).optional(),
@@ -1601,6 +1701,22 @@ export const importProductProfileResponseProfileRunRequirementsFinishedWeightSpe
 export const importProductProfileResponseProfileRunRequirementsFinishedWeightSpecOneUnitMax = 20;
 
 export const importProductProfileResponseProfileRunRequirementsFinishedWeightSpecOneSourceMax = 500;
+
+export const importProductProfileResponseProfileRunRequirementsPreparationItemsItemIdMax = 300;
+
+export const importProductProfileResponseProfileRunRequirementsPreparationItemsItemNameMax = 200;
+
+export const importProductProfileResponseProfileRunRequirementsPreparationItemsItemInstructionMax = 1000;
+
+export const importProductProfileResponseProfileRunRequirementsPreparationItemsItemSourceMax = 500;
+
+
+export const importProductProfileResponseProfileRunRequirementsPreparationItemsItemSourceColumnMax = 32;
+
+export const importProductProfileResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMin = 0;
+export const importProductProfileResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMax = 3650;
+
+export const importProductProfileResponseProfileRunRequirementsPreparationItemsMax = 500;
 
 
 
@@ -1757,6 +1873,15 @@ export const ImportProductProfileResponse = zod.object({
   "issues": zod.array(zod.string())
 })),
   "preparation": zod.array(zod.string()),
+  "preparationItems": zod.array(zod.object({
+  "id": zod.string().min(1).max(importProductProfileResponseProfileRunRequirementsPreparationItemsItemIdMax),
+  "name": zod.string().min(1).max(importProductProfileResponseProfileRunRequirementsPreparationItemsItemNameMax),
+  "instruction": zod.string().min(1).max(importProductProfileResponseProfileRunRequirementsPreparationItemsItemInstructionMax),
+  "source": zod.string().min(1).max(importProductProfileResponseProfileRunRequirementsPreparationItemsItemSourceMax),
+  "sourceRow": zod.number().int().min(1).nullable(),
+  "sourceColumn": zod.string().max(importProductProfileResponseProfileRunRequirementsPreparationItemsItemSourceColumnMax).nullable(),
+  "daysEarly": zod.number().int().min(importProductProfileResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMin).max(importProductProfileResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMax).nullable()
+})).max(importProductProfileResponseProfileRunRequirementsPreparationItemsMax).optional(),
   "packaging": zod.array(zod.string()),
   "issues": zod.array(zod.string())
 }).optional(),
@@ -1849,6 +1974,22 @@ export const renameProductProfileResponseProfileRunRequirementsFinishedWeightSpe
 export const renameProductProfileResponseProfileRunRequirementsFinishedWeightSpecOneUnitMax = 20;
 
 export const renameProductProfileResponseProfileRunRequirementsFinishedWeightSpecOneSourceMax = 500;
+
+export const renameProductProfileResponseProfileRunRequirementsPreparationItemsItemIdMax = 300;
+
+export const renameProductProfileResponseProfileRunRequirementsPreparationItemsItemNameMax = 200;
+
+export const renameProductProfileResponseProfileRunRequirementsPreparationItemsItemInstructionMax = 1000;
+
+export const renameProductProfileResponseProfileRunRequirementsPreparationItemsItemSourceMax = 500;
+
+
+export const renameProductProfileResponseProfileRunRequirementsPreparationItemsItemSourceColumnMax = 32;
+
+export const renameProductProfileResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMin = 0;
+export const renameProductProfileResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMax = 3650;
+
+export const renameProductProfileResponseProfileRunRequirementsPreparationItemsMax = 500;
 
 
 
@@ -2005,6 +2146,15 @@ export const RenameProductProfileResponse = zod.object({
   "issues": zod.array(zod.string())
 })),
   "preparation": zod.array(zod.string()),
+  "preparationItems": zod.array(zod.object({
+  "id": zod.string().min(1).max(renameProductProfileResponseProfileRunRequirementsPreparationItemsItemIdMax),
+  "name": zod.string().min(1).max(renameProductProfileResponseProfileRunRequirementsPreparationItemsItemNameMax),
+  "instruction": zod.string().min(1).max(renameProductProfileResponseProfileRunRequirementsPreparationItemsItemInstructionMax),
+  "source": zod.string().min(1).max(renameProductProfileResponseProfileRunRequirementsPreparationItemsItemSourceMax),
+  "sourceRow": zod.number().int().min(1).nullable(),
+  "sourceColumn": zod.string().max(renameProductProfileResponseProfileRunRequirementsPreparationItemsItemSourceColumnMax).nullable(),
+  "daysEarly": zod.number().int().min(renameProductProfileResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMin).max(renameProductProfileResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMax).nullable()
+})).max(renameProductProfileResponseProfileRunRequirementsPreparationItemsMax).optional(),
   "packaging": zod.array(zod.string()),
   "issues": zod.array(zod.string())
 }).optional(),
@@ -2068,6 +2218,22 @@ export const mergeProductProfileResponseProfileRunRequirementsFinishedWeightSpec
 export const mergeProductProfileResponseProfileRunRequirementsFinishedWeightSpecOneUnitMax = 20;
 
 export const mergeProductProfileResponseProfileRunRequirementsFinishedWeightSpecOneSourceMax = 500;
+
+export const mergeProductProfileResponseProfileRunRequirementsPreparationItemsItemIdMax = 300;
+
+export const mergeProductProfileResponseProfileRunRequirementsPreparationItemsItemNameMax = 200;
+
+export const mergeProductProfileResponseProfileRunRequirementsPreparationItemsItemInstructionMax = 1000;
+
+export const mergeProductProfileResponseProfileRunRequirementsPreparationItemsItemSourceMax = 500;
+
+
+export const mergeProductProfileResponseProfileRunRequirementsPreparationItemsItemSourceColumnMax = 32;
+
+export const mergeProductProfileResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMin = 0;
+export const mergeProductProfileResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMax = 3650;
+
+export const mergeProductProfileResponseProfileRunRequirementsPreparationItemsMax = 500;
 
 
 
@@ -2224,6 +2390,15 @@ export const MergeProductProfileResponse = zod.object({
   "issues": zod.array(zod.string())
 })),
   "preparation": zod.array(zod.string()),
+  "preparationItems": zod.array(zod.object({
+  "id": zod.string().min(1).max(mergeProductProfileResponseProfileRunRequirementsPreparationItemsItemIdMax),
+  "name": zod.string().min(1).max(mergeProductProfileResponseProfileRunRequirementsPreparationItemsItemNameMax),
+  "instruction": zod.string().min(1).max(mergeProductProfileResponseProfileRunRequirementsPreparationItemsItemInstructionMax),
+  "source": zod.string().min(1).max(mergeProductProfileResponseProfileRunRequirementsPreparationItemsItemSourceMax),
+  "sourceRow": zod.number().int().min(1).nullable(),
+  "sourceColumn": zod.string().max(mergeProductProfileResponseProfileRunRequirementsPreparationItemsItemSourceColumnMax).nullable(),
+  "daysEarly": zod.number().int().min(mergeProductProfileResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMin).max(mergeProductProfileResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMax).nullable()
+})).max(mergeProductProfileResponseProfileRunRequirementsPreparationItemsMax).optional(),
   "packaging": zod.array(zod.string()),
   "issues": zod.array(zod.string())
 }).optional(),
@@ -2307,6 +2482,22 @@ export const getRunResponseRunProductSnapshotOneRunRequirementsFinishedWeightSpe
 export const getRunResponseRunProductSnapshotOneRunRequirementsFinishedWeightSpecOneUnitMax = 20;
 
 export const getRunResponseRunProductSnapshotOneRunRequirementsFinishedWeightSpecOneSourceMax = 500;
+
+export const getRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemIdMax = 300;
+
+export const getRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemNameMax = 200;
+
+export const getRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemInstructionMax = 1000;
+
+export const getRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemSourceMax = 500;
+
+
+export const getRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemSourceColumnMax = 32;
+
+export const getRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMin = 0;
+export const getRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax = 3650;
+
+export const getRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsMax = 500;
 
 
 
@@ -2504,6 +2695,15 @@ export const GetRunResponse = zod.object({
   "issues": zod.array(zod.string())
 })),
   "preparation": zod.array(zod.string()),
+  "preparationItems": zod.array(zod.object({
+  "id": zod.string().min(1).max(getRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemIdMax),
+  "name": zod.string().min(1).max(getRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemNameMax),
+  "instruction": zod.string().min(1).max(getRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemInstructionMax),
+  "source": zod.string().min(1).max(getRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemSourceMax),
+  "sourceRow": zod.number().int().min(1).nullable(),
+  "sourceColumn": zod.string().max(getRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemSourceColumnMax).nullable(),
+  "daysEarly": zod.number().int().min(getRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMin).max(getRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax).nullable()
+})).max(getRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsMax).optional(),
   "packaging": zod.array(zod.string()),
   "issues": zod.array(zod.string())
 }).optional(),
@@ -2608,6 +2808,22 @@ export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsFinished
 export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsFinishedWeightSpecOneUnitMax = 20;
 
 export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsFinishedWeightSpecOneSourceMax = 500;
+
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemIdMax = 300;
+
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemNameMax = 200;
+
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemInstructionMax = 1000;
+
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemSourceMax = 500;
+
+
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemSourceColumnMax = 32;
+
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMin = 0;
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax = 3650;
+
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsPreparationItemsMax = 500;
 
 
 
@@ -2808,6 +3024,15 @@ export const ApplyRunCommandResponse = zod.object({
   "issues": zod.array(zod.string())
 })),
   "preparation": zod.array(zod.string()),
+  "preparationItems": zod.array(zod.object({
+  "id": zod.string().min(1).max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemIdMax),
+  "name": zod.string().min(1).max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemNameMax),
+  "instruction": zod.string().min(1).max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemInstructionMax),
+  "source": zod.string().min(1).max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemSourceMax),
+  "sourceRow": zod.number().int().min(1).nullable(),
+  "sourceColumn": zod.string().max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemSourceColumnMax).nullable(),
+  "daysEarly": zod.number().int().min(applyRunCommandResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMin).max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax).nullable()
+})).max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsPreparationItemsMax).optional(),
   "packaging": zod.array(zod.string()),
   "issues": zod.array(zod.string())
 }).optional(),
@@ -2932,6 +3157,119 @@ export const GetRunStationProgressResponse = zod.object({
   "countUpdatedAt": zod.coerce.date().nullable(),
   "updatedAt": zod.coerce.date().nullable()
 })).max(getRunStationProgressResponseStationsMax)
+})
+
+
+/**
+ * @summary Get the individual early-pull checklist for a run
+ */
+export const getRunPreparationTasksPathRunIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
+export const GetRunPreparationTasksParams = zod.object({
+  "runId": zod.coerce.string().regex(getRunPreparationTasksPathRunIdRegExp)
+})
+
+export const getRunPreparationTasksResponseTasksItemIdMax = 300;
+
+export const getRunPreparationTasksResponseTasksItemNameMax = 200;
+
+export const getRunPreparationTasksResponseTasksItemInstructionMax = 1000;
+
+export const getRunPreparationTasksResponseTasksItemSourceMax = 500;
+
+
+export const getRunPreparationTasksResponseTasksItemSourceColumnMax = 32;
+
+export const getRunPreparationTasksResponseTasksItemDaysEarlyMin = 0;
+export const getRunPreparationTasksResponseTasksItemDaysEarlyMax = 3650;
+
+export const getRunPreparationTasksResponseTasksItemRevisionMin = 0;
+export const getRunPreparationTasksResponseTasksItemRevisionMax = 9007199254740991;
+
+export const getRunPreparationTasksResponseTasksMax = 500;
+
+
+
+export const GetRunPreparationTasksResponse = zod.object({
+  "runId": zod.string().uuid(),
+  "tasks": zod.array(zod.object({
+  "id": zod.string().min(1).max(getRunPreparationTasksResponseTasksItemIdMax),
+  "name": zod.string().min(1).max(getRunPreparationTasksResponseTasksItemNameMax),
+  "instruction": zod.string().min(1).max(getRunPreparationTasksResponseTasksItemInstructionMax),
+  "source": zod.string().min(1).max(getRunPreparationTasksResponseTasksItemSourceMax),
+  "sourceRow": zod.number().int().min(1).nullable(),
+  "sourceColumn": zod.string().max(getRunPreparationTasksResponseTasksItemSourceColumnMax).nullable(),
+  "daysEarly": zod.number().int().min(getRunPreparationTasksResponseTasksItemDaysEarlyMin).max(getRunPreparationTasksResponseTasksItemDaysEarlyMax).nullable(),
+  "status": zod.enum(['not_started', 'in_progress', 'completed']),
+  "revision": zod.number().int().min(getRunPreparationTasksResponseTasksItemRevisionMin).max(getRunPreparationTasksResponseTasksItemRevisionMax),
+  "updatedAt": zod.coerce.date().nullable()
+})).max(getRunPreparationTasksResponseTasksMax)
+})
+
+
+/**
+ * @summary Save one early-pull checklist item
+ */
+export const updateRunPreparationTaskPathRunIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+export const updateRunPreparationTaskPathTaskIdMax = 300;
+
+
+
+export const UpdateRunPreparationTaskParams = zod.object({
+  "runId": zod.coerce.string().regex(updateRunPreparationTaskPathRunIdRegExp),
+  "taskId": zod.coerce.string().min(1).max(updateRunPreparationTaskPathTaskIdMax)
+})
+
+export const UpdateRunPreparationTaskHeader = zod.object({
+  "X-CSRF-Token": zod.string()
+})
+
+export const updateRunPreparationTaskBodyExpectedRevisionMin = 0;
+export const updateRunPreparationTaskBodyExpectedRevisionMax = 9007199254740991;
+
+
+
+export const UpdateRunPreparationTaskBody = zod.object({
+  "commandId": zod.string().uuid(),
+  "expectedRevision": zod.number().int().min(updateRunPreparationTaskBodyExpectedRevisionMin).max(updateRunPreparationTaskBodyExpectedRevisionMax),
+  "status": zod.enum(['not_started', 'in_progress', 'completed'])
+})
+
+export const updateRunPreparationTaskResponseTaskIdMax = 300;
+
+export const updateRunPreparationTaskResponseTaskNameMax = 200;
+
+export const updateRunPreparationTaskResponseTaskInstructionMax = 1000;
+
+export const updateRunPreparationTaskResponseTaskSourceMax = 500;
+
+
+export const updateRunPreparationTaskResponseTaskSourceColumnMax = 32;
+
+export const updateRunPreparationTaskResponseTaskDaysEarlyMin = 0;
+export const updateRunPreparationTaskResponseTaskDaysEarlyMax = 3650;
+
+export const updateRunPreparationTaskResponseTaskRevisionMin = 0;
+export const updateRunPreparationTaskResponseTaskRevisionMax = 9007199254740991;
+
+
+
+export const UpdateRunPreparationTaskResponse = zod.object({
+  "outcome": zod.enum(['accepted']),
+  "replayed": zod.boolean(),
+  "task": zod.object({
+  "id": zod.string().min(1).max(updateRunPreparationTaskResponseTaskIdMax),
+  "name": zod.string().min(1).max(updateRunPreparationTaskResponseTaskNameMax),
+  "instruction": zod.string().min(1).max(updateRunPreparationTaskResponseTaskInstructionMax),
+  "source": zod.string().min(1).max(updateRunPreparationTaskResponseTaskSourceMax),
+  "sourceRow": zod.number().int().min(1).nullable(),
+  "sourceColumn": zod.string().max(updateRunPreparationTaskResponseTaskSourceColumnMax).nullable(),
+  "daysEarly": zod.number().int().min(updateRunPreparationTaskResponseTaskDaysEarlyMin).max(updateRunPreparationTaskResponseTaskDaysEarlyMax).nullable(),
+  "status": zod.enum(['not_started', 'in_progress', 'completed']),
+  "revision": zod.number().int().min(updateRunPreparationTaskResponseTaskRevisionMin).max(updateRunPreparationTaskResponseTaskRevisionMax),
+  "updatedAt": zod.coerce.date().nullable()
+})
 })
 
 
@@ -3619,6 +3957,22 @@ export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequi
 
 export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneSourceMax = 500;
 
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemIdMax = 300;
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemNameMax = 200;
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemInstructionMax = 1000;
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemSourceMax = 500;
+
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemSourceColumnMax = 32;
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMin = 0;
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax = 3650;
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsPreparationItemsMax = 500;
+
 export const getDashboardSummaryResponsePlannedRunsItemRevisionMin = 0;
 export const getDashboardSummaryResponsePlannedRunsItemRevisionMax = 9007199254740991;
 
@@ -3681,6 +4035,22 @@ export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequ
 export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneUnitMax = 20;
 
 export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneSourceMax = 500;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemIdMax = 300;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemNameMax = 200;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemInstructionMax = 1000;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemSourceMax = 500;
+
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemSourceColumnMax = 32;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMin = 0;
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax = 3650;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsPreparationItemsMax = 500;
 
 export const getDashboardSummaryResponsePlannedRunsMax = 10;
 
@@ -3781,6 +4151,22 @@ export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequi
 export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneUnitMax = 20;
 
 export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneSourceMax = 500;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemIdMax = 300;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemNameMax = 200;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemInstructionMax = 1000;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemSourceMax = 500;
+
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemSourceColumnMax = 32;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMin = 0;
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax = 3650;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsPreparationItemsMax = 500;
 
 
 
@@ -3988,6 +4374,15 @@ export const GetDashboardSummaryResponse = zod.object({
   "issues": zod.array(zod.string())
 })),
   "preparation": zod.array(zod.string()),
+  "preparationItems": zod.array(zod.object({
+  "id": zod.string().min(1).max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemIdMax),
+  "name": zod.string().min(1).max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemNameMax),
+  "instruction": zod.string().min(1).max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemInstructionMax),
+  "source": zod.string().min(1).max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemSourceMax),
+  "sourceRow": zod.number().int().min(1).nullable(),
+  "sourceColumn": zod.string().max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemSourceColumnMax).nullable(),
+  "daysEarly": zod.number().int().min(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMin).max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax).nullable()
+})).max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsPreparationItemsMax).optional(),
   "packaging": zod.array(zod.string()),
   "issues": zod.array(zod.string())
 }).optional(),
@@ -4193,6 +4588,15 @@ export const GetDashboardSummaryResponse = zod.object({
   "issues": zod.array(zod.string())
 })),
   "preparation": zod.array(zod.string()),
+  "preparationItems": zod.array(zod.object({
+  "id": zod.string().min(1).max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemIdMax),
+  "name": zod.string().min(1).max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemNameMax),
+  "instruction": zod.string().min(1).max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemInstructionMax),
+  "source": zod.string().min(1).max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemSourceMax),
+  "sourceRow": zod.number().int().min(1).nullable(),
+  "sourceColumn": zod.string().max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemSourceColumnMax).nullable(),
+  "daysEarly": zod.number().int().min(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMin).max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax).nullable()
+})).max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsPreparationItemsMax).optional(),
   "packaging": zod.array(zod.string()),
   "issues": zod.array(zod.string())
 }).optional(),
@@ -4420,6 +4824,15 @@ export const GetDashboardSummaryResponse = zod.object({
   "issues": zod.array(zod.string())
 })),
   "preparation": zod.array(zod.string()),
+  "preparationItems": zod.array(zod.object({
+  "id": zod.string().min(1).max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemIdMax),
+  "name": zod.string().min(1).max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemNameMax),
+  "instruction": zod.string().min(1).max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemInstructionMax),
+  "source": zod.string().min(1).max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemSourceMax),
+  "sourceRow": zod.number().int().min(1).nullable(),
+  "sourceColumn": zod.string().max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemSourceColumnMax).nullable(),
+  "daysEarly": zod.number().int().min(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMin).max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax).nullable()
+})).max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsPreparationItemsMax).optional(),
   "packaging": zod.array(zod.string()),
   "issues": zod.array(zod.string())
 }).optional(),

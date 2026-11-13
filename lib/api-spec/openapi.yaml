@@ -718,6 +718,82 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+  /v2/runs/{runId}/preparation-tasks:
+    get:
+      operationId: getRunPreparationTasks
+      tags: [runs]
+      summary: Get the individual early-pull checklist for a run
+      security:
+        - v2Session: []
+      parameters:
+        - in: path
+          name: runId
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+      responses:
+        "200":
+          description: Source-backed pull items and saved progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunPreparationTasksResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v2/runs/{runId}/preparation-tasks/{taskId}:
+    patch:
+      operationId: updateRunPreparationTask
+      tags: [runs]
+      summary: Save one early-pull checklist item
+      security:
+        - v2Session: []
+      parameters:
+        - in: path
+          name: runId
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+        - in: path
+          name: taskId
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 300
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunPreparationTaskUpdateInput"
+      responses:
+        "200":
+          description: Saved checklist item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunPreparationTaskUpdateResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Stale revision or reused command identifier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunPreparationTaskConflict"
   /v2/runs/{runId}/quality-checks:
     get:
       operationId: getRunQualityChecks
@@ -1750,9 +1826,84 @@ components:
         items: {type: array, items: {$ref: "#/components/schemas/RunRequirementItem"}}
         batchPreparation: {type: array, items: {$ref: "#/components/schemas/RunRequirementItem"}}
         preparation: {type: array, items: {type: string}}
+        preparationItems:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/RunPreparationPullItem"
         packaging: {type: array, items: {type: string}}
         issues: {type: array, items: {type: string}}
       required: [version, productLabel, profileRevision, nameRevision, targetCases, unitsPerCase, casePackSource, totalPizzas, status, options, sections, sectionId, recipes, items, batchPreparation, preparation, packaging, issues]
+    RunPreparationPullItem:
+      type: object
+      additionalProperties: false
+      properties:
+        id: {type: string, minLength: 1, maxLength: 300}
+        name: {type: string, minLength: 1, maxLength: 200}
+        instruction: {type: string, minLength: 1, maxLength: 1000}
+        source: {type: string, minLength: 1, maxLength: 500}
+        sourceRow: {type: ["integer", "null"], minimum: 1}
+        sourceColumn: {type: ["string", "null"], maxLength: 32}
+        daysEarly: {type: ["integer", "null"], minimum: 0, maximum: 3650}
+      required: [id, name, instruction, source, sourceRow, sourceColumn, daysEarly]
+    RunPreparationTaskStatus:
+      type: string
+      enum: [not_started, in_progress, completed]
+    RunPreparationTask:
+      type: object
+      additionalProperties: false
+      properties:
+        id: {type: string, minLength: 1, maxLength: 300}
+        name: {type: string, minLength: 1, maxLength: 200}
+        instruction: {type: string, minLength: 1, maxLength: 1000}
+        source: {type: string, minLength: 1, maxLength: 500}
+        sourceRow: {type: ["integer", "null"], minimum: 1}
+        sourceColumn: {type: ["string", "null"], maxLength: 32}
+        daysEarly: {type: ["integer", "null"], minimum: 0, maximum: 3650}
+        status:
+          $ref: "#/components/schemas/RunPreparationTaskStatus"
+        revision: {type: integer, minimum: 0, maximum: 9007199254740991}
+        updatedAt: {type: ["string", "null"], format: date-time}
+      required: [id, name, instruction, source, sourceRow, sourceColumn, daysEarly, status, revision, updatedAt]
+    RunPreparationTasksResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        runId: {type: string, format: uuid}
+        tasks:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/RunPreparationTask"
+      required: [runId, tasks]
+    RunPreparationTaskUpdateInput:
+      type: object
+      additionalProperties: false
+      properties:
+        commandId: {type: string, format: uuid}
+        expectedRevision: {type: integer, minimum: 0, maximum: 9007199254740991}
+        status:
+          $ref: "#/components/schemas/RunPreparationTaskStatus"
+      required: [commandId, expectedRevision, status]
+    RunPreparationTaskUpdateResult:
+      type: object
+      additionalProperties: false
+      properties:
+        outcome:
+          type: string
+          enum: [accepted]
+        replayed: {type: boolean}
+        task:
+          $ref: "#/components/schemas/RunPreparationTask"
+      required: [outcome, replayed, task]
+    RunPreparationTaskConflict:
+      type: object
+      additionalProperties: false
+      properties:
+        error: {type: string}
+        current:
+          $ref: "#/components/schemas/RunPreparationTask"
+      required: [error, current]
     RunFinishedWeightSpec:
       type: object
       properties:

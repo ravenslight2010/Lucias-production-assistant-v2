@@ -16,6 +16,7 @@ import type {
   RunStatus,
 } from '@workspace/api-client-react';
 import { RunInventoryUsagePanel } from './run-inventory-usage';
+import { RunPreparationChecklist } from './run-preparation-checklist';
 import './run-requirements.css';
 
 type ReviewCallback = (review: RunPlanningReview | null, plan: RunRequirementsPlan | null) => void;
@@ -447,6 +448,9 @@ export function RunRequirementsSummary({ plan, runId, runStatus, online = true, 
       </dl>
 
       {plan.issues.length > 0 && <IssueList issues={plan.issues} label="Plan issues" />}
+      {runId && (plan.preparationItems?.length ?? 0) > 0 && runStatus && (
+        <RunPreparationChecklist runId={runId} runStatus={runStatus} online={online} />
+      )}
       {runId && (
         <section className="rr-live-progress" aria-labelledby="rr-live-progress-title" data-testid="section-rr-live-progress" aria-live="polite">
           <div>

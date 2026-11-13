@@ -810,6 +810,45 @@ export interface RunFinishedWeightSpec {
   source: string;
 }
 
+export interface RunPreparationPullItem {
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name: string;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  instruction: string;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  source: string;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  sourceRow: number | null;
+  /**
+     * @maxLength 32
+     * @nullable
+     */
+  sourceColumn: string | null;
+  /**
+     * @minimum 0
+     * @maximum 3650
+     * @nullable
+     */
+  daysEarly: number | null;
+}
+
 export interface RunRequirementsPlan {
   version: RunRequirementsPlanVersion;
   productLabel: string;
@@ -831,8 +870,100 @@ export interface RunRequirementsPlan {
   items: RunRequirementItem[];
   batchPreparation: RunRequirementItem[];
   preparation: string[];
+  /** @maxItems 500 */
+  preparationItems?: RunPreparationPullItem[];
   packaging: string[];
   issues: string[];
+}
+
+export type RunPreparationTaskStatus = typeof RunPreparationTaskStatus[keyof typeof RunPreparationTaskStatus];
+
+
+export const RunPreparationTaskStatus = {
+  not_started: 'not_started',
+  in_progress: 'in_progress',
+  completed: 'completed',
+} as const;
+
+export interface RunPreparationTask {
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name: string;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  instruction: string;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  source: string;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  sourceRow: number | null;
+  /**
+     * @maxLength 32
+     * @nullable
+     */
+  sourceColumn: string | null;
+  /**
+     * @minimum 0
+     * @maximum 3650
+     * @nullable
+     */
+  daysEarly: number | null;
+  status: RunPreparationTaskStatus;
+  /**
+     * @minimum 0
+     * @maximum 9007199254740991
+     */
+  revision: number;
+  /** @nullable */
+  updatedAt: string | null;
+}
+
+export interface RunPreparationTasksResponse {
+  runId: string;
+  /** @maxItems 500 */
+  tasks: RunPreparationTask[];
+}
+
+export interface RunPreparationTaskUpdateInput {
+  commandId: string;
+  /**
+     * @minimum 0
+     * @maximum 9007199254740991
+     */
+  expectedRevision: number;
+  status: RunPreparationTaskStatus;
+}
+
+export type RunPreparationTaskUpdateResultOutcome = typeof RunPreparationTaskUpdateResultOutcome[keyof typeof RunPreparationTaskUpdateResultOutcome];
+
+
+export const RunPreparationTaskUpdateResultOutcome = {
+  accepted: 'accepted',
+} as const;
+
+export interface RunPreparationTaskUpdateResult {
+  outcome: RunPreparationTaskUpdateResultOutcome;
+  replayed: boolean;
+  task: RunPreparationTask;
+}
+
+export interface RunPreparationTaskConflict {
+  error: string;
+  current: RunPreparationTask;
 }
 
 export type RunQualityCheckTargetCheckType = typeof RunQualityCheckTargetCheckType[keyof typeof RunQualityCheckTargetCheckType];

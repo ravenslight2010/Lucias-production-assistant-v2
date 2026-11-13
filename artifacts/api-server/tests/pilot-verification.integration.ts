@@ -401,10 +401,10 @@ test("development pilot check verifies auth, line timer, station counts, invento
       facilityId,
       name: "Automatic inventory verification run",
       targetCases: 2,
-      status: "completed",
+      status: "running",
       revision: 1,
       productSnapshot: {
-        id: "pilot-inventory-profile",
+        id: randomUUID(),
         brand: "Pilot",
         flavor: "Inventory fixture",
         revision: 1,
@@ -454,6 +454,15 @@ test("development pilot check verifies auth, line timer, station counts, invento
           ],
           batchPreparation: [],
           preparation: [],
+          preparationItems: [{
+            id: "pull_pilot-test-item",
+            name: "Pilot premix",
+            instruction: "Move from freezer to cooler",
+            source: "Synthetic premix workbook · Prep sheet · row 12",
+            sourceRow: 12,
+            sourceColumn: "C",
+            daysEarly: 2,
+          }],
           packaging: [],
           issues: [],
         },
@@ -463,6 +472,82 @@ test("development pilot check verifies auth, line timer, station counts, invento
       createdBy: actorId,
     })
     .returning({ id: productionRunsTable.id });
+  const pullTasksPath = `/v2/runs/${inventoryRun.id}/preparation-tasks`;
+  const pullTasksInitialResponse = await request(pullTasksPath);
+  assert.equal(pullTasksInitialResponse.status, 200);
+  const pullTasksInitial = await pullTasksInitialResponse.json() as {
+    tasks: Array<{ id: string; status: string; revision: number; daysEarly: number | null }>;
+  };
+  assert.deepEqual(pullTasksInitial.tasks, [{
+    id: "pull_pilot-test-item",
+    name: "Pilot premix",
+    instruction: "Move from freezer to cooler",
+    source: "Synthetic premix workbook · Prep sheet · row 12",
+    sourceRow: 12,
+    sourceColumn: "C",
+    daysEarly: 2,
+    status: "not_started",
+    revision: 0,
+    updatedAt: null,
+  }]);
+  const pullCommandId = randomUUID();
+  const pullUpdate = {
+    commandId: pullCommandId,
+    expectedRevision: 0,
+    status: "in_progress",
+  };
+  const pullStartedResponse = await request(`${pullTasksPath}/pull_pilot-test-item`, {
+    method: "PATCH",
+    body: JSON.stringify(pullUpdate),
+  });
+  assert.equal(pullStartedResponse.status, 200);
+  const pullStarted = await pullStartedResponse.json() as {
+    replayed: boolean;
+    task: { id: string; status: string; revision: number; updatedAt: string };
+  };
+  assert.equal(pullStarted.replayed, false);
+  assert.equal(pullStarted.task.id, "pull_pilot-test-item");
+  assert.equal(pullStarted.task.status, "in_progress");
+  assert.equal(pullStarted.task.revision, 1);
+  assert.ok(Number.isFinite(Date.parse(pullStarted.task.updatedAt)));
+  const pullReplayResponse = await request(`${pullTasksPath}/pull_pilot-test-item`, {
+    method: "PATCH",
+    body: JSON.stringify(pullUpdate),
+  });
+  assert.equal(pullReplayResponse.status, 200);
+  const pullReplay = await pullReplayResponse.json() as {
+    replayed: boolean;
+    task: { status: string; revision: number };
+  };
+  assert.equal(pullReplay.replayed, true);
+  const pullCompletedResponse = await request(`${pullTasksPath}/pull_pilot-test-item`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      commandId: randomUUID(),
+      expectedRevision: 1,
+      status: "completed",
+    }),
+  });
+  assert.equal(pullCompletedResponse.status, 200);
+  const pullCompleted = await pullCompletedResponse.json() as {
+    task: { status: string; revision: number };
+  };
+  assert.equal(pullCompleted.task.status, "completed");
+  assert.equal(pullCompleted.task.revision, 2);
+  const stalePullUpdate = await request(`${pullTasksPath}/pull_pilot-test-item`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      commandId: randomUUID(),
+      expectedRevision: 0,
+      status: "not_started",
+    }),
+  });
+  assert.equal(stalePullUpdate.status, 409);
+  await db
+    .update(productionRunsTable)
+    .set({ status: "completed" })
+    .where(eq(productionRunsTable.id, inventoryRun.id));
+
   const qualityMeasurementResponse = await request(
     `/v2/runs/${inventoryRun.id}/quality-checks`,
     {

@@ -30,6 +30,11 @@ import {
   GetRunResponse,
   GetRunStationProgressParams,
   GetRunStationProgressResponse,
+  GetRunPreparationTasksParams,
+  GetRunPreparationTasksResponse,
+  UpdateRunPreparationTaskParams,
+  UpdateRunPreparationTaskBody,
+  UpdateRunPreparationTaskResponse,
   GetRunQualityChecksParams,
   GetRunQualityChecksResponse,
   RecordRunQualityMeasurementsParams,
@@ -102,6 +107,10 @@ import {
   updateRunStationProgress,
   updateRunStationCount,
 } from "../lib/run-station-progress-service";
+import {
+  getRunPreparationTasks,
+  updateRunPreparationTask,
+} from "../lib/run-preparation-service";
 import {
   adjustFacilityInventory,
   confirmRunInventoryUsage,
@@ -1477,6 +1486,55 @@ router.get(
       runId: params.data.runId,
     });
     res.json(GetRunStationProgressResponse.parse(progress));
+  },
+);
+
+router.get(
+  "/v2/runs/:runId/preparation-tasks",
+  requireV2Session,
+  async (req, res): Promise<void> => {
+    const params = GetRunPreparationTasksParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: "Invalid run identifier." });
+      return;
+    }
+    const access = await membershipOrRespond(req, res);
+    if (!access) return;
+    const result = await getRunPreparationTasks({
+      facilityId: access.membership.facilityId,
+      runId: params.data.runId,
+    });
+    res.json(GetRunPreparationTasksResponse.parse(result));
+  },
+);
+
+router.patch(
+  "/v2/runs/:runId/preparation-tasks/:taskId",
+  requireV2Session,
+  requireV2Csrf,
+  mutationRateLimit,
+  async (req, res): Promise<void> => {
+    const params = UpdateRunPreparationTaskParams.safeParse(req.params);
+    const update = UpdateRunPreparationTaskBody.safeParse(req.body);
+    if (!params.success || !update.success) {
+      res.status(400).json({ error: "Invalid preparation pull update." });
+      return;
+    }
+    const access = await membershipOrRespond(req, res);
+    if (!access) return;
+    assertRunPermission(access.membership.role, "update_station_progress");
+    const result = await updateRunPreparationTask({
+      facilityId: access.membership.facilityId,
+      actorUserId: access.actorId,
+      runId: params.data.runId,
+      taskId: params.data.taskId,
+      update: update.data,
+    });
+    if (result.outcome === "conflict") {
+      res.status(409).json(result);
+      return;
+    }
+    res.json(UpdateRunPreparationTaskResponse.parse(result));
   },
 );
 

@@ -1474,6 +1474,15 @@ test("independent signed-in sessions share canonical revisions and safe retries"
   ]);
   assert.equal(concurrentCreates[0].run.id, concurrentCreates[1].run.id);
   assert.equal(concurrentCreates.filter((result) => result.replayed).length, 1);
+  const concurrentFacilityRuns = await db
+    .select()
+    .from(productionRunsTable)
+    .where(eq(productionRunsTable.facilityId, facility.id));
+  assert.equal(
+    concurrentFacilityRuns.filter((run) => run.name === "Concurrent synthetic run").length,
+    1,
+    "simultaneous create retries must persist only one run",
+  );
 
   const startCommand = {
     commandId: `start-${randomUUID()}`,

@@ -9,6 +9,7 @@ import {
 } from '@workspace/api-client-react';
 import type { RunInventoryUsageEntry, RunStatus } from '@workspace/api-client-react';
 import { Link } from 'wouter';
+import { findInventoryShortages } from '@/run-inventory-shortage';
 import './run-inventory-usage.css';
 
 function fmt(value: number | null) {
@@ -46,6 +47,7 @@ export function RunInventoryUsagePanel({
   const [formError, setFormError] = useState('');
   const usage = usageQuery.data;
   const eligible = useMemo(() => usage?.items.filter(isApplicable) ?? [], [usage]);
+  const shortages = useMemo(() => findInventoryShortages(eligible, actuals), [eligible, actuals]);
 
   useEffect(() => {
     setActuals({});
@@ -156,6 +158,20 @@ export function RunInventoryUsagePanel({
                   })}</tbody>
                 </table>
               </div>
+              {shortages.length > 0 && (
+                <div className="run-inventory-shortage" role="status" aria-live="polite" data-testid="warning-inventory-shortage">
+                  <CircleAlert size={17} aria-hidden="true" />
+                  <div>
+                    <strong>Entered use is higher than current stock.</strong>
+                    <ul>{shortages.map((item) => (
+                      <li key={`${item.ingredientName}-${item.unit}`}>
+                        {item.ingredientName}: {fmt(item.enteredUse)} {item.unit} entered, {fmt(item.onHand)} {item.unit} on hand ({fmt(item.shortage)} {item.unit} short).
+                      </li>
+                    ))}</ul>
+                    <p>Confirming will record stock below zero. Stock may change before you save.</p>
+                  </div>
+                </div>
+              )}
               {formError && <p className="field-help run-usage-error" role="alert">{formError}</p>}
               {confirm.isError && <p className="field-help run-usage-error" role="alert">{errText(confirm.error)}</p>}
               {!usage.reconciliation && usage.canConfirm && (

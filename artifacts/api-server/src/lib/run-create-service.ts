@@ -31,13 +31,16 @@ function setupHash(setupSnapshot: RunSetupSnapshot) {
     .digest("hex");
 }
 
-async function getReplay(input: {
-  facilityId: string;
-  actorUserId: string;
-  requestId: string;
-  requestHash: string;
-}) {
-  const [receipt] = await db
+async function getReplay(
+  query: Pick<typeof db, "select">,
+  input: {
+    facilityId: string;
+    actorUserId: string;
+    requestId: string;
+    requestHash: string;
+  },
+) {
+  const [receipt] = await query
     .select()
     .from(runCreateReceiptsTable)
     .where(
@@ -52,7 +55,7 @@ async function getReplay(input: {
   if (receipt.requestHash !== input.requestHash) {
     throw new HttpError(409, "This request ID was already used for different run details.");
   }
-  const [run] = await db
+  const [run] = await query
     .select()
     .from(productionRunsTable)
     .where(
@@ -74,12 +77,17 @@ export async function createPlannedRun(input: {
 }) {
   const requestHash = setupHash(input.setupSnapshot);
   const replayInput = { ...input, requestHash };
-  const replay = await getReplay(replayInput);
+  const replay = await getReplay(db, replayInput);
   if (replay) return replay;
 
   try {
     return await db.transaction(async (tx) => {
       await lockProfileNames(tx, input.facilityId);
+      // Re-check after acquiring the facility lock. A simultaneous retry may
+      // have committed its receipt while this request was waiting for the lock.
+      const concurrentReplay = await getReplay(tx, replayInput);
+      if (concurrentReplay) return concurrentReplay;
+
       const profileId = input.setupSnapshot.productProfileId ?? null;
       const [productProfile] = profileId
         ? await tx.select().from(facilityProductProfilesTable).where(and(
@@ -147,8 +155,8 @@ export async function createPlannedRun(input: {
       "code" in error &&
       error.code === "23505"
     ) {
-      const concurrentReplay = await getReplay(replayInput);
-      if (concurrentReplay) return concurrentReplay;
+      const committedReplay = await getReplay(db, replayInput);
+      if (committedReplay) return committedReplay;
     }
     throw error;
   }

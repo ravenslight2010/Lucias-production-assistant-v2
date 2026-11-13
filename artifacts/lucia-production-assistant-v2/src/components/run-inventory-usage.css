@@ -9,6 +9,11 @@
 .run-inventory-confirmed span { color: hsl(var(--muted-foreground)); font-size: 11px; }
 .run-inventory-blocked { background: #fbf1e3; color: #6d4a22; }
 .dark .run-inventory-blocked { background: #413422; color: #ecd1a7; }
+.run-inventory-shortage { display: flex; align-items: flex-start; gap: 9px; padding: 11px 12px; border: 1px solid #d7a54c; border-radius: 8px; background: #fff8e8; color: #684512; font-size: 12px; line-height: 1.5; }
+.dark .run-inventory-shortage { border-color: #8f6c35; background: #302819; color: #f1d8a5; }
+.run-inventory-shortage > svg { flex: 0 0 auto; margin-top: 1px; }
+.run-inventory-shortage ul { margin: 5px 0; padding-left: 18px; }
+.run-inventory-shortage p { margin: 5px 0 0; color: inherit; }
 .run-usage-table-wrap { overflow-x: auto; }
 .run-usage-table { width: 100%; min-width: 720px; border-collapse: collapse; font-size: 12px; }
 .run-usage-table th, .run-usage-table td { padding: 9px 8px; border-bottom: 1px solid hsl(var(--border)); text-align: right; vertical-align: top; white-space: nowrap; font-family: var(--app-font-mono); }

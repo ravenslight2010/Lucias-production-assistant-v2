@@ -58,6 +58,7 @@ import type {
   RunList,
   RunRequirementsInput,
   RunRequirementsPlan,
+  RunStationCountUpdate,
   RunStationProgressConflict,
   RunStationProgressList,
   RunStationProgressUpdate,
@@ -2281,6 +2282,95 @@ export const useUpdateRunStationProgress = <TError = ErrorType<BadRequestRespons
         TContext
       > => {
       return useMutation(getUpdateRunStationProgressMutationOptions(options));
+    }
+
+export const getUpdateRunStationCountUrl = (runId: string,
+    stationId: string,) => {
+
+
+
+
+  return `/api/v2/runs/${runId}/stations/${stationId}/count`
+}
+
+/**
+ * @summary Update completed case count at a run station
+ */
+export const updateRunStationCount = async (runId: string,
+    stationId: string,
+    runStationCountUpdate: RunStationCountUpdate, options?: Parameters<typeof customFetch>[1]): Promise<RunStationProgressList> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<RunStationProgressList>(getUpdateRunStationCountUrl(runId,stationId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(runStationCountUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateRunStationCountMutationKey = () => ['updateRunStationCount'] as const;
+
+export const getUpdateRunStationCountMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRunStationCount>>, TError,UpdateRunStationCountMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateRunStationCount>>, TError,UpdateRunStationCountMutationVariables, TContext> => {
+
+const mutationKey = getUpdateRunStationCountMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateRunStationCount>>, UpdateRunStationCountMutationVariables> = (props) => {
+          const {runId,stationId,data} = props ?? {};
+
+          return  updateRunStationCount(runId,stationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateRunStationCountMutationResult = NonNullable<Awaited<ReturnType<typeof updateRunStationCount>>>
+    export type UpdateRunStationCountMutationBody = BodyType<RunStationCountUpdate>
+    export type UpdateRunStationCountMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+    export type UpdateRunStationCountMutationVariables = {runId: string;stationId: string;data: BodyType<RunStationCountUpdate>}
+
+    /** @summary Update completed case count at a run station */
+export const useUpdateRunStationCount = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRunStationCount>>, TError,UpdateRunStationCountMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateRunStationCount>>,
+        TError,
+        UpdateRunStationCountMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateRunStationCountMutationOptions(options));
     }
 
 export const getGetDashboardSummaryUrl = () => {

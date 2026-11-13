@@ -1,5 +1,12 @@
 import { createHash } from "node:crypto";
-import type { RunRequirementsPlan, RunPlanningOptions, RunRequirementItem, RunRecipeChoice, RunBatchColumn } from "@workspace/api-zod";
+import type {
+  FacilityStationArea,
+  RunRequirementsPlan,
+  RunPlanningOptions,
+  RunRequirementItem,
+  RunRecipeChoice,
+  RunBatchColumn,
+} from "@workspace/api-zod";
 import type { NameRule } from "@workspace/db/schema";
 import { resolveName, nameKey } from "./name-resolution";
 import { HttpError } from "./http-error";
@@ -27,6 +34,8 @@ const round = (n: number) => {
   if (!Number.isFinite(n) || Math.abs(n) > 1e9) throw new HttpError(400, "The requested quantities exceed the supported planning range. Use a smaller run.");
   return Number(n.toFixed(6));
 };
+export { calculateRunRequirementsProgress } from "./run-requirements-progress";
+export type { RunRequirementsProgress } from "./run-requirements-progress";
 const unit = (v: unknown): string | null => {
   const s = text(v).toLowerCase().trim();
   if (/\b(?:fluid|fl\.?\s*oz|quart|qt|gallon)\b/.test(s)) return null;
@@ -215,6 +224,7 @@ export function buildRunRequirements(profile: Profile, targetCases: number, opti
       id: itemId, name: recipe?.choice.name ?? displayName, originalName,
       source: `${selected.source} · ${text(selected.raw.sheet)} row ${raw.sourceRow ?? "?"}`,
       station: recipe?.choice.kind === "dough_guide" || recipe?.choice.kind === "sauce_guide" ? "Dough & sauce preparation" : "Production line",
+      stationArea: recipe?.choice.kind === "dough_guide" || recipe?.choice.kind === "sauce_guide" ? "dough_sauce_prep" : "production_line",
       amountChoices: amounts, amountColumn: amount?.column ?? null, usageUnit, perPizza, totalRequired,
       recipeId: recipe?.choice.id ?? null, directIngredient: link?.directIngredient === true,
       batchColumn: batch?.column ?? null, batchUnit: batch?.unit ?? null, batchYield: batch?.yield ?? null,

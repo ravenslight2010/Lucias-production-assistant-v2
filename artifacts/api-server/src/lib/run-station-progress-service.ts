@@ -7,11 +7,13 @@ import {
   runCommandReceiptsTable,
   runStationProgressTable,
 } from "@workspace/db";
+import type { RunRequirementsPlan } from "@workspace/api-zod";
 import type {
   RunStationProgress as DbRunStationProgress,
 } from "@workspace/db";
 import { HttpError } from "./http-error";
 import { DEFAULT_FACILITY_STATIONS } from "./facility-stations";
+import { calculateRunRequirementsProgress } from "./run-requirements";
 import {
   buildRunStationProgressRows,
   stationStatusForRun,
@@ -88,13 +90,15 @@ function toProgressItem(
     status: stationStatusForRun(runStatus),
     producedCount: row.producedCount,
     preparationStatus: row.preparationStatus as RunStationPreparationStatus,
+    completedCases: row.completedCases,
+    countUpdatedAt: row.countUpdatedAt?.toISOString() ?? null,
     revision: row.revision,
     updatedAt: row.updatedAt?.toISOString() ?? null,
   };
 }
 
 async function rowsForRun(
-  query: typeof db,
+  query: Pick<typeof db, "select">,
   runId: string,
 ): Promise<DbRunStationProgress[]> {
   return query
@@ -125,9 +129,40 @@ function currentLineup(
     status: displayStatus,
     producedCount: row.producedCount,
     preparationStatus: row.preparationStatus,
+    completedCases: row.completedCases,
+    countUpdatedAt: null,
     revision: row.revision,
     updatedAt: row.updatedAt?.toISOString() ?? null,
   }));
+}
+
+function capturedRequirements(snapshot: unknown): RunRequirementsPlan | null {
+  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) return null;
+  const runRequirements = (snapshot as Record<string, unknown>).runRequirements;
+  if (runRequirements === undefined || runRequirements === null) return null;
+  if (
+    !runRequirements ||
+    typeof runRequirements !== "object" ||
+    Array.isArray(runRequirements) ||
+    !Array.isArray((runRequirements as Record<string, unknown>).items) ||
+    !Array.isArray((runRequirements as Record<string, unknown>).batchPreparation) ||
+    typeof (runRequirements as Record<string, unknown>).targetCases !== "number"
+  ) {
+    throw new Error("The captured run requirements are malformed.");
+  }
+  return runRequirements as RunRequirementsPlan;
+}
+
+function requirementsForProgress(
+  snapshot: unknown,
+  stations: Array<{
+    area: FacilityStationArea;
+    completedCases: number;
+    recorded: boolean;
+  }>,
+) {
+  const plan = capturedRequirements(snapshot);
+  return plan ? calculateRunRequirementsProgress(plan, stations) : null;
 }
 
 async function activeFacilityStations(facilityId: string) {
@@ -147,6 +182,8 @@ export async function getRunStationProgress(input: {
     .select({
       id: productionRunsTable.id,
       status: productionRunsTable.status,
+      targetCases: productionRunsTable.targetCases,
+      productSnapshot: productionRunsTable.productSnapshot,
       startedAt: productionRunsTable.startedAt,
       pausedAt: productionRunsTable.pausedAt,
       resumedAt: productionRunsTable.resumedAt,
@@ -166,10 +203,22 @@ export async function getRunStationProgress(input: {
     return {
       initialized: true,
       stations: rows.map((row) => toProgressItem(row, run.status)),
+      currentRequirements: requirementsForProgress(
+        run.productSnapshot,
+        rows.map((row) => ({
+          area: row.stationArea as FacilityStationArea,
+          completedCases: row.completedCases,
+          recorded: row.countUpdatedAt !== null,
+        })),
+      ),
     };
   }
   if (run.status === "completed") {
-    return { initialized: false, stations: [] };
+    return {
+      initialized: false,
+      stations: [],
+      currentRequirements: requirementsForProgress(run.productSnapshot, []),
+    };
   }
 
   const stations = await activeFacilityStations(input.facilityId);
@@ -182,9 +231,16 @@ export async function getRunStationProgress(input: {
   return {
     initialized: false,
     stations: currentLineup(stations, run.status, updatedAt),
+    currentRequirements: requirementsForProgress(
+      run.productSnapshot,
+      currentLineup(stations, run.status, updatedAt).map((station) => ({
+        area: station.area,
+        completedCases: station.completedCases,
+        recorded: station.countUpdatedAt !== null,
+      })),
+    ),
   };
 }
-
 export async function updateRunStationProgress(input: {
   facilityId: string;
   actorUserId: string;
@@ -356,5 +412,105 @@ export async function updateRunStationProgress(input: {
       result,
     });
     return result;
+  });
+}
+
+export async function updateRunStationCount(input: {
+  facilityId: string;
+  actorUserId: string;
+  runId: string;
+  stationId: string;
+  expectedRevision: number;
+  completedCases: number;
+}): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [run] = await tx
+      .select({
+        id: productionRunsTable.id,
+        status: productionRunsTable.status,
+        revision: productionRunsTable.revision,
+        targetCases: productionRunsTable.targetCases,
+        startedAt: productionRunsTable.startedAt,
+        pausedAt: productionRunsTable.pausedAt,
+        resumedAt: productionRunsTable.resumedAt,
+      })
+      .from(productionRunsTable)
+      .where(
+        and(
+          eq(productionRunsTable.id, input.runId),
+          eq(productionRunsTable.facilityId, input.facilityId),
+        ),
+      )
+      .for("update")
+      .limit(1);
+    if (!run) throw new HttpError(404, "Run not found.");
+    if (run.status === "completed") {
+      throw new HttpError(409, "Completed runs cannot accept station count changes.");
+    }
+    if (input.completedCases > run.targetCases) {
+      throw new HttpError(400, "A station count cannot exceed this run's target cases.");
+    }
+
+    let rows = await rowsForRun(tx, run.id);
+    if (rows.length === 0) {
+      const [layout] = await tx
+        .select({ stations: facilityStationLayoutsTable.stations })
+        .from(facilityStationLayoutsTable)
+        .where(eq(facilityStationLayoutsTable.facilityId, input.facilityId))
+        .limit(1);
+      const updatedAt =
+        run.status === "paused"
+          ? run.pausedAt
+          : run.status === "running"
+            ? run.resumedAt ?? run.startedAt
+            : null;
+      const stationRows = buildRunStationProgressRows(
+        run.id,
+        layout?.stations ?? DEFAULT_FACILITY_STATIONS,
+        {
+          status: storedStationStatusForRun(run.status),
+          revision: run.revision,
+          updatedAt,
+        },
+      );
+      if (stationRows.length > 0) {
+        await tx
+          .insert(runStationProgressTable)
+          .values(stationRows)
+          .onConflictDoNothing();
+      }
+      rows = await rowsForRun(tx, run.id);
+    }
+
+    const current = rows.find((row) => row.stationId === input.stationId);
+    if (!current) throw new HttpError(404, "Station not found in this run.");
+    if (current.revision !== input.expectedRevision) {
+      throw new HttpError(409, "Station progress changed on another device. Refresh before saving.");
+    }
+    if (current.revision >= Number.MAX_SAFE_INTEGER) {
+      throw new HttpError(409, "Station progress revision is outside the supported range.");
+    }
+
+    const now = new Date();
+    const [updated] = await tx
+      .update(runStationProgressTable)
+      .set({
+        completedCases: input.completedCases,
+        countUpdatedAt: now,
+        updatedAt: now,
+        updatedBy: input.actorUserId,
+        revision: current.revision + 1,
+      })
+      .where(
+        and(
+          eq(runStationProgressTable.runId, run.id),
+          eq(runStationProgressTable.stationId, input.stationId),
+          eq(runStationProgressTable.revision, input.expectedRevision),
+        ),
+      )
+      .returning({ stationId: runStationProgressTable.stationId });
+    if (!updated) {
+      throw new HttpError(409, "Station progress changed on another device. Refresh before saving.");
+    }
   });
 }

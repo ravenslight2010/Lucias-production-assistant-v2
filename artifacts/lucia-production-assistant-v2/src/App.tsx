@@ -628,12 +628,13 @@ function RunDetailPage() {
               </>
               : <div className="notice" role="status">No product profile snapshot was attached when this run was created. The run setup remains unchanged.</div>}
           </section>
-          {run.productSnapshot?.runRequirements && <RunRequirementsSummary plan={run.productSnapshot.runRequirements} runId={run.id} />}
+          {run.productSnapshot?.runRequirements && <RunRequirementsSummary plan={run.productSnapshot.runRequirements} runId={run.id} online={online} />}
           {!run.productSnapshot?.runRequirements && <div className="notice" role="status">This run has no captured requirements plan. Its original snapshot has not been changed.</div>}
           <RunStationProgressSection
             runId={run.id}
             run={run}
             online={online}
+            targetCases={run.setupSnapshot.targetCases}
           />
           {command.isPending && <div className="notice" role="status"><LoaderCircle size={15} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />Sending the revision-checked command. Wait for confirmation before leaving this page.</div>}
         </>}

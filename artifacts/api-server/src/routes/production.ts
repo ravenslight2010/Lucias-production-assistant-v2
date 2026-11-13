@@ -54,6 +54,9 @@ import {
   RenameProductProfileBody,
   RenameProductProfileParams,
   RenameProductProfileResponse,
+  UpdateRunStationCountBody,
+  UpdateRunStationCountParams,
+  UpdateRunStationCountResponse,
 } from "@workspace/api-zod";
 import {
   db,
@@ -82,6 +85,7 @@ import { executeRunCommand } from "../lib/run-command-service";
 import {
   getRunStationProgress,
   updateRunStationProgress,
+  updateRunStationCount,
 } from "../lib/run-station-progress-service";
 import { createPlannedRun } from "../lib/run-create-service";
 import { buildRunRequirements } from "../lib/run-requirements";
@@ -1434,6 +1438,38 @@ router.patch(
       return;
     }
     res.json(UpdateRunStationProgressResponse.parse(result));
+  },
+);
+
+router.put(
+  "/v2/runs/:runId/stations/:stationId/count",
+  requireV2Session,
+  requireV2Csrf,
+  mutationRateLimit,
+  async (req, res): Promise<void> => {
+    const params = UpdateRunStationCountParams.safeParse(req.params);
+    const body = UpdateRunStationCountBody.safeParse(req.body);
+    if (!params.success || !body.success) {
+      res.status(400).json({ error: "Enter a whole completed-case count and the current station revision." });
+      return;
+    }
+    const access = await membershipOrRespond(req, res);
+    if (!access) return;
+    assertRunPermission(access.membership.role, "update_station_progress");
+
+    await updateRunStationCount({
+      facilityId: access.membership.facilityId,
+      actorUserId: access.actorId,
+      runId: params.data.runId,
+      stationId: params.data.stationId,
+      expectedRevision: body.data.expectedRevision,
+      completedCases: body.data.completedCases,
+    });
+    const progress = await getRunStationProgress({
+      facilityId: access.membership.facilityId,
+      runId: params.data.runId,
+    });
+    res.json(UpdateRunStationCountResponse.parse(progress));
   },
 );
 

@@ -44,6 +44,14 @@
 .rr-totals small, .rr-figures small { color: hsl(var(--muted-foreground)); font: 10px var(--app-font-mono); overflow-wrap: anywhere; }
 .rr-figures .rr-emph { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
 .rr-figures .rr-emph dt { color: hsl(var(--primary-foreground) / .8); }
+.rr-live-progress { display: grid; gap: 10px; padding: 13px; border: 1px solid hsl(var(--primary) / .2); border-radius: 10px; background: hsl(var(--primary) / .035); }
+.rr-live-progress h4 { margin: 0; font-size: 13px; }
+.rr-live-progress p { margin: 4px 0 0; line-height: 1.5; }
+.rr-live-area-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 155px), 1fr)); gap: 8px; }
+.rr-live-area-grid > div { display: grid; gap: 3px; min-width: 0; padding: 9px 10px; border-radius: 8px; background: hsl(var(--card)); }
+.rr-live-area-grid span { color: hsl(var(--muted-foreground)); font-size: 10px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; }
+.rr-live-area-grid strong { font: 600 12px/1.35 var(--app-font-mono); overflow-wrap: anywhere; }
+.rr-live-area-grid small { color: hsl(var(--muted-foreground)); font-size: 10px; }
 .rr-station h4 { display: flex; align-items: center; gap: 10px; margin: 6px 0 9px; font: 700 13px var(--app-font-display); text-transform: uppercase; letter-spacing: .06em; }
 .rr-station h4:after { content: ''; flex: 1; height: 1px; background: hsl(var(--border)); }
 .rr-lines { display: grid; gap: 10px; }

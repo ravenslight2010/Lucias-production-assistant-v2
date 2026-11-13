@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CircleAlert, ClipboardList, LoaderCircle, Printer, RefreshCw, RotateCcw, WifiOff } from 'lucide-react';
-import { previewRunRequirements, RunRecipeLinkUsageUnit } from '@workspace/api-client-react';
+import {
+  getGetRunStationProgressQueryKey,
+  previewRunRequirements,
+  RunRecipeLinkUsageUnit,
+  useGetRunStationProgress,
+} from '@workspace/api-client-react';
 import type {
+  FacilityStationArea,
   RunPlanningOptions,
   RunPlanningReview,
   RunRecipeLink,
@@ -381,11 +387,25 @@ function IssueList({ issues, label }: { issues: string[]; label: string }) {
 /* Summary (no network)                                                */
 /* ------------------------------------------------------------------ */
 
-export function RunRequirementsSummary({ plan, runId, previewLabel }: {
+export function RunRequirementsSummary({ plan, runId, online = true, previewLabel }: {
   plan: RunRequirementsPlan;
   runId?: string;
+  online?: boolean;
   previewLabel?: string;
 }) {
+  const progressQuery = useGetRunStationProgress(runId ?? '', {
+    query: {
+      queryKey: getGetRunStationProgressQueryKey(runId ?? ''),
+      enabled: Boolean(runId),
+      refetchInterval: runId && online ? 5_000 : false,
+    },
+    request: { credentials: 'include' },
+  });
+  const currentRequirements = progressQuery.data?.currentRequirements ?? null;
+  const progressById = useMemo(
+    () => new Map(currentRequirements?.items.map((item) => [item.id, item]) ?? []),
+    [currentRequirements],
+  );
   const section = plan.sections.find((s) => s.id === plan.sectionId) ?? null;
   const recipesById = useMemo(() => new Map(plan.recipes.map((r) => [r.id, r])), [plan.recipes]);
   const byStation = useMemo(() => {
@@ -424,12 +444,48 @@ export function RunRequirementsSummary({ plan, runId, previewLabel }: {
       </dl>
 
       {plan.issues.length > 0 && <IssueList issues={plan.issues} label="Plan issues" />}
+      {runId && (
+        <section className="rr-live-progress" aria-labelledby="rr-live-progress-title" data-testid="section-rr-live-progress" aria-live="polite">
+          <div>
+            <h4 id="rr-live-progress-title">Live remaining needs</h4>
+            <p className="field-help">Remaining amounts use the captured, reviewed plan. Each area uses the lowest completed-case count reported by its stations, so one station cannot silently reduce another station’s needs. This does not deduct inventory.</p>
+          </div>
+          {progressQuery.isError && !currentRequirements && (
+            <p className="field-help" role="status">Live counts could not be refreshed. The saved source requirements below are unchanged.</p>
+          )}
+          {currentRequirements && (
+            <div className="rr-live-area-grid">
+              {currentRequirements.areas.map((area) => (
+                <div key={area.area}>
+                  <span>{liveAreaLabels[area.area]}</span>
+                  <strong>{area.completedCases === null
+                    ? 'Count unavailable'
+                    : `${fmt(area.completedCases, 0)} / ${fmt(currentRequirements.targetCases, 0)} cases`}</strong>
+                  <small>{area.remainingCases === null
+                    ? 'No station count saved'
+                    : `${fmt(area.remainingCases, 0)} cases remain`}</small>
+                </div>
+              ))}
+            </div>
+          )}
+          {progressQuery.isLoading && !currentRequirements && (
+            <p className="field-help" role="status">Loading saved station counts…</p>
+          )}
+        </section>
+      )}
       <section className="rr-station" aria-label="Per-pizza source requirements">
         <h4>Per-pizza requirements</h4>
         <p className="field-help">Each source amount is preserved. Uses of the exact same selected formula and batch column are combined once in the preparation totals below.</p>
         {plan.items.map(item => <div key={item.id} className="property-row">
           <span>{item.name}<small className="field-help" style={{ display: 'block' }}>{item.source}</small></span>
-          <strong>{fmt(item.perPizza, 6)} {item.usageUnit ?? ''} / pizza · {fmt(item.totalRequired, 6)} {item.usageUnit ?? ''} total</strong>
+          <strong>{fmt(item.perPizza, 6)} {item.usageUnit ?? ''} / pizza · {fmt(item.totalRequired, 6)} {item.usageUnit ?? ''} total
+            {runId && <small className="field-help" style={{ display: 'block' }}>
+              Remaining: {fmt(progressById.get(item.id)?.remainingRequired ?? null, 6)} {item.usageUnit ?? ''}
+              {progressById.get(item.id)?.remainingCases !== null && progressById.get(item.id)?.remainingCases !== undefined
+                ? ` for ${fmt(progressById.get(item.id)?.remainingCases, 0)} cases`
+                : ' · station count unavailable'}
+            </small>}
+          </strong>
         </div>)}
       </section>
 
@@ -440,6 +496,7 @@ export function RunRequirementsSummary({ plan, runId, previewLabel }: {
             {items.map((item) => {
               const unresolved = itemUnresolved(item);
               const recipe = item.recipeId ? recipesById.get(item.recipeId) : undefined;
+              const live = progressById.get(item.id);
               return (
                 <div key={item.id} className={`rr-line${unresolved ? ' is-unresolved' : ''}`} data-testid={`card-rr-line-${item.id}`}>
                   <div className="rr-line-head">
@@ -452,11 +509,17 @@ export function RunRequirementsSummary({ plan, runId, previewLabel }: {
                   <dl className="rr-figures">
                     {!item.id.startsWith('batch:') && <div><dt>Per pizza</dt><dd>{fmt(item.perPizza)} {item.usageUnit ?? ''}</dd>{item.amountColumn && <small>column {item.amountColumn}</small>}</div>}
                     <div><dt>Exact demand</dt><dd>{fmt(item.totalRequired)} {item.usageUnit ?? ''}</dd></div>
+                    {runId && <div><dt>Remaining demand</dt><dd>{fmt(live?.remainingRequired ?? null)} {item.usageUnit ?? ''}</dd><small>{live?.remainingCases === null || live?.remainingCases === undefined ? 'Station count unavailable' : `For ${fmt(live.remainingCases, 0)} remaining cases`}</small></div>}
                     {!item.directIngredient && <>
                       <div><dt>Batch yield</dt><dd>{fmt(item.batchYield)} {item.batchUnit ?? ''}</dd>{recipe && <small>{recipe.name}</small>}</div>
                       <div><dt>Batches (exact)</dt><dd>{fmt(item.batchesExact)}</dd></div>
                       <div className="rr-emph"><dt>Whole batches to prepare</dt><dd>{fmt(item.wholeBatches, 0)}</dd></div>
                       <div><dt>Overage after rounding</dt><dd>{fmt(item.remainder)} {item.batchUnit ?? ''}</dd></div>
+                      {runId && <>
+                        <div><dt>Remaining batches</dt><dd>{fmt(live?.remainingBatchesExact ?? null)}</dd></div>
+                        <div className="rr-emph"><dt>Whole batches remaining</dt><dd>{fmt(live?.remainingWholeBatches ?? null, 0)}</dd></div>
+                        <div><dt>Remaining overage</dt><dd>{fmt(live?.remainingRemainder ?? null)} {item.batchUnit ?? ''}</dd></div>
+                      </>}
                     </>}
                   </dl>
                   {unresolved ? (
@@ -471,15 +534,19 @@ export function RunRequirementsSummary({ plan, runId, previewLabel }: {
                         <div className="rr-table-wrap">
                           <table className="rr-table">
                             <caption className="sr-only">Ingredients for {item.name}</caption>
-                            <thead><tr><th scope="col">Ingredient</th><th scope="col">Per batch</th><th scope="col">Exact demand</th><th scope="col">Whole-batch prep</th></tr></thead>
+                            <thead><tr><th scope="col">Ingredient</th><th scope="col">Per batch</th><th scope="col">Exact demand</th><th scope="col">Whole-batch prep</th>{runId && <><th scope="col">Remaining exact</th><th scope="col">Remaining whole-batch prep</th></>}</tr></thead>
                             <tbody>
                               {item.ingredients.map((ing, i) => (
-                                <tr key={`${ing.name}-${i}`}>
-                                  <th scope="row">{ing.name}</th>
-                                  <td>{fmt(ing.perBatch)} {ing.unit}</td>
-                                  <td>{fmt(ing.exactRequired)} {ing.unit}</td>
-                                  <td><strong>{fmt(ing.wholeBatchRequired)} {ing.unit}</strong></td>
-                                </tr>
+                                (() => {
+                                  const remaining = live?.remainingIngredients[i];
+                                  return <tr key={`${ing.name}-${i}`}>
+                                    <th scope="row">{ing.name}</th>
+                                    <td>{fmt(ing.perBatch)} {ing.unit}</td>
+                                    <td>{fmt(ing.exactRequired)} {ing.unit}</td>
+                                    <td><strong>{fmt(ing.wholeBatchRequired)} {ing.unit}</strong></td>
+                                    {runId && <><td>{fmt(remaining?.exactRequired ?? null)} {ing.unit}</td><td><strong>{fmt(remaining?.wholeBatchRequired ?? null)} {ing.unit}</strong></td></>}
+                                  </tr>;
+                                })()
                               ))}
                             </tbody>
                           </table>
@@ -515,3 +582,10 @@ export function RunRequirementsSummary({ plan, runId, previewLabel }: {
     </article>
   );
 }
+
+const liveAreaLabels: Record<FacilityStationArea, string> = {
+  dough_sauce_prep: 'Dough & sauce prep',
+  production_line: 'Production line',
+  freezing_packaging: 'Freezing & packaging',
+  warehouse: 'Warehouse',
+};

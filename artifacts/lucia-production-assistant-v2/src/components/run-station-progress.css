@@ -113,7 +113,7 @@
   min-width: 0;
   min-height: 88px;
   display: grid;
-  grid-template-columns: 34px minmax(145px, .75fr) minmax(270px, 1.4fr);
+  grid-template-columns: 34px minmax(145px, .75fr) minmax(270px, 1.4fr) minmax(90px, 110px) minmax(185px, 220px);
   align-items: center;
   column-gap: 12px;
   row-gap: 5px;
@@ -246,6 +246,87 @@
   font-weight: 600;
 }
 
+.run-station-count {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.run-station-count label {
+  color: hsl(var(--muted-foreground));
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.run-station-count-controls {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.run-station-count input {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 8px;
+  border: 1px solid hsl(var(--input));
+  border-radius: 7px;
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
+  font: 600 12px var(--app-font-mono);
+}
+
+.run-station-count input[aria-invalid="true"] {
+  border-color: hsl(var(--destructive));
+}
+
+.run-station-count input:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.run-station-count .button {
+  min-height: 38px;
+  padding: 0 10px;
+  font-size: 11px;
+}
+
+@media (max-width: 980px) and (min-width: 521px) {
+  .run-station-row {
+    grid-template-columns: 34px minmax(0, 1fr) minmax(90px, 110px) minmax(185px, 220px);
+  }
+
+  .run-station-fields {
+    grid-column: 2 / 5;
+  }
+
+  .run-station-timer {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .run-station-count {
+    grid-column: 2 / 5;
+  }
+}
+
+.run-station-count small,
+.run-station-count-error,
+.run-station-count-success {
+  color: hsl(var(--muted-foreground));
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.run-station-count-error {
+  color: hsl(var(--destructive));
+  font-weight: 650;
+}
+
+.run-station-count-success {
+  color: hsl(154 35% 30%);
+}
+
 .run-station-feedback,
 .run-station-empty {
   display: flex;
@@ -313,7 +394,9 @@
   }
 
   .run-station-fields,
-  .run-station-saved {
+  .run-station-saved,
+  .run-station-timer,
+  .run-station-count {
     grid-column: 2;
   }
 
@@ -324,6 +407,15 @@
   .run-station-save {
     grid-column: 1 / -1;
     justify-content: center;
+  }
+
+  .run-station-count {
+    grid-column: 2;
+    width: min(100%, 360px);
+  }
+
+  .run-station-count-controls {
+    max-width: 250px;
   }
 
   .run-station-feedback {

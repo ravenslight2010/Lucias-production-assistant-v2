@@ -38,6 +38,13 @@ export interface RunStationProgress {
      * @maximum 9007199254740991
      */
   revision: number;
+  /**
+     * @minimum 0
+     * @maximum 2147483647
+     */
+  completedCases: number;
+  /** @nullable */
+  countUpdatedAt: Date | null;
   /** @nullable */
   updatedAt: Date | null;
 }

@@ -27,6 +27,8 @@ export const runStationProgressTable = pgTable(
     status: varchar("status", { length: 16 })
       .notNull()
       .default("not_started"),
+    completedCases: integer("completed_cases").notNull().default(0),
+    countUpdatedAt: timestamp("count_updated_at", { withTimezone: true }),
     producedCount: integer("produced_count").notNull().default(0),
     preparationStatus: varchar("preparation_status", { length: 16 })
       .notNull()
@@ -55,6 +57,10 @@ export const runStationProgressTable = pgTable(
     check(
       "run_station_progress_revision_nonnegative_chk",
       sql`${table.revision} >= 0`,
+    ),
+    check(
+      "run_station_progress_completed_cases_nonnegative_chk",
+      sql`${table.completedCases} >= 0`,
     ),
     check(
       "run_station_progress_order_nonnegative_chk",

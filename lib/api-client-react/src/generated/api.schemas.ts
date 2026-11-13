@@ -175,6 +175,13 @@ export interface RunStationProgress {
      * @maximum 9007199254740991
      */
   revision: number;
+  /**
+     * @minimum 0
+     * @maximum 2147483647
+     */
+  completedCases: number;
+  /** @nullable */
+  countUpdatedAt: string | null;
   /** @nullable */
   updatedAt: string | null;
 }
@@ -212,8 +219,92 @@ export interface RunStationProgressConflict {
   current: RunStationProgress;
 }
 
+export interface RunStationCountUpdate {
+  /**
+     * @minimum 0
+     * @maximum 9007199254740991
+     */
+  expectedRevision: number;
+  /**
+     * @minimum 0
+     * @maximum 2147483647
+     */
+  completedCases: number;
+}
+
+export interface RunRequirementProgressArea {
+  area: FacilityStationArea;
+  /**
+     * @minimum 0
+     * @maximum 50
+     */
+  stationCount: number;
+  /**
+     * @minimum 0
+     * @maximum 2147483647
+     * @nullable
+     */
+  completedCases: number | null;
+  /**
+     * @minimum 0
+     * @maximum 2147483647
+     * @nullable
+     */
+  remainingCases: number | null;
+}
+
+export interface RunIngredientRequirement {
+  name: string;
+  unit: string;
+  perBatch: number;
+  exactRequired: number;
+  wholeBatchRequired: number;
+}
+
+export interface RunRequirementProgressItem {
+  id: string;
+  area: FacilityStationArea | null;
+  /**
+     * @minimum 0
+     * @maximum 2147483647
+     * @nullable
+     */
+  completedCases: number | null;
+  /**
+     * @minimum 0
+     * @maximum 2147483647
+     * @nullable
+     */
+  remainingCases: number | null;
+  /** @nullable */
+  remainingRequired: number | null;
+  /** @nullable */
+  remainingBatchesExact: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  remainingWholeBatches: number | null;
+  /** @nullable */
+  remainingRemainder: number | null;
+  remainingIngredients: RunIngredientRequirement[];
+}
+
+export interface RunRequirementsProgress {
+  /**
+     * @minimum 1
+     * @maximum 1000000
+     */
+  targetCases: number;
+  /** @maxItems 4 */
+  areas: RunRequirementProgressArea[];
+  /** @maxItems 400 */
+  items: RunRequirementProgressItem[];
+}
+
 export interface RunStationProgressList {
   initialized: boolean;
+  currentRequirements: RunRequirementsProgress | null;
   /** @maxItems 50 */
   stations: RunStationProgress[];
 }
@@ -413,14 +504,6 @@ export interface RunRecipeChoice {
   issues: string[];
 }
 
-export interface RunIngredientRequirement {
-  name: string;
-  unit: string;
-  perBatch: number;
-  exactRequired: number;
-  wholeBatchRequired: number;
-}
-
 export type RunRequirementItemAmountChoicesItem = {
   column: string;
   value: string;
@@ -432,6 +515,7 @@ export interface RunRequirementItem {
   originalName: string;
   source: string;
   station: string;
+  stationArea?: FacilityStationArea;
   amountChoices: RunRequirementItemAmountChoicesItem[];
   /** @nullable */
   amountColumn: string | null;

@@ -116,6 +116,7 @@ export const PreviewRunRequirementsResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -148,6 +149,7 @@ export const PreviewRunRequirementsResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -610,6 +612,7 @@ export const ListRunsResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -642,6 +645,7 @@ export const ListRunsResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -914,6 +918,7 @@ export const CreateRunResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -946,6 +951,7 @@ export const CreateRunResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -1339,6 +1345,7 @@ export const ListProductProfilesResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -1371,6 +1378,7 @@ export const ListProductProfilesResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -1553,6 +1561,7 @@ export const ImportProductProfileResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -1585,6 +1594,7 @@ export const ImportProductProfileResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -1772,6 +1782,7 @@ export const RenameProductProfileResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -1804,6 +1815,7 @@ export const RenameProductProfileResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -1962,6 +1974,7 @@ export const MergeProductProfileResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -1994,6 +2007,7 @@ export const MergeProductProfileResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -2213,6 +2227,7 @@ export const GetRunResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -2245,6 +2260,7 @@ export const GetRunResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -2488,6 +2504,7 @@ export const ApplyRunCommandResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -2520,6 +2537,7 @@ export const ApplyRunCommandResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -2573,6 +2591,29 @@ export const GetRunStationProgressParams = zod.object({
   "runId": zod.coerce.string().regex(getRunStationProgressPathRunIdRegExp)
 })
 
+export const getRunStationProgressResponseCurrentRequirementsOneTargetCasesMax = 1000000;
+
+export const getRunStationProgressResponseCurrentRequirementsOneAreasItemStationCountMin = 0;
+export const getRunStationProgressResponseCurrentRequirementsOneAreasItemStationCountMax = 50;
+
+export const getRunStationProgressResponseCurrentRequirementsOneAreasItemCompletedCasesMin = 0;
+export const getRunStationProgressResponseCurrentRequirementsOneAreasItemCompletedCasesMax = 2147483647;
+
+export const getRunStationProgressResponseCurrentRequirementsOneAreasItemRemainingCasesMin = 0;
+export const getRunStationProgressResponseCurrentRequirementsOneAreasItemRemainingCasesMax = 2147483647;
+
+export const getRunStationProgressResponseCurrentRequirementsOneAreasMax = 4;
+
+export const getRunStationProgressResponseCurrentRequirementsOneItemsItemCompletedCasesMin = 0;
+export const getRunStationProgressResponseCurrentRequirementsOneItemsItemCompletedCasesMax = 2147483647;
+
+export const getRunStationProgressResponseCurrentRequirementsOneItemsItemRemainingCasesMin = 0;
+export const getRunStationProgressResponseCurrentRequirementsOneItemsItemRemainingCasesMax = 2147483647;
+
+export const getRunStationProgressResponseCurrentRequirementsOneItemsItemRemainingWholeBatchesMin = 0;
+
+export const getRunStationProgressResponseCurrentRequirementsOneItemsMax = 400;
+
 export const getRunStationProgressResponseStationsItemStationIdMax = 80;
 
 export const getRunStationProgressResponseStationsItemStationNameMax = 80;
@@ -2586,12 +2627,41 @@ export const getRunStationProgressResponseStationsItemProducedCountMax = 2147483
 export const getRunStationProgressResponseStationsItemRevisionMin = 0;
 export const getRunStationProgressResponseStationsItemRevisionMax = 9007199254740991;
 
+export const getRunStationProgressResponseStationsItemCompletedCasesMin = 0;
+export const getRunStationProgressResponseStationsItemCompletedCasesMax = 2147483647;
+
 export const getRunStationProgressResponseStationsMax = 50;
 
 
 
 export const GetRunStationProgressResponse = zod.object({
   "initialized": zod.boolean(),
+  "currentRequirements": zod.union([zod.object({
+  "targetCases": zod.number().int().min(1).max(getRunStationProgressResponseCurrentRequirementsOneTargetCasesMax),
+  "areas": zod.array(zod.object({
+  "area": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']),
+  "stationCount": zod.number().int().min(getRunStationProgressResponseCurrentRequirementsOneAreasItemStationCountMin).max(getRunStationProgressResponseCurrentRequirementsOneAreasItemStationCountMax),
+  "completedCases": zod.number().int().min(getRunStationProgressResponseCurrentRequirementsOneAreasItemCompletedCasesMin).max(getRunStationProgressResponseCurrentRequirementsOneAreasItemCompletedCasesMax).nullable(),
+  "remainingCases": zod.number().int().min(getRunStationProgressResponseCurrentRequirementsOneAreasItemRemainingCasesMin).max(getRunStationProgressResponseCurrentRequirementsOneAreasItemRemainingCasesMax).nullable()
+})).max(getRunStationProgressResponseCurrentRequirementsOneAreasMax),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "area": zod.union([zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']),zod.null()]),
+  "completedCases": zod.number().int().min(getRunStationProgressResponseCurrentRequirementsOneItemsItemCompletedCasesMin).max(getRunStationProgressResponseCurrentRequirementsOneItemsItemCompletedCasesMax).nullable(),
+  "remainingCases": zod.number().int().min(getRunStationProgressResponseCurrentRequirementsOneItemsItemRemainingCasesMin).max(getRunStationProgressResponseCurrentRequirementsOneItemsItemRemainingCasesMax).nullable(),
+  "remainingRequired": zod.number().nullable(),
+  "remainingBatchesExact": zod.number().nullable(),
+  "remainingWholeBatches": zod.number().int().min(getRunStationProgressResponseCurrentRequirementsOneItemsItemRemainingWholeBatchesMin).nullable(),
+  "remainingRemainder": zod.number().nullable(),
+  "remainingIngredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+}))
+})).max(getRunStationProgressResponseCurrentRequirementsOneItemsMax)
+}),zod.null()]),
   "stations": zod.array(zod.object({
   "stationId": zod.string().min(1).max(getRunStationProgressResponseStationsItemStationIdMax),
   "stationName": zod.string().min(1).max(getRunStationProgressResponseStationsItemStationNameMax),
@@ -2601,6 +2671,8 @@ export const GetRunStationProgressResponse = zod.object({
   "producedCount": zod.number().int().min(getRunStationProgressResponseStationsItemProducedCountMin).max(getRunStationProgressResponseStationsItemProducedCountMax),
   "preparationStatus": zod.enum(['not_started', 'in_progress', 'ready', 'not_required']),
   "revision": zod.number().int().min(getRunStationProgressResponseStationsItemRevisionMin).max(getRunStationProgressResponseStationsItemRevisionMax),
+  "completedCases": zod.number().int().min(getRunStationProgressResponseStationsItemCompletedCasesMin).max(getRunStationProgressResponseStationsItemCompletedCasesMax),
+  "countUpdatedAt": zod.coerce.date().nullable(),
   "updatedAt": zod.coerce.date().nullable()
 })).max(getRunStationProgressResponseStationsMax)
 })
@@ -2648,6 +2720,9 @@ export const updateRunStationProgressResponseStationProducedCountMax = 214748364
 export const updateRunStationProgressResponseStationRevisionMin = 0;
 export const updateRunStationProgressResponseStationRevisionMax = 9007199254740991;
 
+export const updateRunStationProgressResponseStationCompletedCasesMin = 0;
+export const updateRunStationProgressResponseStationCompletedCasesMax = 2147483647;
+
 
 
 export const UpdateRunStationProgressResponse = zod.object({
@@ -2662,8 +2737,127 @@ export const UpdateRunStationProgressResponse = zod.object({
   "producedCount": zod.number().int().min(updateRunStationProgressResponseStationProducedCountMin).max(updateRunStationProgressResponseStationProducedCountMax),
   "preparationStatus": zod.enum(['not_started', 'in_progress', 'ready', 'not_required']),
   "revision": zod.number().int().min(updateRunStationProgressResponseStationRevisionMin).max(updateRunStationProgressResponseStationRevisionMax),
+  "completedCases": zod.number().int().min(updateRunStationProgressResponseStationCompletedCasesMin).max(updateRunStationProgressResponseStationCompletedCasesMax),
+  "countUpdatedAt": zod.coerce.date().nullable(),
   "updatedAt": zod.coerce.date().nullable()
 })
+})
+
+
+/**
+ * @summary Update completed case count at a run station
+ */
+export const updateRunStationCountPathRunIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+export const updateRunStationCountPathStationIdMax = 80;
+
+
+
+export const UpdateRunStationCountParams = zod.object({
+  "runId": zod.coerce.string().regex(updateRunStationCountPathRunIdRegExp),
+  "stationId": zod.coerce.string().min(1).max(updateRunStationCountPathStationIdMax)
+})
+
+export const UpdateRunStationCountHeader = zod.object({
+  "X-CSRF-Token": zod.string()
+})
+
+export const updateRunStationCountBodyExpectedRevisionMin = 0;
+export const updateRunStationCountBodyExpectedRevisionMax = 9007199254740991;
+
+export const updateRunStationCountBodyCompletedCasesMin = 0;
+export const updateRunStationCountBodyCompletedCasesMax = 2147483647;
+
+
+
+export const UpdateRunStationCountBody = zod.object({
+  "expectedRevision": zod.number().int().min(updateRunStationCountBodyExpectedRevisionMin).max(updateRunStationCountBodyExpectedRevisionMax),
+  "completedCases": zod.number().int().min(updateRunStationCountBodyCompletedCasesMin).max(updateRunStationCountBodyCompletedCasesMax)
+})
+
+export const updateRunStationCountResponseCurrentRequirementsOneTargetCasesMax = 1000000;
+
+export const updateRunStationCountResponseCurrentRequirementsOneAreasItemStationCountMin = 0;
+export const updateRunStationCountResponseCurrentRequirementsOneAreasItemStationCountMax = 50;
+
+export const updateRunStationCountResponseCurrentRequirementsOneAreasItemCompletedCasesMin = 0;
+export const updateRunStationCountResponseCurrentRequirementsOneAreasItemCompletedCasesMax = 2147483647;
+
+export const updateRunStationCountResponseCurrentRequirementsOneAreasItemRemainingCasesMin = 0;
+export const updateRunStationCountResponseCurrentRequirementsOneAreasItemRemainingCasesMax = 2147483647;
+
+export const updateRunStationCountResponseCurrentRequirementsOneAreasMax = 4;
+
+export const updateRunStationCountResponseCurrentRequirementsOneItemsItemCompletedCasesMin = 0;
+export const updateRunStationCountResponseCurrentRequirementsOneItemsItemCompletedCasesMax = 2147483647;
+
+export const updateRunStationCountResponseCurrentRequirementsOneItemsItemRemainingCasesMin = 0;
+export const updateRunStationCountResponseCurrentRequirementsOneItemsItemRemainingCasesMax = 2147483647;
+
+export const updateRunStationCountResponseCurrentRequirementsOneItemsItemRemainingWholeBatchesMin = 0;
+
+export const updateRunStationCountResponseCurrentRequirementsOneItemsMax = 400;
+
+export const updateRunStationCountResponseStationsItemStationIdMax = 80;
+
+export const updateRunStationCountResponseStationsItemStationNameMax = 80;
+
+export const updateRunStationCountResponseStationsItemOrderMin = 0;
+export const updateRunStationCountResponseStationsItemOrderMax = 9007199254740991;
+
+export const updateRunStationCountResponseStationsItemProducedCountMin = 0;
+export const updateRunStationCountResponseStationsItemProducedCountMax = 2147483647;
+
+export const updateRunStationCountResponseStationsItemRevisionMin = 0;
+export const updateRunStationCountResponseStationsItemRevisionMax = 9007199254740991;
+
+export const updateRunStationCountResponseStationsItemCompletedCasesMin = 0;
+export const updateRunStationCountResponseStationsItemCompletedCasesMax = 2147483647;
+
+export const updateRunStationCountResponseStationsMax = 50;
+
+
+
+export const UpdateRunStationCountResponse = zod.object({
+  "initialized": zod.boolean(),
+  "currentRequirements": zod.union([zod.object({
+  "targetCases": zod.number().int().min(1).max(updateRunStationCountResponseCurrentRequirementsOneTargetCasesMax),
+  "areas": zod.array(zod.object({
+  "area": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']),
+  "stationCount": zod.number().int().min(updateRunStationCountResponseCurrentRequirementsOneAreasItemStationCountMin).max(updateRunStationCountResponseCurrentRequirementsOneAreasItemStationCountMax),
+  "completedCases": zod.number().int().min(updateRunStationCountResponseCurrentRequirementsOneAreasItemCompletedCasesMin).max(updateRunStationCountResponseCurrentRequirementsOneAreasItemCompletedCasesMax).nullable(),
+  "remainingCases": zod.number().int().min(updateRunStationCountResponseCurrentRequirementsOneAreasItemRemainingCasesMin).max(updateRunStationCountResponseCurrentRequirementsOneAreasItemRemainingCasesMax).nullable()
+})).max(updateRunStationCountResponseCurrentRequirementsOneAreasMax),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "area": zod.union([zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']),zod.null()]),
+  "completedCases": zod.number().int().min(updateRunStationCountResponseCurrentRequirementsOneItemsItemCompletedCasesMin).max(updateRunStationCountResponseCurrentRequirementsOneItemsItemCompletedCasesMax).nullable(),
+  "remainingCases": zod.number().int().min(updateRunStationCountResponseCurrentRequirementsOneItemsItemRemainingCasesMin).max(updateRunStationCountResponseCurrentRequirementsOneItemsItemRemainingCasesMax).nullable(),
+  "remainingRequired": zod.number().nullable(),
+  "remainingBatchesExact": zod.number().nullable(),
+  "remainingWholeBatches": zod.number().int().min(updateRunStationCountResponseCurrentRequirementsOneItemsItemRemainingWholeBatchesMin).nullable(),
+  "remainingRemainder": zod.number().nullable(),
+  "remainingIngredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+}))
+})).max(updateRunStationCountResponseCurrentRequirementsOneItemsMax)
+}),zod.null()]),
+  "stations": zod.array(zod.object({
+  "stationId": zod.string().min(1).max(updateRunStationCountResponseStationsItemStationIdMax),
+  "stationName": zod.string().min(1).max(updateRunStationCountResponseStationsItemStationNameMax),
+  "area": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']),
+  "order": zod.number().int().min(updateRunStationCountResponseStationsItemOrderMin).max(updateRunStationCountResponseStationsItemOrderMax),
+  "status": zod.enum(['not_started', 'in_progress', 'paused', 'completed']),
+  "producedCount": zod.number().int().min(updateRunStationCountResponseStationsItemProducedCountMin).max(updateRunStationCountResponseStationsItemProducedCountMax),
+  "preparationStatus": zod.enum(['not_started', 'in_progress', 'ready', 'not_required']),
+  "revision": zod.number().int().min(updateRunStationCountResponseStationsItemRevisionMin).max(updateRunStationCountResponseStationsItemRevisionMax),
+  "completedCases": zod.number().int().min(updateRunStationCountResponseStationsItemCompletedCasesMin).max(updateRunStationCountResponseStationsItemCompletedCasesMax),
+  "countUpdatedAt": zod.coerce.date().nullable(),
+  "updatedAt": zod.coerce.date().nullable()
+})).max(updateRunStationCountResponseStationsMax)
 })
 
 
@@ -2908,6 +3102,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -2940,6 +3135,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -3090,6 +3286,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -3122,6 +3319,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()

@@ -1,3 +1,5 @@
+import type { RunRequirementsProgress } from "./run-requirements";
+
 export type FacilityStationArea =
   | "dough_sauce_prep"
   | "production_line"
@@ -34,12 +36,15 @@ export type RunStationProgressItem = {
   status: RunStationProgressStatus;
   producedCount: number;
   preparationStatus: RunStationPreparationStatus;
+  completedCases: number;
+  countUpdatedAt: string | null;
   revision: number;
   updatedAt: string | null;
 };
 
 export type RunStationProgressList = {
   initialized: boolean;
+  currentRequirements: RunRequirementsProgress | null;
   stations: RunStationProgressItem[];
 };
 
@@ -68,6 +73,8 @@ export function buildRunStationProgressRows(
       stationArea: station.area,
       stationOrder,
       status,
+      completedCases: 0,
+      countUpdatedAt: null,
       producedCount: 0,
       preparationStatus: "not_started" as const,
       revision,

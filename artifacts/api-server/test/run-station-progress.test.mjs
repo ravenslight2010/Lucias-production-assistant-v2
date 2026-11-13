@@ -6,6 +6,10 @@ import {
   storedStationStatusForRun,
 } from "../src/lib/run-station-progress-logic.ts";
 import { DEFAULT_FACILITY_STATIONS } from "../src/lib/facility-stations.ts";
+import {
+  GetRunStationProgressResponse,
+  UpdateRunStationCountBody,
+} from "../../../lib/api-zod/src/generated/api.ts";
 
 test("run snapshots include only active stations in their submitted order", () => {
   const stations = [
@@ -23,8 +27,10 @@ test("run snapshots include only active stations in their submitted order", () =
       stationName: row.stationName,
       stationOrder: row.stationOrder,
       status: row.status,
-        producedCount: row.producedCount,
-        preparationStatus: row.preparationStatus,
+      producedCount: row.producedCount,
+      preparationStatus: row.preparationStatus,
+      completedCases: row.completedCases,
+      countUpdatedAt: row.countUpdatedAt,
       revision: row.revision,
       updatedAt: row.updatedAt,
     })),
@@ -37,6 +43,8 @@ test("run snapshots include only active stations in their submitted order", () =
         status: "not_started",
         producedCount: 0,
         preparationStatus: "not_started",
+        completedCases: 0,
+        countUpdatedAt: null,
         revision: 0,
         updatedAt: null,
       },
@@ -48,6 +56,8 @@ test("run snapshots include only active stations in their submitted order", () =
         status: "not_started",
         producedCount: 0,
         preparationStatus: "not_started",
+        completedCases: 0,
+        countUpdatedAt: null,
         revision: 0,
         updatedAt: null,
       },
@@ -78,6 +88,8 @@ test("line timer transitions stamp every active station together", () => {
 
   assert.equal(rows.length, 3);
   assert.ok(rows.every((row) => row.status === "in_progress"));
+  assert.ok(rows.every((row) => row.completedCases === 0));
+  assert.ok(rows.every((row) => row.countUpdatedAt === null));
   assert.ok(rows.every((row) => row.revision === 2));
   assert.ok(rows.every((row) => row.updatedAt === timestamp));
   assert.ok(rows.every((row) => row.updatedBy === "operator-1"));
@@ -85,4 +97,58 @@ test("line timer transitions stamp every active station together", () => {
 
 test("unknown line states keep stations waiting instead of creating false progress", () => {
   assert.equal(stationStatusForRun("unknown"), "not_started");
+});
+
+test("station count inputs require a whole nonnegative count and an expected revision", () => {
+  assert.equal(UpdateRunStationCountBody.safeParse({
+    expectedRevision: 3,
+    completedCases: 12,
+  }).success, true);
+  assert.equal(UpdateRunStationCountBody.safeParse({
+    expectedRevision: 3,
+    completedCases: 1.5,
+  }).success, false);
+  assert.equal(UpdateRunStationCountBody.safeParse({
+    expectedRevision: 3,
+    completedCases: -1,
+  }).success, false);
+});
+
+test("station progress response contract includes counts and current needs", () => {
+  assert.doesNotThrow(() => GetRunStationProgressResponse.parse({
+    initialized: true,
+    currentRequirements: {
+      targetCases: 10,
+      areas: [{
+        area: "production_line",
+        stationCount: 1,
+        completedCases: 4,
+        remainingCases: 6,
+      }],
+      items: [{
+        id: "line-cheese",
+        area: "production_line",
+        completedCases: 4,
+        remainingCases: 6,
+        remainingRequired: 12,
+        remainingBatchesExact: 0.6,
+        remainingWholeBatches: 1,
+        remainingRemainder: 8,
+        remainingIngredients: [],
+      }],
+    },
+    stations: [{
+      stationId: "line-oven",
+      stationName: "Oven",
+      area: "production_line",
+      order: 0,
+      status: "in_progress",
+      revision: 4,
+      producedCount: 15,
+      preparationStatus: "ready",
+      completedCases: 4,
+      countUpdatedAt: "2026-11-12T10:00:00.000Z",
+      updatedAt: "2026-11-12T09:00:00.000Z",
+    }],
+  }));
 });

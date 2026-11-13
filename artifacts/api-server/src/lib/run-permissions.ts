@@ -22,12 +22,13 @@ export async function getFacilityMembership(userId: string) {
   return membership ?? null;
 }
 
-export type RunPermissionAction = "create" | RunAction;
+export type RunPermissionAction = "create" | "update_station_progress" | RunAction;
 
 const operatorActions = new Set<RunPermissionAction>([
   "start",
   "pause",
   "resume",
+  "update_station_progress",
 ]);
 
 export function assertRunPermission(
@@ -40,7 +41,7 @@ export function assertRunPermission(
   throw new HttpError(
     403,
     role === "operator"
-      ? "Operators may start, pause, and resume runs, but cannot create or complete them."
+      ? "Operators may start, pause, resume, and update station counts, but cannot create or complete runs."
       : "This facility role cannot perform that run action.",
   );
 }

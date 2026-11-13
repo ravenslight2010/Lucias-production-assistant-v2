@@ -5,6 +5,7 @@
 - [Enum additions in Publish](enum-addition-publish-staging.md) — Keep new PostgreSQL enum labels out of same-transaction defaults; use explicit app values or a later Publish.
 - [VM replacement overlap evidence](vm-replacement-overlap-evidence.md) — Aggregate uptime resets do not prove a full restart or old/new overlap without instance-scoped evidence.
 - [Station timer behavior](station-timer-behavior.md) — Every station follows the production line timer for start, pause, resume, and end.
+- [Station-count requirement scaling](station-count-requirement-scaling.md) — Scale the captured plan by the lowest reported case count in each matching area.
 - [Import-to-run flow](import-to-run-flow.md) — Imports are a primary source of run data; trace imported product and process data into downstream V2 workflows.
 - [PNPM 9 override location](pnpm9-override-location.md) — Put critical overrides in root `package.json`; the pinned PNPM 9 install ignored workspace-only overrides.
 - [PNPM patch lockfiles](pnpm-patched-lockfile-compatibility.md) — Generate and consume patched lockfiles with the same PNPM major to avoid frozen-install hash mismatches.

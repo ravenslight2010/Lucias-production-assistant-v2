@@ -5,10 +5,12 @@
  * Run-control API for Lucia's Production Assistant V2
  * OpenAPI spec version: 0.1.0
  */
+import type { RunRequirementsProgress } from './runRequirementsProgress.ts';
 import type { RunStationProgress } from './runStationProgress.ts';
 
 export interface RunStationProgressList {
   initialized: boolean;
+  currentRequirements: RunRequirementsProgress | null;
   /** @maxItems 50 */
   stations: RunStationProgress[];
 }

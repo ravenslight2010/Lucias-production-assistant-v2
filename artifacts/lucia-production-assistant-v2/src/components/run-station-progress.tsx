@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetRunStationProgressQueryKey,
   useGetRunStationProgress,
   useUpdateRunStationProgress,
+  useUpdateRunStationCount,
 } from '@workspace/api-client-react';
 import type {
   FacilityStationArea,
@@ -93,13 +94,19 @@ export default function RunStationProgress({
   runId,
   run,
   online,
+  targetCases,
 }: {
   runId: string;
   run: LineTimerRun;
   online: boolean;
+  targetCases: number;
 }) {
   const client = useQueryClient();
   const queryKey = getGetRunStationProgressQueryKey(runId);
+  const dirtyCounts = useRef(new Set<string>());
+  const [draftCounts, setDraftCounts] = useState<Record<string, string>>({});
+  const [countErrors, setCountErrors] = useState<Record<string, string>>({});
+  const [countFeedback, setCountFeedback] = useState<Record<string, string>>({});
   const progressQuery = useGetRunStationProgress(runId, {
     query: {
       queryKey,
@@ -115,6 +122,29 @@ export default function RunStationProgress({
   const [conflicts, setConflicts] = useState<Record<string, boolean>>({});
   const [feedback, setFeedback] = useState('');
   const commandIds = useRef<Record<string, { signature: string; id: string }>>({});
+  const updateCount = useUpdateRunStationCount({
+    request: { credentials: 'include' },
+    mutation: {
+      onSuccess: (result, variables) => {
+        client.setQueryData(queryKey, result);
+        const station = result.stations.find((item) => item.stationId === variables.stationId);
+        if (station) {
+          dirtyCounts.current.delete(station.stationId);
+          setDraftCounts((current) => ({ ...current, [station.stationId]: String(station.completedCases) }));
+          setCountFeedback((current) => ({ ...current, [station.stationId]: 'Count saved. Live requirements updated.' }));
+        }
+      },
+      onError: (error, variables) => {
+        const message = error && typeof error === 'object' && 'status' in error && error.status === 409
+          ? 'This station count changed on another device. The latest saved count is refreshing.'
+          : errorMessage(error);
+        setCountErrors((current) => ({ ...current, [variables.stationId]: message }));
+        if (error && typeof error === 'object' && 'status' in error && error.status === 409) {
+          void client.invalidateQueries({ queryKey });
+        }
+      },
+    },
+  });
   const [now, setNow] = useState(() => Date.now());
   const stations = progressQuery.data?.stations ?? [];
   const elapsed = formatElapsed(elapsedMilliseconds(run, now));
@@ -133,6 +163,17 @@ export default function RunStationProgress({
     commandIds.current = {};
     setFeedback('');
   }, [runId]);
+  useEffect(() => {
+    setDraftCounts((current) => {
+      const next = { ...current };
+      for (const station of stations) {
+        if (!dirtyCounts.current.has(station.stationId)) {
+          next[station.stationId] = String(station.completedCases);
+        }
+      }
+      return next;
+    });
+  }, [stations]);
 
   useEffect(() => {
     setNow(Date.now());
@@ -282,6 +323,27 @@ export default function RunStationProgress({
     setFeedback('Latest revision loaded. Review your entries, then save again.');
   };
 
+  const saveCount = (event: FormEvent<HTMLFormElement>, station: (typeof stations)[number]) => {
+    event.preventDefault();
+    if (updateProgress.isPending || updateCount.isPending) return;
+    const raw = draftCounts[station.stationId] ?? String(station.completedCases);
+    const value = Number(raw);
+    if (!/^\d+$/.test(raw) || !Number.isSafeInteger(value) || value < 0 || value > targetCases) {
+      setCountErrors((current) => ({
+        ...current,
+        [station.stationId]: `Enter a whole number from 0 to ${targetCases}.`,
+      }));
+      setCountFeedback((current) => ({ ...current, [station.stationId]: '' }));
+      return;
+    }
+    setCountErrors((current) => ({ ...current, [station.stationId]: '' }));
+    setCountFeedback((current) => ({ ...current, [station.stationId]: '' }));
+    updateCount.mutate({
+      runId,
+      stationId: station.stationId,
+      data: { expectedRevision: station.revision, completedCases: value },
+    });
+  };
   return (
     <section
       className="panel run-station-progress"
@@ -421,7 +483,7 @@ export default function RunStationProgress({
                                   max={2_147_483_647}
                                   step={1}
                                   value={draft.producedCount}
-                                  disabled={!online || updateProgress.isPending}
+                                  disabled={!online || updateProgress.isPending || updateCount.isPending}
                                   aria-label={`${station.stationName} produced count`}
                                   data-testid={`input-station-produced-${station.stationId}`}
                                   onChange={(event) => changeDraft(station.stationId, { producedCount: event.target.value })}
@@ -431,7 +493,7 @@ export default function RunStationProgress({
                                 <span>Preparation pull</span>
                                 <select
                                   value={draft.preparationStatus}
-                                  disabled={!online || updateProgress.isPending}
+                                  disabled={!online || updateProgress.isPending || updateCount.isPending}
                                   aria-label={`${station.stationName} preparation status`}
                                   data-testid={`select-station-preparation-${station.stationId}`}
                                   onChange={(event) => changeDraft(station.stationId, { preparationStatus: event.target.value as RunStationPreparationStatus })}
@@ -445,17 +507,60 @@ export default function RunStationProgress({
                                 className="button button-secondary run-station-save"
                                 type="button"
                                 onClick={() => saveStation(station.stationId)}
-                                disabled={!online || !draft.dirty || updateProgress.isPending}
+                                disabled={!online || !draft.dirty || updateProgress.isPending || updateCount.isPending}
                                 data-testid={`button-save-station-${station.stationId}`}
                               >
                                 {isSaving ? <LoaderCircle size={15} className="station-spin" /> : <Save size={15} />}
                                 {isSaving ? 'Saving…' : 'Save'}
                               </button>
                             </div>
+                            <div className="run-station-timer" aria-label={`Elapsed station time ${elapsed}`}>
+                              <span>Line time</span>
+                              <strong className="mono">{elapsed}</strong>
+                            </div>
+                            <form className="run-station-count" onSubmit={(event) => saveCount(event, station)}>
+                              <label htmlFor={`count-${runId}-${station.stationId}`}>Completed cases</label>
+                              <div className="run-station-count-controls">
+                                <input
+                                  id={`count-${runId}-${station.stationId}`}
+                                  type="number"
+                                  min={0}
+                                  max={targetCases}
+                                  step={1}
+                                  inputMode="numeric"
+                                  value={draftCounts[station.stationId] ?? String(station.completedCases)}
+                                  onChange={(event) => {
+                                    dirtyCounts.current.add(station.stationId);
+                                    setDraftCounts((current) => ({ ...current, [station.stationId]: event.target.value }));
+                                    setCountErrors((current) => ({ ...current, [station.stationId]: '' }));
+                                    setCountFeedback((current) => ({ ...current, [station.stationId]: '' }));
+                                  }}
+                                  aria-invalid={Boolean(countErrors[station.stationId])}
+                                  aria-describedby={`count-help-${runId}-${station.stationId}`}
+                                  disabled={!online || run.status === 'completed' || updateCount.isPending || updateProgress.isPending}
+                                  data-testid={`input-station-count-${station.stationId}`}
+                                />
+                                <button
+                                  type="submit"
+                                  className="button button-secondary"
+                                  disabled={!online || run.status === 'completed' || updateCount.isPending || updateProgress.isPending || !dirtyCounts.current.has(station.stationId)}
+                                  aria-label={`Save completed case count for ${station.stationName}`}
+                                  data-testid={`button-save-station-count-${station.stationId}`}
+                                >
+                                  {updateCount.isPending && updateCount.variables?.stationId === station.stationId ? 'Saving…' : 'Save'}
+                                </button>
+                              </div>
+                              <small id={`count-help-${runId}-${station.stationId}`}>
+                                0–{targetCases} cases
+                                {station.countUpdatedAt ? ` · updated ${timestamp(station.countUpdatedAt) ?? ''}` : ''}
+                              </small>
+                              {countErrors[station.stationId] && <span className="run-station-count-error" role="alert">{countErrors[station.stationId]}</span>}
+                              {countFeedback[station.stationId] && <span className="run-station-count-success" role="status">{countFeedback[station.stationId]}</span>}
+                            </form>
                             <div className="run-station-saved" aria-live="polite">
                               Saved: {station.producedCount} produced · {preparationLabels[station.preparationStatus]} · Rev {station.revision}
                               {conflicts[station.stationId] && (
-                                  <button type="button" onClick={() => useLatestRevision(station.stationId)} disabled={progressQuery.isFetching} data-testid={`button-use-latest-station-${station.stationId}`}>
+                                <button type="button" onClick={() => useLatestRevision(station.stationId)} disabled={progressQuery.isFetching} data-testid={`button-use-latest-station-${station.stationId}`}>
                                   {progressQuery.isFetching ? 'Loading latest…' : 'Use latest revision'}
                                 </button>
                               )}

@@ -61,9 +61,15 @@ function excelColumnLabel(index: number) {
 
 function ingredientRole(name: string): ProductSpecIngredient["ingredientRole"] {
   const label = name.normalize("NFKC").trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-  if (/^(?:pizza )?sauce(?: applicator)?$/.test(label)) return "sauce";
-  if (/^(?:pep|pepperoni) applicator$/.test(label)) return "pep_applicator";
-  if (/^cheese applicator$/.test(label)) return "cheese_applicator";
+  if (/\bsauce\b/.test(label) && !/^applicator\b/.test(label)) return "sauce";
+  if (
+    /^(?:pep|pepperoni) applicator$/.test(label) ||
+    /^applicator\b.*\b(?:pep|pepperoni)\b.*\bcheese (?:mix|blend)\b/.test(label)
+  ) return "pep_applicator";
+  if (
+    /^cheese applicator$/.test(label) ||
+    /^applicator\b.*\b(?:cheese|mozzarella)\b/.test(label)
+  ) return "cheese_applicator";
   return "ingredient";
 }
 

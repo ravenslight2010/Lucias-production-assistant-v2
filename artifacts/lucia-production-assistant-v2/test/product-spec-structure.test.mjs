@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { parsePreservedProductSpec, parseProductSpecData } from "../src/importing/product-spec.ts";
 import { parseProductSpecProfiles } from "../src/importing/workbook.ts";
+import { customerProductSpecFixtures } from "./fixtures/product-spec-role-workbooks.mjs";
 
 const workbook = (rows) => ({
   fileName: "customer-pizza-specs.xlsx",
@@ -100,6 +101,56 @@ test("preserves row roles and worksheet coordinates for applicators across brand
       row: 3,
       nameColumn: "A",
     });
+  }
+});
+
+test("maps source labels from customer spec workbooks to roles with original coordinates", () => {
+  for (const fixture of customerProductSpecFixtures) {
+    const rowsByNumber = new Map(fixture.rows.map(({ row, cells }) => [row, cells]));
+    const maxRow = Math.max(...rowsByNumber.keys());
+    const rows = Array.from({ length: maxRow }, (_, index) => rowsByNumber.get(index + 1) ?? []);
+    const source = {
+      fileName: fixture.sourceWorkbook,
+      sizeBytes: 1,
+      sheetCount: 1,
+      cellCount: fixture.rows.reduce(
+        (count, { cells }) => count + cells.filter((cell) => cell != null && cell !== "").length,
+        0,
+      ),
+      kind: "product_specs",
+      kindConfidence: "high",
+      sheets: [{ name: fixture.sheet, rows }],
+    };
+    const profile = parseProductSpecProfiles(source).find(
+      (item) => item.brand === fixture.brand && item.flavor === fixture.flavor,
+    );
+    assert.ok(profile, `${fixture.sourceWorkbook} should retain its customer product section`);
+    const section = parseProductSpecData(source, profile).sections[0];
+    const ingredients = section.ingredients;
+    assert.equal(section.targetWeight, fixture.targetWeight, `${fixture.sourceWorkbook} target weight`);
+    assert.equal(section.weightSpecRange, fixture.weightSpecRange, `${fixture.sourceWorkbook} weight range`);
+
+    assert.deepEqual(
+      ingredients.map(({ sourceRow, name, ingredientRole, sourceCoordinates }) => ({
+        row: sourceRow,
+        name,
+        sourceLabel: source.sheets[0].rows[sourceRow - 1][0],
+        role: ingredientRole,
+        sourceCoordinates,
+      })),
+      fixture.expectedRows.map(({ row, name, role }) => ({
+        row,
+        name: name.normalize("NFKC").trim().replace(/\s+/g, " "),
+        sourceLabel: name,
+        role,
+        sourceCoordinates: {
+          sheet: fixture.sheet,
+          row,
+          nameColumn: "A",
+        },
+      })),
+      `${fixture.sourceWorkbook} row roles must remain tied to their source labels and coordinates`,
+    );
   }
 });
 

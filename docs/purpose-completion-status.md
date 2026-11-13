@@ -59,7 +59,7 @@ be ignored.
 - [x] Facility inventory and run-level actual-use review/confirmation screens and APIs exist.
 - [x] Disposable pilot records an opening physical count and proves a planned-only run cannot change stock or create a transaction.
 - [x] API integration verifies confirmed use changes on-hand balances and retries cannot double-deduct.
-- [ ] Retain links from inventory transactions to the confirming run/station event.
+- [x] Inventory history retains links to the confirming run, run-level reconciliation, and any correction source.
 - [ ] Verify the signed-in inventory and confirmed-use path in the UI.
 
 ## WP5 — Minimal run-tied quality checks (P2)

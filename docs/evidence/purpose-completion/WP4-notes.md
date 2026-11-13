@@ -7,7 +7,8 @@
 - `run-control.integration.ts` verifies that stale inventory revisions reject
   confirmation, accepted actual use writes a reconciliation, the same command
   can be retried safely, a second deduction is rejected, and corrections link
-  to the original transaction.
+  to the original transaction. The returned inventory history also retains the
+  confirming run and reconciliation IDs.
 - The disposable API pilot records an opening physical count, proves a planned
   run cannot change the balance or create a transaction, and verifies that
   confirmed use updates the balance.

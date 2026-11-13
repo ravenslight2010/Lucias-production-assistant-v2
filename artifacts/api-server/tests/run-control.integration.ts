@@ -1059,7 +1059,12 @@ test("operators confirm source-based usage once and managers append linked corre
     assert.equal(correction.status, 201);
     const inventory = await getFacilityInventory(facility.id);
     assert.equal(inventory.items.find((item) => item.ingredientName === "Cheese")?.onHand, 0);
-    assert.ok(inventory.entries.some((entry) => entry.correctsEntryId === usageEntry.id));
+    const listedUsage = inventory.entries.find((entry) => entry.id === usageEntry.id);
+    assert.ok(listedUsage);
+    assert.equal(listedUsage.runId, run.id, "inventory history retains the confirming run link");
+    assert.ok(listedUsage.reconciliationId, "inventory history retains the run-level confirmation record");
+    const listedCorrection = inventory.entries.find((entry) => entry.correctsEntryId === usageEntry.id);
+    assert.ok(listedCorrection, "corrections remain linked to the original usage entry");
   } finally {
     await new Promise<void>((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),

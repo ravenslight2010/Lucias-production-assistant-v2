@@ -60,6 +60,8 @@ import type {
   RunInventoryUsage,
   RunInventoryUsageInput,
   RunList,
+  RunQualityChecks,
+  RunQualityMeasurementsInput,
   RunRequirementsInput,
   RunRequirementsPlan,
   RunStationCountUpdate,
@@ -2194,6 +2196,167 @@ export function useGetRunStationProgress<TData = Awaited<ReturnType<typeof getRu
 
 
 
+
+export const getGetRunQualityChecksUrl = (runId: string,) => {
+
+
+
+
+  return `/api/v2/runs/${runId}/quality-checks`
+}
+
+/**
+ * @summary Review quality targets and recorded run measurements
+ */
+export const getRunQualityChecks = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<RunQualityChecks> => {
+
+  return customFetch<RunQualityChecks>(getGetRunQualityChecksUrl(runId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRunQualityChecksQueryKey = (runId: string,) => {
+    return [
+    `/api/v2/runs/${runId}/quality-checks`
+    ] as const;
+    }
+
+
+export const getGetRunQualityChecksQueryOptions = <TData = Awaited<ReturnType<typeof getRunQualityChecks>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRunQualityChecks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRunQualityChecksQueryKey(runId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRunQualityChecks>>> = ({ signal }) => getRunQualityChecks(runId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: runId !== null && runId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRunQualityChecks>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRunQualityChecksQueryResult = NonNullable<Awaited<ReturnType<typeof getRunQualityChecks>>>
+export type GetRunQualityChecksQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/** @summary Review quality targets and recorded run measurements */
+export function useGetRunQualityChecks<TData = Awaited<ReturnType<typeof getRunQualityChecks>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+ runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRunQualityChecks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRunQualityChecksQueryOptions(runId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRecordRunQualityMeasurementsUrl = (runId: string,) => {
+
+
+
+
+  return `/api/v2/runs/${runId}/quality-checks`
+}
+
+/**
+ * @summary Record measured weights for a run
+ */
+export const recordRunQualityMeasurements = async (runId: string,
+    runQualityMeasurementsInput: RunQualityMeasurementsInput, options?: Parameters<typeof customFetch>[1]): Promise<RunQualityChecks> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<RunQualityChecks>(getRecordRunQualityMeasurementsUrl(runId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(runQualityMeasurementsInput)
+  }
+);}
+
+
+
+
+
+export const getRecordRunQualityMeasurementsMutationKey = () => ['recordRunQualityMeasurements'] as const;
+
+export const getRecordRunQualityMeasurementsMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordRunQualityMeasurements>>, TError,RecordRunQualityMeasurementsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordRunQualityMeasurements>>, TError,RecordRunQualityMeasurementsMutationVariables, TContext> => {
+
+const mutationKey = getRecordRunQualityMeasurementsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordRunQualityMeasurements>>, RecordRunQualityMeasurementsMutationVariables> = (props) => {
+          const {runId,data} = props ?? {};
+
+          return  recordRunQualityMeasurements(runId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordRunQualityMeasurementsMutationResult = NonNullable<Awaited<ReturnType<typeof recordRunQualityMeasurements>>>
+    export type RecordRunQualityMeasurementsMutationBody = BodyType<RunQualityMeasurementsInput>
+    export type RecordRunQualityMeasurementsMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+    export type RecordRunQualityMeasurementsMutationVariables = {runId: string;data: BodyType<RunQualityMeasurementsInput>}
+
+    /** @summary Record measured weights for a run */
+export const useRecordRunQualityMeasurements = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordRunQualityMeasurements>>, TError,RecordRunQualityMeasurementsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordRunQualityMeasurements>>,
+        TError,
+        RecordRunQualityMeasurementsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRecordRunQualityMeasurementsMutationOptions(options));
+    }
 
 export const getGetRunInventoryUsageUrl = (runId: string,) => {
 

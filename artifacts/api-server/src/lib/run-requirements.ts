@@ -278,6 +278,11 @@ export function buildRunRequirements(profile: Profile, targetCases: number, opti
     version: 1, productLabel: `${profile.brand} / ${profile.flavor}`, profileRevision: profile.revision, nameRevision: profile.nameResolution?.revision ?? 0, targetCases,
     unitsPerCase, casePackSource: suppliedPack ? "Explicit run case-pack choice" : unitsPerCase ? shipping.map(s => s.source).join("; ") : "Unconfirmed",
     totalPizzas, options, status: globalIssues.length || items.some(i => i.issues.length) ? "needs_review" : "ready",
+    finishedWeightSpec: selected ? {
+      range: text(selected.raw.weightSpecRange) || null,
+      unit: text(selected.raw.unit).toLowerCase() || (/^oz$/i.test(text(selected.raw.sheet)) ? "oz" : null),
+      source: `${selected.source} · ${text(selected.raw.sheet)} row ${selected.raw.headerRow ?? "?"}`,
+    } : null,
     sections: sections.map(({ raw: _raw, brand: _brand, ...s }) => s), sectionId: selected?.id ?? null,
     recipes: [...recipes.values()].map(r => r.choice), items, batchPreparation,
     preparation: [...new Set(preparation)], packaging, issues: globalIssues,

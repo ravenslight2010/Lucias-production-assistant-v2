@@ -47,6 +47,8 @@ const StationLineupPage = lazy(() => import('@/components/station-lineup-page'))
 const InventoryPage = lazy(() => import('@/components/inventory-page'));
 const RunStationProgressSection = lazy(() => import('@/components/run-station-progress'));
 const StationCalculatorVisualPreviewPage = lazy(() => import('@/pages/station-calculator-visual-preview'));
+const RunQualityChecksVisualPreviewPage = lazy(() => import('@/pages/run-quality-checks-visual-preview'));
+const RunQualityChecksSection = lazy(() => import('@/components/run-quality-checks').then((module) => ({ default: module.RunQualityChecksSection })));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -715,6 +717,7 @@ function RunDetailPage() {
             targetCases={run.setupSnapshot.targetCases}
             requirementsPlan={run.productSnapshot?.runRequirements ?? null}
           />
+          <RunQualityChecksSection runId={run.id} online={online} />
           {command.isPending && <div className="notice" role="status"><LoaderCircle size={15} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />Sending the revision-checked command. Wait for confirmation before leaving this page.</div>}
         </>}
       </main>
@@ -988,7 +991,8 @@ function App() {
   const visualPath = stripBase(window.location.pathname);
   const isVisualPreview = import.meta.env.DEV && visualPath === '/__visual-preview/imports';
   const isStationCalculatorPreview = import.meta.env.DEV && visualPath === '/__visual-preview/station-calculator';
-  if (!clerkPubKey && !isVisualPreview && !isStationCalculatorPreview) {
+  const isRunQualityChecksPreview = import.meta.env.DEV && visualPath === '/__visual-preview/quality-checks';
+  if (!clerkPubKey && !isVisualPreview && !isStationCalculatorPreview && !isRunQualityChecksPreview) {
     throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY in .env file');
   }
   return (
@@ -998,6 +1002,8 @@ function App() {
           ? <Suspense fallback={<LoadingPage title="Loading importer preview" />}><ImportsVisualPreviewPage /></Suspense>
           : isStationCalculatorPreview
             ? <Suspense fallback={<LoadingPage title="Loading station calculator preview" />}><StationCalculatorVisualPreviewPage /></Suspense>
+            : isRunQualityChecksPreview
+              ? <Suspense fallback={<LoadingPage title="Loading quality-check preview" />}><RunQualityChecksVisualPreviewPage /></Suspense>
             : <WouterRouter base={basePath}><RouterContent /></WouterRouter>}
         <Toaster />
       </TooltipProvider>

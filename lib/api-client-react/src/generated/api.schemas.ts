@@ -774,6 +774,21 @@ export const RunRequirementsPlanStatus = {
   needs_review: 'needs_review',
 } as const;
 
+export interface RunFinishedWeightSpec {
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  range: string | null;
+  /**
+     * @maxLength 20
+     * @nullable
+     */
+  unit: string | null;
+  /** @maxLength 500 */
+  source: string;
+}
+
 export interface RunRequirementsPlan {
   version: RunRequirementsPlanVersion;
   productLabel: string;
@@ -790,12 +805,126 @@ export interface RunRequirementsPlan {
   sections: RunPlanSection[];
   /** @nullable */
   sectionId: string | null;
+  finishedWeightSpec?: RunFinishedWeightSpec | null;
   recipes: RunRecipeChoice[];
   items: RunRequirementItem[];
   batchPreparation: RunRequirementItem[];
   preparation: string[];
   packaging: string[];
   issues: string[];
+}
+
+export type RunQualityCheckTargetCheckType = typeof RunQualityCheckTargetCheckType[keyof typeof RunQualityCheckTargetCheckType];
+
+
+export const RunQualityCheckTargetCheckType = {
+  ingredient_weight: 'ingredient_weight',
+  finished_weight: 'finished_weight',
+} as const;
+
+export type RunQualityCheckTargetStatus = typeof RunQualityCheckTargetStatus[keyof typeof RunQualityCheckTargetStatus];
+
+
+export const RunQualityCheckTargetStatus = {
+  ready: 'ready',
+  unresolved: 'unresolved',
+} as const;
+
+export interface RunQualityCheckTarget {
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  id: string;
+  checkType: RunQualityCheckTargetCheckType;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  label: string;
+  /** @maxLength 500 */
+  source: string;
+  status: RunQualityCheckTargetStatus;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  targetOz: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  minimumOz: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  maximumOz: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  toleranceOz: number | null;
+  /**
+     * @maxLength 300
+     * @nullable
+     */
+  unavailableReason: string | null;
+}
+
+export interface RunQualityMeasurement {
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  checkId: string;
+  /**
+     * @minimum 0
+     * @maximum 10000
+     */
+  observedOz: number;
+  /** @minimum 0 */
+  minimumOz: number;
+  /** @minimum 0 */
+  maximumOz: number;
+  passed: boolean;
+  recordedAt: string;
+}
+
+export interface RunQualityChecks {
+  runId: string;
+  /** @maxItems 201 */
+  checks: RunQualityCheckTarget[];
+  /** @maxItems 1000 */
+  measurements: RunQualityMeasurement[];
+  /**
+     * @maxLength 300
+     * @nullable
+     */
+  unavailableReason: string | null;
+}
+
+export interface RunQualityMeasurementInput {
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  checkId: string;
+  /**
+     * @minimum 0
+     * @maximum 10000
+     */
+  observedOz: number;
+}
+
+export interface RunQualityMeasurementsInput {
+  commandId: string;
+  /**
+     * @minItems 1
+     * @maxItems 200
+     */
+  items: RunQualityMeasurementInput[];
 }
 
 export type NameReferenceKind = typeof NameReferenceKind[keyof typeof NameReferenceKind];

@@ -65,6 +65,12 @@ export const previewRunRequirementsResponseOptionsLinksItemBatchColumnMax = 1000
 
 export const previewRunRequirementsResponseOptionsLinksMax = 200;
 
+export const previewRunRequirementsResponseFinishedWeightSpecOneRangeMax = 120;
+
+export const previewRunRequirementsResponseFinishedWeightSpecOneUnitMax = 20;
+
+export const previewRunRequirementsResponseFinishedWeightSpecOneSourceMax = 500;
+
 
 
 export const PreviewRunRequirementsResponse = zod.object({
@@ -96,6 +102,11 @@ export const PreviewRunRequirementsResponse = zod.object({
   "notes": zod.array(zod.string())
 })),
   "sectionId": zod.string().nullable(),
+  "finishedWeightSpec": zod.union([zod.object({
+  "range": zod.string().max(previewRunRequirementsResponseFinishedWeightSpecOneRangeMax).nullable(),
+  "unit": zod.string().max(previewRunRequirementsResponseFinishedWeightSpecOneUnitMax).nullable(),
+  "source": zod.string().max(previewRunRequirementsResponseFinishedWeightSpecOneSourceMax)
+}),zod.null()]).optional(),
   "recipes": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -500,6 +511,12 @@ export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsOptionsLin
 
 export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsOptionsLinksMax = 200;
 
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneRangeMax = 120;
+
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneUnitMax = 20;
+
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneSourceMax = 500;
+
 
 
 export const ListRunsResponse = zod.object({
@@ -594,6 +611,11 @@ export const ListRunsResponse = zod.object({
   "notes": zod.array(zod.string())
 })),
   "sectionId": zod.string().nullable(),
+  "finishedWeightSpec": zod.union([zod.object({
+  "range": zod.string().max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneRangeMax).nullable(),
+  "unit": zod.string().max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneUnitMax).nullable(),
+  "source": zod.string().max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneSourceMax)
+}),zod.null()]).optional(),
   "recipes": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -806,6 +828,12 @@ export const createRunResponseRunProductSnapshotOneRunRequirementsOptionsLinksIt
 
 export const createRunResponseRunProductSnapshotOneRunRequirementsOptionsLinksMax = 200;
 
+export const createRunResponseRunProductSnapshotOneRunRequirementsFinishedWeightSpecOneRangeMax = 120;
+
+export const createRunResponseRunProductSnapshotOneRunRequirementsFinishedWeightSpecOneUnitMax = 20;
+
+export const createRunResponseRunProductSnapshotOneRunRequirementsFinishedWeightSpecOneSourceMax = 500;
+
 
 
 export const CreateRunResponse = zod.object({
@@ -902,6 +930,11 @@ export const CreateRunResponse = zod.object({
   "notes": zod.array(zod.string())
 })),
   "sectionId": zod.string().nullable(),
+  "finishedWeightSpec": zod.union([zod.object({
+  "range": zod.string().max(createRunResponseRunProductSnapshotOneRunRequirementsFinishedWeightSpecOneRangeMax).nullable(),
+  "unit": zod.string().max(createRunResponseRunProductSnapshotOneRunRequirementsFinishedWeightSpecOneUnitMax).nullable(),
+  "source": zod.string().max(createRunResponseRunProductSnapshotOneRunRequirementsFinishedWeightSpecOneSourceMax)
+}),zod.null()]).optional(),
   "recipes": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -1270,6 +1303,12 @@ export const listProductProfilesResponseProfilesItemRunRequirementsOptionsLinksI
 
 export const listProductProfilesResponseProfilesItemRunRequirementsOptionsLinksMax = 200;
 
+export const listProductProfilesResponseProfilesItemRunRequirementsFinishedWeightSpecOneRangeMax = 120;
+
+export const listProductProfilesResponseProfilesItemRunRequirementsFinishedWeightSpecOneUnitMax = 20;
+
+export const listProductProfilesResponseProfilesItemRunRequirementsFinishedWeightSpecOneSourceMax = 500;
+
 export const listProductProfilesResponseReferenceNamesRulesItemSourceBrandMax = 120;
 
 export const listProductProfilesResponseReferenceNamesRulesItemSourceNameMax = 300;
@@ -1331,6 +1370,11 @@ export const ListProductProfilesResponse = zod.object({
   "notes": zod.array(zod.string())
 })),
   "sectionId": zod.string().nullable(),
+  "finishedWeightSpec": zod.union([zod.object({
+  "range": zod.string().max(listProductProfilesResponseProfilesItemRunRequirementsFinishedWeightSpecOneRangeMax).nullable(),
+  "unit": zod.string().max(listProductProfilesResponseProfilesItemRunRequirementsFinishedWeightSpecOneUnitMax).nullable(),
+  "source": zod.string().max(listProductProfilesResponseProfilesItemRunRequirementsFinishedWeightSpecOneSourceMax)
+}),zod.null()]).optional(),
   "recipes": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -1496,6 +1540,12 @@ export const importProductProfileResponseProfileRunRequirementsOptionsLinksItemB
 
 export const importProductProfileResponseProfileRunRequirementsOptionsLinksMax = 200;
 
+export const importProductProfileResponseProfileRunRequirementsFinishedWeightSpecOneRangeMax = 120;
+
+export const importProductProfileResponseProfileRunRequirementsFinishedWeightSpecOneUnitMax = 20;
+
+export const importProductProfileResponseProfileRunRequirementsFinishedWeightSpecOneSourceMax = 500;
+
 
 
 export const ImportProductProfileResponse = zod.object({
@@ -1549,6 +1599,11 @@ export const ImportProductProfileResponse = zod.object({
   "notes": zod.array(zod.string())
 })),
   "sectionId": zod.string().nullable(),
+  "finishedWeightSpec": zod.union([zod.object({
+  "range": zod.string().max(importProductProfileResponseProfileRunRequirementsFinishedWeightSpecOneRangeMax).nullable(),
+  "unit": zod.string().max(importProductProfileResponseProfileRunRequirementsFinishedWeightSpecOneUnitMax).nullable(),
+  "source": zod.string().max(importProductProfileResponseProfileRunRequirementsFinishedWeightSpecOneSourceMax)
+}),zod.null()]).optional(),
   "recipes": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -1719,6 +1774,12 @@ export const renameProductProfileResponseProfileRunRequirementsOptionsLinksItemB
 
 export const renameProductProfileResponseProfileRunRequirementsOptionsLinksMax = 200;
 
+export const renameProductProfileResponseProfileRunRequirementsFinishedWeightSpecOneRangeMax = 120;
+
+export const renameProductProfileResponseProfileRunRequirementsFinishedWeightSpecOneUnitMax = 20;
+
+export const renameProductProfileResponseProfileRunRequirementsFinishedWeightSpecOneSourceMax = 500;
+
 
 
 export const RenameProductProfileResponse = zod.object({
@@ -1772,6 +1833,11 @@ export const RenameProductProfileResponse = zod.object({
   "notes": zod.array(zod.string())
 })),
   "sectionId": zod.string().nullable(),
+  "finishedWeightSpec": zod.union([zod.object({
+  "range": zod.string().max(renameProductProfileResponseProfileRunRequirementsFinishedWeightSpecOneRangeMax).nullable(),
+  "unit": zod.string().max(renameProductProfileResponseProfileRunRequirementsFinishedWeightSpecOneUnitMax).nullable(),
+  "source": zod.string().max(renameProductProfileResponseProfileRunRequirementsFinishedWeightSpecOneSourceMax)
+}),zod.null()]).optional(),
   "recipes": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -1913,6 +1979,12 @@ export const mergeProductProfileResponseProfileRunRequirementsOptionsLinksItemBa
 
 export const mergeProductProfileResponseProfileRunRequirementsOptionsLinksMax = 200;
 
+export const mergeProductProfileResponseProfileRunRequirementsFinishedWeightSpecOneRangeMax = 120;
+
+export const mergeProductProfileResponseProfileRunRequirementsFinishedWeightSpecOneUnitMax = 20;
+
+export const mergeProductProfileResponseProfileRunRequirementsFinishedWeightSpecOneSourceMax = 500;
+
 
 
 export const MergeProductProfileResponse = zod.object({
@@ -1966,6 +2038,11 @@ export const MergeProductProfileResponse = zod.object({
   "notes": zod.array(zod.string())
 })),
   "sectionId": zod.string().nullable(),
+  "finishedWeightSpec": zod.union([zod.object({
+  "range": zod.string().max(mergeProductProfileResponseProfileRunRequirementsFinishedWeightSpecOneRangeMax).nullable(),
+  "unit": zod.string().max(mergeProductProfileResponseProfileRunRequirementsFinishedWeightSpecOneUnitMax).nullable(),
+  "source": zod.string().max(mergeProductProfileResponseProfileRunRequirementsFinishedWeightSpecOneSourceMax)
+}),zod.null()]).optional(),
   "recipes": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -2127,6 +2204,12 @@ export const getRunResponseRunProductSnapshotOneRunRequirementsOptionsLinksItemB
 
 export const getRunResponseRunProductSnapshotOneRunRequirementsOptionsLinksMax = 200;
 
+export const getRunResponseRunProductSnapshotOneRunRequirementsFinishedWeightSpecOneRangeMax = 120;
+
+export const getRunResponseRunProductSnapshotOneRunRequirementsFinishedWeightSpecOneUnitMax = 20;
+
+export const getRunResponseRunProductSnapshotOneRunRequirementsFinishedWeightSpecOneSourceMax = 500;
+
 
 
 export const GetRunResponse = zod.object({
@@ -2221,6 +2304,11 @@ export const GetRunResponse = zod.object({
   "notes": zod.array(zod.string())
 })),
   "sectionId": zod.string().nullable(),
+  "finishedWeightSpec": zod.union([zod.object({
+  "range": zod.string().max(getRunResponseRunProductSnapshotOneRunRequirementsFinishedWeightSpecOneRangeMax).nullable(),
+  "unit": zod.string().max(getRunResponseRunProductSnapshotOneRunRequirementsFinishedWeightSpecOneUnitMax).nullable(),
+  "source": zod.string().max(getRunResponseRunProductSnapshotOneRunRequirementsFinishedWeightSpecOneSourceMax)
+}),zod.null()]).optional(),
   "recipes": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -2403,6 +2491,12 @@ export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsOptionsL
 
 export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsOptionsLinksMax = 200;
 
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsFinishedWeightSpecOneRangeMax = 120;
+
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsFinishedWeightSpecOneUnitMax = 20;
+
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsFinishedWeightSpecOneSourceMax = 500;
+
 
 
 export const ApplyRunCommandResponse = zod.object({
@@ -2500,6 +2594,11 @@ export const ApplyRunCommandResponse = zod.object({
   "notes": zod.array(zod.string())
 })),
   "sectionId": zod.string().nullable(),
+  "finishedWeightSpec": zod.union([zod.object({
+  "range": zod.string().max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsFinishedWeightSpecOneRangeMax).nullable(),
+  "unit": zod.string().max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsFinishedWeightSpecOneUnitMax).nullable(),
+  "source": zod.string().max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsFinishedWeightSpecOneSourceMax)
+}),zod.null()]).optional(),
   "recipes": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -2707,6 +2806,167 @@ export const GetRunStationProgressResponse = zod.object({
   "countUpdatedAt": zod.coerce.date().nullable(),
   "updatedAt": zod.coerce.date().nullable()
 })).max(getRunStationProgressResponseStationsMax)
+})
+
+
+/**
+ * @summary Review quality targets and recorded run measurements
+ */
+export const getRunQualityChecksPathRunIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
+export const GetRunQualityChecksParams = zod.object({
+  "runId": zod.coerce.string().regex(getRunQualityChecksPathRunIdRegExp)
+})
+
+export const getRunQualityChecksResponseChecksItemIdMax = 300;
+
+export const getRunQualityChecksResponseChecksItemLabelMax = 200;
+
+export const getRunQualityChecksResponseChecksItemSourceMax = 500;
+
+export const getRunQualityChecksResponseChecksItemTargetOzMin = 0;
+
+export const getRunQualityChecksResponseChecksItemMinimumOzMin = 0;
+
+export const getRunQualityChecksResponseChecksItemMaximumOzMin = 0;
+
+export const getRunQualityChecksResponseChecksItemToleranceOzMin = 0;
+
+export const getRunQualityChecksResponseChecksItemUnavailableReasonMax = 300;
+
+export const getRunQualityChecksResponseChecksMax = 201;
+
+export const getRunQualityChecksResponseMeasurementsItemCheckIdMax = 300;
+
+export const getRunQualityChecksResponseMeasurementsItemObservedOzMin = 0;
+export const getRunQualityChecksResponseMeasurementsItemObservedOzMax = 10000;
+
+export const getRunQualityChecksResponseMeasurementsItemMinimumOzMin = 0;
+
+export const getRunQualityChecksResponseMeasurementsItemMaximumOzMin = 0;
+
+export const getRunQualityChecksResponseMeasurementsMax = 1000;
+
+export const getRunQualityChecksResponseUnavailableReasonMax = 300;
+
+
+
+export const GetRunQualityChecksResponse = zod.object({
+  "runId": zod.string().uuid(),
+  "checks": zod.array(zod.object({
+  "id": zod.string().min(1).max(getRunQualityChecksResponseChecksItemIdMax),
+  "checkType": zod.enum(['ingredient_weight', 'finished_weight']),
+  "label": zod.string().min(1).max(getRunQualityChecksResponseChecksItemLabelMax),
+  "source": zod.string().max(getRunQualityChecksResponseChecksItemSourceMax),
+  "status": zod.enum(['ready', 'unresolved']),
+  "targetOz": zod.number().min(getRunQualityChecksResponseChecksItemTargetOzMin).nullable(),
+  "minimumOz": zod.number().min(getRunQualityChecksResponseChecksItemMinimumOzMin).nullable(),
+  "maximumOz": zod.number().min(getRunQualityChecksResponseChecksItemMaximumOzMin).nullable(),
+  "toleranceOz": zod.number().min(getRunQualityChecksResponseChecksItemToleranceOzMin).nullable(),
+  "unavailableReason": zod.string().max(getRunQualityChecksResponseChecksItemUnavailableReasonMax).nullable()
+})).max(getRunQualityChecksResponseChecksMax),
+  "measurements": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "checkId": zod.string().min(1).max(getRunQualityChecksResponseMeasurementsItemCheckIdMax),
+  "observedOz": zod.number().min(getRunQualityChecksResponseMeasurementsItemObservedOzMin).max(getRunQualityChecksResponseMeasurementsItemObservedOzMax),
+  "minimumOz": zod.number().min(getRunQualityChecksResponseMeasurementsItemMinimumOzMin),
+  "maximumOz": zod.number().min(getRunQualityChecksResponseMeasurementsItemMaximumOzMin),
+  "passed": zod.boolean(),
+  "recordedAt": zod.coerce.date()
+})).max(getRunQualityChecksResponseMeasurementsMax),
+  "unavailableReason": zod.string().max(getRunQualityChecksResponseUnavailableReasonMax).nullable()
+})
+
+
+/**
+ * @summary Record measured weights for a run
+ */
+export const recordRunQualityMeasurementsPathRunIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
+export const RecordRunQualityMeasurementsParams = zod.object({
+  "runId": zod.coerce.string().regex(recordRunQualityMeasurementsPathRunIdRegExp)
+})
+
+export const RecordRunQualityMeasurementsHeader = zod.object({
+  "X-CSRF-Token": zod.string()
+})
+
+export const recordRunQualityMeasurementsBodyItemsItemCheckIdMax = 300;
+
+export const recordRunQualityMeasurementsBodyItemsItemObservedOzMin = 0;
+export const recordRunQualityMeasurementsBodyItemsItemObservedOzMax = 10000;
+
+export const recordRunQualityMeasurementsBodyItemsMax = 200;
+
+
+
+export const RecordRunQualityMeasurementsBody = zod.object({
+  "commandId": zod.string().uuid(),
+  "items": zod.array(zod.object({
+  "checkId": zod.string().min(1).max(recordRunQualityMeasurementsBodyItemsItemCheckIdMax),
+  "observedOz": zod.number().min(recordRunQualityMeasurementsBodyItemsItemObservedOzMin).max(recordRunQualityMeasurementsBodyItemsItemObservedOzMax)
+})).min(1).max(recordRunQualityMeasurementsBodyItemsMax)
+})
+
+export const recordRunQualityMeasurementsResponseChecksItemIdMax = 300;
+
+export const recordRunQualityMeasurementsResponseChecksItemLabelMax = 200;
+
+export const recordRunQualityMeasurementsResponseChecksItemSourceMax = 500;
+
+export const recordRunQualityMeasurementsResponseChecksItemTargetOzMin = 0;
+
+export const recordRunQualityMeasurementsResponseChecksItemMinimumOzMin = 0;
+
+export const recordRunQualityMeasurementsResponseChecksItemMaximumOzMin = 0;
+
+export const recordRunQualityMeasurementsResponseChecksItemToleranceOzMin = 0;
+
+export const recordRunQualityMeasurementsResponseChecksItemUnavailableReasonMax = 300;
+
+export const recordRunQualityMeasurementsResponseChecksMax = 201;
+
+export const recordRunQualityMeasurementsResponseMeasurementsItemCheckIdMax = 300;
+
+export const recordRunQualityMeasurementsResponseMeasurementsItemObservedOzMin = 0;
+export const recordRunQualityMeasurementsResponseMeasurementsItemObservedOzMax = 10000;
+
+export const recordRunQualityMeasurementsResponseMeasurementsItemMinimumOzMin = 0;
+
+export const recordRunQualityMeasurementsResponseMeasurementsItemMaximumOzMin = 0;
+
+export const recordRunQualityMeasurementsResponseMeasurementsMax = 1000;
+
+export const recordRunQualityMeasurementsResponseUnavailableReasonMax = 300;
+
+
+
+export const RecordRunQualityMeasurementsResponse = zod.object({
+  "runId": zod.string().uuid(),
+  "checks": zod.array(zod.object({
+  "id": zod.string().min(1).max(recordRunQualityMeasurementsResponseChecksItemIdMax),
+  "checkType": zod.enum(['ingredient_weight', 'finished_weight']),
+  "label": zod.string().min(1).max(recordRunQualityMeasurementsResponseChecksItemLabelMax),
+  "source": zod.string().max(recordRunQualityMeasurementsResponseChecksItemSourceMax),
+  "status": zod.enum(['ready', 'unresolved']),
+  "targetOz": zod.number().min(recordRunQualityMeasurementsResponseChecksItemTargetOzMin).nullable(),
+  "minimumOz": zod.number().min(recordRunQualityMeasurementsResponseChecksItemMinimumOzMin).nullable(),
+  "maximumOz": zod.number().min(recordRunQualityMeasurementsResponseChecksItemMaximumOzMin).nullable(),
+  "toleranceOz": zod.number().min(recordRunQualityMeasurementsResponseChecksItemToleranceOzMin).nullable(),
+  "unavailableReason": zod.string().max(recordRunQualityMeasurementsResponseChecksItemUnavailableReasonMax).nullable()
+})).max(recordRunQualityMeasurementsResponseChecksMax),
+  "measurements": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "checkId": zod.string().min(1).max(recordRunQualityMeasurementsResponseMeasurementsItemCheckIdMax),
+  "observedOz": zod.number().min(recordRunQualityMeasurementsResponseMeasurementsItemObservedOzMin).max(recordRunQualityMeasurementsResponseMeasurementsItemObservedOzMax),
+  "minimumOz": zod.number().min(recordRunQualityMeasurementsResponseMeasurementsItemMinimumOzMin),
+  "maximumOz": zod.number().min(recordRunQualityMeasurementsResponseMeasurementsItemMaximumOzMin),
+  "passed": zod.boolean(),
+  "recordedAt": zod.coerce.date()
+})).max(recordRunQualityMeasurementsResponseMeasurementsMax),
+  "unavailableReason": zod.string().max(recordRunQualityMeasurementsResponseUnavailableReasonMax).nullable()
 })
 
 
@@ -3227,6 +3487,12 @@ export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequi
 
 export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsOptionsLinksMax = 200;
 
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneRangeMax = 120;
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneUnitMax = 20;
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneSourceMax = 500;
+
 export const getDashboardSummaryResponsePlannedRunsItemRevisionMin = 0;
 export const getDashboardSummaryResponsePlannedRunsItemRevisionMax = 9007199254740991;
 
@@ -3283,6 +3549,12 @@ export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequ
 export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemBatchColumnMax = 10000;
 
 export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsOptionsLinksMax = 200;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneRangeMax = 120;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneUnitMax = 20;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneSourceMax = 500;
 
 export const getDashboardSummaryResponsePlannedRunsMax = 10;
 
@@ -3355,6 +3627,12 @@ export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequi
 export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemBatchColumnMax = 10000;
 
 export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsOptionsLinksMax = 200;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneRangeMax = 120;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneUnitMax = 20;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneSourceMax = 500;
 
 
 
@@ -3460,6 +3738,11 @@ export const GetDashboardSummaryResponse = zod.object({
   "notes": zod.array(zod.string())
 })),
   "sectionId": zod.string().nullable(),
+  "finishedWeightSpec": zod.union([zod.object({
+  "range": zod.string().max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneRangeMax).nullable(),
+  "unit": zod.string().max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneUnitMax).nullable(),
+  "source": zod.string().max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneSourceMax)
+}),zod.null()]).optional(),
   "recipes": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -3646,6 +3929,11 @@ export const GetDashboardSummaryResponse = zod.object({
   "notes": zod.array(zod.string())
 })),
   "sectionId": zod.string().nullable(),
+  "finishedWeightSpec": zod.union([zod.object({
+  "range": zod.string().max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneRangeMax).nullable(),
+  "unit": zod.string().max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneUnitMax).nullable(),
+  "source": zod.string().max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneSourceMax)
+}),zod.null()]).optional(),
   "recipes": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -3841,6 +4129,11 @@ export const GetDashboardSummaryResponse = zod.object({
   "notes": zod.array(zod.string())
 })),
   "sectionId": zod.string().nullable(),
+  "finishedWeightSpec": zod.union([zod.object({
+  "range": zod.string().max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneRangeMax).nullable(),
+  "unit": zod.string().max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneUnitMax).nullable(),
+  "source": zod.string().max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneSourceMax)
+}),zod.null()]).optional(),
   "recipes": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),

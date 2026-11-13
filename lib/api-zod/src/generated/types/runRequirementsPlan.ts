@@ -5,6 +5,7 @@
  * Run-control API for Lucia's Production Assistant V2
  * OpenAPI spec version: 0.1.0
  */
+import type { RunFinishedWeightSpec } from './runFinishedWeightSpec.ts';
 import type { RunPlanningOptions } from './runPlanningOptions.ts';
 import type { RunPlanSection } from './runPlanSection.ts';
 import type { RunRecipeChoice } from './runRecipeChoice.ts';
@@ -28,6 +29,7 @@ export interface RunRequirementsPlan {
   sections: RunPlanSection[];
   /** @nullable */
   sectionId: string | null;
+  finishedWeightSpec?: RunFinishedWeightSpec | null;
   recipes: RunRecipeChoice[];
   items: RunRequirementItem[];
   batchPreparation: RunRequirementItem[];

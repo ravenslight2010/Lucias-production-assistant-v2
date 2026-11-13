@@ -33,6 +33,7 @@ test("extracts product weights and formula rows without mixing side-by-side prod
   const cheeseData = parseProductSpecData(source, cheese);
   assert.equal(cheeseData.sections[0].targetWeight, "8.5");
   assert.equal(cheeseData.sections[0].weightSpecRange, "8.25 - 8.75");
+  assert.equal(cheeseData.sections[0].unit, "oz", "the OZ worksheet tab explicitly supplies the weight unit");
   assert.deepEqual(cheeseData.sections[0].ingredients.map((ingredient) => ingredient.name), [
     "Parbake Crust",
     "Pizza Sauce",

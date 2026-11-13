@@ -16,6 +16,13 @@ calculator with synthetic direct-ingredient, shared-batch, and unresolved
 examples. It runs outside sign-in, is available only in Vite development mode,
 and cannot save or change run data.
 
+## Dev-only run quality-check preview
+
+Open `/__visual-preview/quality-checks` to render the real run quality form with
+synthetic ingredient targets, a finished-weight range, sample history, and an
+unresolved source. It runs outside sign-in, is available only in Vite
+development mode, and its save action does not call the API.
+
 ## Profile snapshot regression
 
 `profile_snapshots.py` runs the real UI against the real development API, with

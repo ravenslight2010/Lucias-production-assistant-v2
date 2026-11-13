@@ -73,7 +73,9 @@ function parseSection(
   const warnings: string[] = [];
   let targetWeight: string | null = null;
   let weightSpecRange: string | null = null;
-  let unit: string | null = null;
+  // The provided pizza specification workbooks label their weight unit in the
+  // worksheet tab (for example, "OZ"), rather than repeating it in every row.
+  let unit: string | null = /^oz$/i.test(section.sheet.trim()) ? "oz" : null;
   const contextStart = Math.max(0, section.headerRow - 3);
   const contextEnd = Math.max(contextStart, section.headerRow - 1);
   for (let rowIndex = contextStart; rowIndex < contextEnd; rowIndex++) {

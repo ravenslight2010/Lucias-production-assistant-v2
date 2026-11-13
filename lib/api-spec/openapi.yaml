@@ -718,6 +718,70 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+  /v2/runs/{runId}/quality-checks:
+    get:
+      operationId: getRunQualityChecks
+      tags: [runs]
+      summary: Review quality targets and recorded run measurements
+      security:
+        - v2Session: []
+      parameters:
+        - in: path
+          name: runId
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+      responses:
+        "200":
+          description: Source-based quality targets and saved measurements
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunQualityChecks"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: recordRunQualityMeasurements
+      tags: [runs]
+      summary: Record measured weights for a run
+      security:
+        - v2Session: []
+      parameters:
+        - in: path
+          name: runId
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunQualityMeasurementsInput"
+      responses:
+        "200":
+          description: Saved run measurements and updated quality history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunQualityChecks"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /v2/runs/{runId}/inventory-usage:
     get:
       operationId: getRunInventoryUsage
@@ -1667,6 +1731,10 @@ components:
           $ref: "#/components/schemas/RunPlanningOptions"
         sections: {type: array, items: {$ref: "#/components/schemas/RunPlanSection"}}
         sectionId: {type: [string, "null"]}
+        finishedWeightSpec:
+          anyOf:
+            - $ref: "#/components/schemas/RunFinishedWeightSpec"
+            - type: "null"
         recipes: {type: array, items: {$ref: "#/components/schemas/RunRecipeChoice"}}
         items: {type: array, items: {$ref: "#/components/schemas/RunRequirementItem"}}
         batchPreparation: {type: array, items: {$ref: "#/components/schemas/RunRequirementItem"}}
@@ -1674,6 +1742,71 @@ components:
         packaging: {type: array, items: {type: string}}
         issues: {type: array, items: {type: string}}
       required: [version, productLabel, profileRevision, nameRevision, targetCases, unitsPerCase, casePackSource, totalPizzas, status, options, sections, sectionId, recipes, items, batchPreparation, preparation, packaging, issues]
+    RunFinishedWeightSpec:
+      type: object
+      properties:
+        range: {type: ["string", "null"], maxLength: 120}
+        unit: {type: ["string", "null"], maxLength: 20}
+        source: {type: string, maxLength: 500}
+      required: [range, unit, source]
+    RunQualityCheckTarget:
+      type: object
+      properties:
+        id: {type: string, minLength: 1, maxLength: 300}
+        checkType: {type: string, enum: [ingredient_weight, finished_weight]}
+        label: {type: string, minLength: 1, maxLength: 200}
+        source: {type: string, maxLength: 500}
+        status: {type: string, enum: [ready, unresolved]}
+        targetOz: {type: ["number", "null"], minimum: 0}
+        minimumOz: {type: ["number", "null"], minimum: 0}
+        maximumOz: {type: ["number", "null"], minimum: 0}
+        toleranceOz: {type: ["number", "null"], minimum: 0}
+        unavailableReason: {type: ["string", "null"], maxLength: 300}
+      required: [id, checkType, label, source, status, targetOz, minimumOz, maximumOz, toleranceOz, unavailableReason]
+    RunQualityMeasurement:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        checkId: {type: string, minLength: 1, maxLength: 300}
+        observedOz: {type: number, minimum: 0, maximum: 10000}
+        minimumOz: {type: number, minimum: 0}
+        maximumOz: {type: number, minimum: 0}
+        passed: {type: boolean}
+        recordedAt: {type: string, format: date-time}
+      required: [id, checkId, observedOz, minimumOz, maximumOz, passed, recordedAt]
+    RunQualityChecks:
+      type: object
+      properties:
+        runId: {type: string, format: uuid}
+        checks:
+          type: array
+          maxItems: 201
+          items: {$ref: "#/components/schemas/RunQualityCheckTarget"}
+        measurements:
+          type: array
+          maxItems: 1000
+          items: {$ref: "#/components/schemas/RunQualityMeasurement"}
+        unavailableReason: {type: ["string", "null"], maxLength: 300}
+      required: [runId, checks, measurements, unavailableReason]
+    RunQualityMeasurementInput:
+      type: object
+      additionalProperties: false
+      properties:
+        checkId: {type: string, minLength: 1, maxLength: 300}
+        observedOz: {type: number, minimum: 0, maximum: 10000}
+      required: [checkId, observedOz]
+    RunQualityMeasurementsInput:
+      type: object
+      additionalProperties: false
+      properties:
+        commandId: {type: string, format: uuid}
+        items:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/RunQualityMeasurementInput"
+      required: [commandId, items]
     NameReference:
       type: object
       additionalProperties: false

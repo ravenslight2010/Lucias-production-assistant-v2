@@ -30,6 +30,11 @@ import {
   GetRunResponse,
   GetRunStationProgressParams,
   GetRunStationProgressResponse,
+  GetRunQualityChecksParams,
+  GetRunQualityChecksResponse,
+  RecordRunQualityMeasurementsParams,
+  RecordRunQualityMeasurementsBody,
+  RecordRunQualityMeasurementsResponse,
   GetRunInventoryUsageParams,
   GetRunInventoryUsageResponse,
   ConfirmRunInventoryUsageParams,
@@ -102,6 +107,10 @@ import {
   getFacilityInventory,
   getRunInventoryUsage,
 } from "../lib/run-inventory-service";
+import {
+  getRunQualityChecks,
+  recordRunQualityMeasurements,
+} from "../lib/run-quality-checks-service";
 import { createPlannedRun } from "../lib/run-create-service";
 import { buildRunRequirements } from "../lib/run-requirements";
 import { importSchedule } from "../lib/schedule-import-service";
@@ -1423,6 +1432,54 @@ router.get(
       runId: params.data.runId,
     });
     res.json(GetRunStationProgressResponse.parse(progress));
+  },
+);
+
+router.get(
+  "/v2/runs/:runId/quality-checks",
+  requireV2Session,
+  async (req, res): Promise<void> => {
+    const params = GetRunQualityChecksParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: "Invalid run identifier." });
+      return;
+    }
+    const access = await membershipOrRespond(req, res);
+    if (!access) return;
+    const qualityChecks = await getRunQualityChecks({
+      facilityId: access.membership.facilityId,
+      runId: params.data.runId,
+    });
+    res.json(GetRunQualityChecksResponse.parse(qualityChecks));
+  },
+);
+
+router.post(
+  "/v2/runs/:runId/quality-checks",
+  requireV2Session,
+  requireV2Csrf,
+  mutationRateLimit,
+  async (req, res): Promise<void> => {
+    const params = RecordRunQualityMeasurementsParams.safeParse(req.params);
+    const body = RecordRunQualityMeasurementsBody.safeParse(req.body);
+    if (!params.success || !body.success) {
+      res.status(400).json({ error: "Enter valid ounce measurements for this run." });
+      return;
+    }
+    const access = await membershipOrRespond(req, res);
+    if (!access) return;
+    assertRunPermission(access.membership.role, "update_station_progress");
+    const qualityChecks = await recordRunQualityMeasurements({
+      facilityId: access.membership.facilityId,
+      actorUserId: access.actorId,
+      runId: params.data.runId,
+      update: body.data,
+    });
+    req.log.info(
+      { runId: params.data.runId, measurementCount: body.data.items.length },
+      "Recorded run quality measurements",
+    );
+    res.json(RecordRunQualityMeasurementsResponse.parse(qualityChecks));
   },
 );
 

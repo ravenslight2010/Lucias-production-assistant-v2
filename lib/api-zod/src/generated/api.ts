@@ -3695,7 +3695,29 @@ export const getDashboardSummaryResponseActiveRunProgressItemAreasItemLowestRepo
 
 export const getDashboardSummaryResponseActiveRunProgressItemAreasMax = 4;
 
+export const getDashboardSummaryResponseActiveRunProgressItemPreparationStatusCountsNotStartedMin = 0;
+export const getDashboardSummaryResponseActiveRunProgressItemPreparationStatusCountsNotStartedMax = 50;
+
+export const getDashboardSummaryResponseActiveRunProgressItemPreparationStatusCountsInProgressMin = 0;
+export const getDashboardSummaryResponseActiveRunProgressItemPreparationStatusCountsInProgressMax = 50;
+
+export const getDashboardSummaryResponseActiveRunProgressItemPreparationStatusCountsReadyMin = 0;
+export const getDashboardSummaryResponseActiveRunProgressItemPreparationStatusCountsReadyMax = 50;
+
+export const getDashboardSummaryResponseActiveRunProgressItemPreparationStatusCountsNotRequiredMin = 0;
+export const getDashboardSummaryResponseActiveRunProgressItemPreparationStatusCountsNotRequiredMax = 50;
+
 export const getDashboardSummaryResponseActiveRunProgressMax = 10;
+
+export const getDashboardSummaryResponseQualityAttentionItemRunLabelMax = 120;
+
+export const getDashboardSummaryResponseQualityAttentionItemFailedChecksMin = 0;
+export const getDashboardSummaryResponseQualityAttentionItemFailedChecksMax = 1000;
+
+export const getDashboardSummaryResponseQualityAttentionItemUnresolvedChecksMin = 0;
+export const getDashboardSummaryResponseQualityAttentionItemUnresolvedChecksMax = 201;
+
+export const getDashboardSummaryResponseQualityAttentionMax = 18;
 
 export const getDashboardSummaryResponseRecentRunsItemRevisionMin = 0;
 export const getDashboardSummaryResponseRecentRunsItemRevisionMax = 9007199254740991;
@@ -4190,8 +4212,21 @@ export const GetDashboardSummaryResponse = zod.object({
   "stationCount": zod.number().int().min(getDashboardSummaryResponseActiveRunProgressItemAreasItemStationCountMin).max(getDashboardSummaryResponseActiveRunProgressItemAreasItemStationCountMax),
   "countedStations": zod.number().int().min(getDashboardSummaryResponseActiveRunProgressItemAreasItemCountedStationsMin).max(getDashboardSummaryResponseActiveRunProgressItemAreasItemCountedStationsMax),
   "lowestReportedCases": zod.number().int().min(getDashboardSummaryResponseActiveRunProgressItemAreasItemLowestReportedCasesMin).max(getDashboardSummaryResponseActiveRunProgressItemAreasItemLowestReportedCasesMax).nullable()
-})).max(getDashboardSummaryResponseActiveRunProgressItemAreasMax)
+})).max(getDashboardSummaryResponseActiveRunProgressItemAreasMax),
+  "preparationStatusCounts": zod.object({
+  "notStarted": zod.number().int().min(getDashboardSummaryResponseActiveRunProgressItemPreparationStatusCountsNotStartedMin).max(getDashboardSummaryResponseActiveRunProgressItemPreparationStatusCountsNotStartedMax),
+  "inProgress": zod.number().int().min(getDashboardSummaryResponseActiveRunProgressItemPreparationStatusCountsInProgressMin).max(getDashboardSummaryResponseActiveRunProgressItemPreparationStatusCountsInProgressMax),
+  "ready": zod.number().int().min(getDashboardSummaryResponseActiveRunProgressItemPreparationStatusCountsReadyMin).max(getDashboardSummaryResponseActiveRunProgressItemPreparationStatusCountsReadyMax),
+  "notRequired": zod.number().int().min(getDashboardSummaryResponseActiveRunProgressItemPreparationStatusCountsNotRequiredMin).max(getDashboardSummaryResponseActiveRunProgressItemPreparationStatusCountsNotRequiredMax)
+})
 })).max(getDashboardSummaryResponseActiveRunProgressMax),
+  "qualityAttention": zod.array(zod.object({
+  "runId": zod.string().uuid(),
+  "runLabel": zod.string().min(1).max(getDashboardSummaryResponseQualityAttentionItemRunLabelMax),
+  "runStatus": zod.enum(['planned', 'running', 'paused', 'completed']),
+  "failedChecks": zod.number().int().min(getDashboardSummaryResponseQualityAttentionItemFailedChecksMin).max(getDashboardSummaryResponseQualityAttentionItemFailedChecksMax),
+  "unresolvedChecks": zod.number().int().min(getDashboardSummaryResponseQualityAttentionItemUnresolvedChecksMin).max(getDashboardSummaryResponseQualityAttentionItemUnresolvedChecksMax)
+})).max(getDashboardSummaryResponseQualityAttentionMax),
   "recentRuns": zod.array(zod.object({
   "id": zod.string().uuid(),
   "status": zod.enum(['planned', 'running', 'paused', 'completed']),

@@ -10,6 +10,8 @@ export * from './badRequestResponse.ts';
 export * from './conflictResponse.ts';
 export * from './csrfTokenParameter.ts';
 export * from './dashboardAreaProgress.ts';
+export * from './dashboardPreparationStatusCounts.ts';
+export * from './dashboardQualityAttention.ts';
 export * from './dashboardRunProgress.ts';
 export * from './dashboardSummary.ts';
 export * from './dashboardSummaryCounts.ts';

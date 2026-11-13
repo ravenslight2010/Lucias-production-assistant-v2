@@ -173,6 +173,18 @@ h3 { font: 700 16px/1.25 var(--app-font-display); }
 .active-run-area-head strong { font-size: 12px; }
 .active-run-area-head span, .active-run-card-foot { color: hsl(var(--muted-foreground)); font-size: 10px; }
 .active-run-area .field-help { margin: 6px 0 0; font-size: 11px; }
+.dashboard-quality-attention { margin: 20px 0 26px; padding: 15px 17px; border-left: 3px solid hsl(var(--primary)); }
+.dashboard-quality-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; }
+.dashboard-quality-heading h2 { margin: 2px 0 0; font-size: 17px; }
+.dashboard-quality-heading > span { color: hsl(var(--muted-foreground)); font-size: 12px; }
+.dashboard-quality-list { display: grid; gap: 9px; margin: 12px 0 0; padding: 0; list-style: none; }
+.dashboard-quality-list li { min-width: 0; padding-top: 9px; border-top: 1px solid hsl(var(--border)); }
+.dashboard-quality-run-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; }
+.dashboard-quality-run { color: hsl(var(--foreground)); font-size: 13px; font-weight: 700; overflow-wrap: anywhere; }
+.dashboard-quality-list p { margin: 5px 0 0; color: hsl(var(--muted-foreground)); font-size: 12px; line-height: 1.45; }
+.active-run-preparation { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 4px 10px; margin-top: 9px; padding: 10px 11px; border: 1px solid hsl(var(--border)); border-radius: 9px; }
+.active-run-preparation strong { font-size: 12px; }
+.active-run-preparation span { color: hsl(var(--muted-foreground)); font-size: 11px; line-height: 1.4; text-align: right; overflow-wrap: anywhere; }
 .active-run-case-progress { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; margin-top: 7px; align-items: baseline; }
 .active-run-case-progress > span { color: hsl(var(--muted-foreground)); font-size: 10px; }
 .active-run-case-progress > strong { font: 600 11px var(--app-font-mono); }
@@ -196,6 +208,7 @@ h3 { font: 700 16px/1.25 var(--app-font-display); }
 @media (max-width: 430px) {
   .active-run-card { padding: 13px; }
   .active-run-area-head { align-items: flex-start; flex-direction: column; gap: 3px; }
+  .active-run-preparation span { flex-basis: 100%; text-align: left; }
   .active-run-card-foot { align-items: flex-start; flex-direction: column; }
 }
 .mono { font-family: var(--app-font-mono); }

@@ -335,7 +335,7 @@ function FacilityDashboard({ facilityName }: { facilityName: string }) {
   const latestRuns = data?.recentRuns ?? [];
   const activeRuns = data?.activeRuns ?? [];
   const plannedRuns = data?.plannedRuns ?? [];
-  const activeRunProgress = new Map((data?.activeRunProgress ?? []).map((item) => [item.runId, item.areas]));
+  const activeRunProgress = new Map((data?.activeRunProgress ?? []).map((item) => [item.runId, item]));
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (activeRuns.length === 0) return;
@@ -359,9 +359,35 @@ function FacilityDashboard({ facilityName }: { facilityName: string }) {
             <Stat label="Planned" value={data.counts.planned} detail="Ready to start" icon={<ClipboardList size={16} />} />
             <Stat label="Completed" value={data.counts.completed} detail="Recorded runs" icon={<Check size={16} />} />
           </section>
+          {data.qualityAttention.length > 0 && (
+            <section className="panel dashboard-quality-attention" aria-labelledby="dashboard-quality-attention-title" data-testid="list-dashboard-quality-attention">
+              <div className="dashboard-quality-heading">
+                <div>
+                  <div className="eyebrow">Review needed</div>
+                  <h2 id="dashboard-quality-attention-title">Quality needs attention</h2>
+                </div>
+                <span>{data.qualityAttention.length} run{data.qualityAttention.length === 1 ? '' : 's'}</span>
+              </div>
+              <ul className="dashboard-quality-list">
+                {data.qualityAttention.map((item) => (
+                  <li key={item.runId} data-testid={`row-dashboard-quality-${item.runId}`}>
+                    <div className="dashboard-quality-run-heading">
+                      <Link href={`/runs/${encodeURIComponent(item.runId)}`} className="dashboard-quality-run">{item.runLabel}</Link>
+                      <span className={`status status-${item.runStatus}`}>{item.runStatus}</span>
+                    </div>
+                    <p>
+                      {item.failedChecks > 0 && <span>{item.failedChecks} failed measurement{item.failedChecks === 1 ? '' : 's'}</span>}
+                      {item.failedChecks > 0 && item.unresolvedChecks > 0 && <span aria-hidden="true"> · </span>}
+                      {item.unresolvedChecks > 0 && <span>{item.unresolvedChecks} check{item.unresolvedChecks === 1 ? '' : 's'} need review</span>}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           <div className="section-heading"><div><h2>Active now</h2><p className="field-help">Line timers and saved station counts update with shared run state.</p></div><Link href="/runs" className="text-link">All runs <ArrowRight size={14} /></Link></div>
           <section className="active-run-grid" aria-label="Live production overview">
-            {activeRuns.length ? activeRuns.map((run) => <ActiveRunCard key={run.id} run={run} areas={activeRunProgress.get(run.id) ?? []} now={now} />) : <div className="panel active-run-empty"><EmptyState title="No active runs" copy="When a run starts, its line timer and saved station counts will show here for the whole team." /></div>}
+            {activeRuns.length ? activeRuns.map((run) => <ActiveRunCard key={run.id} run={run} progress={activeRunProgress.get(run.id)} now={now} />) : <div className="panel active-run-empty"><EmptyState title="No active runs" copy="When a run starts, its line timer and saved station counts will show here for the whole team." /></div>}
           </section>
           <div className="section-heading" style={{ marginTop: 30 }}><h2>Planned runs</h2><Link href="/runs" className="text-link">Manage schedule <ArrowRight size={14} /></Link></div>
           <section className="panel run-list" aria-label="Planned production runs">
@@ -379,6 +405,7 @@ function FacilityDashboard({ facilityName }: { facilityName: string }) {
 }
 
 type DashboardAreaProgress = DashboardSummary['activeRunProgress'][number]['areas'][number];
+type DashboardRunProgress = DashboardSummary['activeRunProgress'][number];
 
 const stationAreaLabels: Record<DashboardAreaProgress['area'], string> = {
   dough_sauce_prep: 'Dough & sauce prep',
@@ -389,15 +416,20 @@ const stationAreaLabels: Record<DashboardAreaProgress['area'], string> = {
 
 function ActiveRunCard({
   run,
-  areas,
+  progress,
   now,
 }: {
   run: Run;
-  areas: DashboardAreaProgress[];
+  progress?: DashboardRunProgress;
   now: number;
 }) {
   const targetCases = run.setupSnapshot.targetCases;
   const elapsed = formatElapsed(elapsedMilliseconds(run, now));
+  const areas = progress?.areas ?? [];
+  const preparation = progress?.preparationStatusCounts;
+  const preparationText = preparation
+    ? `${preparation.ready} ready · ${preparation.inProgress} in progress · ${preparation.notStarted} not started${preparation.notRequired ? ` · ${preparation.notRequired} not required` : ''}`
+    : 'Station preparation status is unavailable.';
   return (
     <article className="panel active-run-card" data-testid={`card-active-run-${run.id}`}>
       <div className="active-run-card-head">
@@ -432,11 +464,67 @@ function ActiveRunCard({
           );
         }) : <p className="field-help">Station progress is not available for this run yet.</p>}
       </div>
+      <div className="active-run-preparation" aria-label="Station preparation status">
+        <strong>Preparation pulls</strong>
+        <span data-testid={`text-dashboard-preparation-${run.id}`}>{preparationText}</span>
+      </div>
       <div className="active-run-card-foot">
         <span>{targetCases} target cases</span>
         <Link href={`/runs/${encodeURIComponent(run.id)}`} className="text-link">Open run <ArrowRight size={14} /></Link>
       </div>
     </article>
+  );
+}
+
+function DashboardVisualPreviewPage() {
+  const now = Date.now();
+  const run: Run = {
+    id: '00000000-0000-4000-8000-000000000001',
+    status: 'running',
+    revision: 3,
+    createdAt: new Date(now - 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(now - 60 * 1000).toISOString(),
+    scheduledFor: null,
+    scheduleNotes: null,
+    scheduleSource: null,
+    startedAt: new Date(now - 38 * 60 * 1000).toISOString(),
+    pausedAt: null,
+    resumedAt: null,
+    completedAt: null,
+    setupSnapshot: { label: 'Synthetic sample · 100 cases', targetCases: 100 },
+    productSnapshot: null,
+    pauseIntervals: [],
+  };
+  const progress: DashboardRunProgress = {
+    runId: run.id,
+    areas: [
+      { area: 'dough_sauce_prep', stationCount: 2, countedStations: 2, lowestReportedCases: 42 },
+      { area: 'production_line', stationCount: 3, countedStations: 2, lowestReportedCases: 38 },
+      { area: 'freezing_packaging', stationCount: 1, countedStations: 0, lowestReportedCases: null },
+      { area: 'warehouse', stationCount: 1, countedStations: 1, lowestReportedCases: 42 },
+    ],
+    preparationStatusCounts: { notStarted: 1, inProgress: 2, ready: 3, notRequired: 1 },
+  };
+
+  return (
+    <main className="workspace">
+      <div className="page-head">
+        <div>
+          <div className="eyebrow">Development-only · synthetic data</div>
+          <h1>Shift overview preview</h1>
+          <p className="page-subtitle">Preview of the live-run dashboard card; no facility data or save actions.</p>
+        </div>
+      </div>
+      <section className="stats-grid" aria-label="Synthetic run totals">
+        <Stat label="In progress" value={1} detail="Running or paused" icon={<Activity size={16} />} />
+        <Stat label="Planned" value={2} detail="Ready to start" icon={<ClipboardList size={16} />} />
+        <Stat label="Completed" value={8} detail="Recorded runs" icon={<Check size={16} />} />
+      </section>
+      <div className="section-heading"><h2>Active now</h2><span className="eyebrow">Sample run</span></div>
+      <section className="active-run-grid" aria-label="Synthetic live production overview">
+        <ActiveRunCard run={run} progress={progress} now={now} />
+      </section>
+    </main>
   );
 }
 
@@ -992,13 +1080,16 @@ function App() {
   const isVisualPreview = import.meta.env.DEV && visualPath === '/__visual-preview/imports';
   const isStationCalculatorPreview = import.meta.env.DEV && visualPath === '/__visual-preview/station-calculator';
   const isRunQualityChecksPreview = import.meta.env.DEV && visualPath === '/__visual-preview/quality-checks';
-  if (!clerkPubKey && !isVisualPreview && !isStationCalculatorPreview && !isRunQualityChecksPreview) {
+  const isDashboardVisualPreview = import.meta.env.DEV && visualPath === '/__visual-preview/dashboard';
+  if (!clerkPubKey && !isVisualPreview && !isStationCalculatorPreview && !isRunQualityChecksPreview && !isDashboardVisualPreview) {
     throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY in .env file');
   }
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        {isVisualPreview
+        {isDashboardVisualPreview
+          ? <WouterRouter base={basePath}><DashboardVisualPreviewPage /></WouterRouter>
+          : isVisualPreview
           ? <Suspense fallback={<LoadingPage title="Loading importer preview" />}><ImportsVisualPreviewPage /></Suspense>
           : isStationCalculatorPreview
             ? <Suspense fallback={<LoadingPage title="Loading station calculator preview" />}><StationCalculatorVisualPreviewPage /></Suspense>

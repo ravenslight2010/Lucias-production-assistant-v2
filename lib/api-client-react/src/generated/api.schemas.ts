@@ -1379,10 +1379,54 @@ export interface DashboardAreaProgress {
   lowestReportedCases: number | null;
 }
 
+export interface DashboardPreparationStatusCounts {
+  /**
+     * @minimum 0
+     * @maximum 50
+     */
+  notStarted: number;
+  /**
+     * @minimum 0
+     * @maximum 50
+     */
+  inProgress: number;
+  /**
+     * @minimum 0
+     * @maximum 50
+     */
+  ready: number;
+  /**
+     * @minimum 0
+     * @maximum 50
+     */
+  notRequired: number;
+}
+
 export interface DashboardRunProgress {
   runId: string;
   /** @maxItems 4 */
   areas: DashboardAreaProgress[];
+  preparationStatusCounts: DashboardPreparationStatusCounts;
+}
+
+export interface DashboardQualityAttention {
+  runId: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  runLabel: string;
+  runStatus: RunStatus;
+  /**
+     * @minimum 0
+     * @maximum 1000
+     */
+  failedChecks: number;
+  /**
+     * @minimum 0
+     * @maximum 201
+     */
+  unresolvedChecks: number;
 }
 
 export interface DashboardSummary {
@@ -1393,6 +1437,8 @@ export interface DashboardSummary {
   plannedRuns: Run[];
   /** @maxItems 10 */
   activeRunProgress: DashboardRunProgress[];
+  /** @maxItems 18 */
+  qualityAttention: DashboardQualityAttention[];
   recentRuns: Run[];
 }
 

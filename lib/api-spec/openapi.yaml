@@ -2384,11 +2384,16 @@ components:
           maxItems: 10
           items:
             $ref: "#/components/schemas/DashboardRunProgress"
+        qualityAttention:
+          type: array
+          maxItems: 18
+          items:
+            $ref: "#/components/schemas/DashboardQualityAttention"
         recentRuns:
           type: array
           items:
             $ref: "#/components/schemas/Run"
-      required: [facility, counts, activeRuns, plannedRuns, activeRunProgress, recentRuns]
+      required: [facility, counts, activeRuns, plannedRuns, activeRunProgress, qualityAttention, recentRuns]
     DashboardAreaProgress:
       type: object
       additionalProperties: false
@@ -2408,6 +2413,49 @@ components:
           minimum: 0
           maximum: 2147483647
       required: [area, stationCount, countedStations, lowestReportedCases]
+    DashboardPreparationStatusCounts:
+      type: object
+      additionalProperties: false
+      properties:
+        notStarted:
+          type: integer
+          minimum: 0
+          maximum: 50
+        inProgress:
+          type: integer
+          minimum: 0
+          maximum: 50
+        ready:
+          type: integer
+          minimum: 0
+          maximum: 50
+        notRequired:
+          type: integer
+          minimum: 0
+          maximum: 50
+      required: [notStarted, inProgress, ready, notRequired]
+    DashboardQualityAttention:
+      type: object
+      additionalProperties: false
+      properties:
+        runId:
+          type: string
+          format: uuid
+        runLabel:
+          type: string
+          minLength: 1
+          maxLength: 120
+        runStatus:
+          $ref: "#/components/schemas/RunStatus"
+        failedChecks:
+          type: integer
+          minimum: 0
+          maximum: 1000
+        unresolvedChecks:
+          type: integer
+          minimum: 0
+          maximum: 201
+      required: [runId, runLabel, runStatus, failedChecks, unresolvedChecks]
     DashboardRunProgress:
       type: object
       additionalProperties: false
@@ -2420,7 +2468,9 @@ components:
           maxItems: 4
           items:
             $ref: "#/components/schemas/DashboardAreaProgress"
-      required: [runId, areas]
+        preparationStatusCounts:
+          $ref: "#/components/schemas/DashboardPreparationStatusCounts"
+      required: [runId, areas, preparationStatusCounts]
   parameters:
     CsrfToken:
       in: header

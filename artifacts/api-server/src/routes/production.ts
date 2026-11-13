@@ -80,6 +80,7 @@ import {
   facilityProductProfilesTable,
   facilityStationLayoutsTable,
   productionRunsTable,
+  runQualityMeasurementsTable,
   runStationProgressTable,
 } from "@workspace/db";
 import { getActorId, requireAuth } from "../middlewares/auth";
@@ -111,6 +112,7 @@ import {
   getRunQualityChecks,
   recordRunQualityMeasurements,
 } from "../lib/run-quality-checks-service";
+import { buildRunQualityTargets } from "../lib/run-quality-checks";
 import { createPlannedRun } from "../lib/run-create-service";
 import { buildRunRequirements } from "../lib/run-requirements";
 import { importSchedule } from "../lib/schedule-import-service";
@@ -1716,6 +1718,7 @@ router.get(
           area: runStationProgressTable.stationArea,
           completedCases: runStationProgressTable.completedCases,
           countUpdatedAt: runStationProgressTable.countUpdatedAt,
+          preparationStatus: runStationProgressTable.preparationStatus,
         })
         .from(runStationProgressTable)
         .where(inArray(runStationProgressTable.runId, activeRuns.map((run) => run.id)))
@@ -1728,11 +1731,43 @@ router.get(
     lowestReportedCases: number | null;
   };
   const progressByRun = new Map<string, Map<string, DashboardAreaSummary>>();
+  const preparationStatusCountsByRun = new Map<string, {
+    notStarted: number;
+    inProgress: number;
+    ready: number;
+    notRequired: number;
+  }>();
   for (const station of progressRows) {
     let areas = progressByRun.get(station.runId);
     if (!areas) {
       areas = new Map();
       progressByRun.set(station.runId, areas);
+    }
+    let preparationStatusCounts = preparationStatusCountsByRun.get(station.runId);
+    if (!preparationStatusCounts) {
+      preparationStatusCounts = {
+        notStarted: 0,
+        inProgress: 0,
+        ready: 0,
+        notRequired: 0,
+      };
+      preparationStatusCountsByRun.set(station.runId, preparationStatusCounts);
+    }
+    switch (station.preparationStatus) {
+      case "not_started":
+        preparationStatusCounts.notStarted += 1;
+        break;
+      case "in_progress":
+        preparationStatusCounts.inProgress += 1;
+        break;
+      case "ready":
+        preparationStatusCounts.ready += 1;
+        break;
+      case "not_required":
+        preparationStatusCounts.notRequired += 1;
+        break;
+      default:
+        throw new Error("Dashboard encountered an invalid station preparation status.");
     }
     let area = areas.get(station.area);
     if (!area) {
@@ -1756,7 +1791,67 @@ router.get(
   const activeRunProgress = activeRuns.map((run) => ({
     runId: run.id,
     areas: [...(progressByRun.get(run.id)?.values() ?? [])],
+    preparationStatusCounts: preparationStatusCountsByRun.get(run.id) ?? {
+      notStarted: 0,
+      inProgress: 0,
+      ready: 0,
+      notRequired: 0,
+    },
   }));
+  const qualityAttentionRuns = [...new Map(
+    [...activeRuns, ...recentRuns]
+      .filter((run) => run.status === "running" || run.status === "paused" || run.status === "completed")
+      .map((run) => [run.id, run] as const),
+  ).values()];
+  const latestQualityMeasurements = qualityAttentionRuns.length
+    ? await db
+        .selectDistinctOn(
+          [runQualityMeasurementsTable.runId, runQualityMeasurementsTable.checkId],
+          {
+            runId: runQualityMeasurementsTable.runId,
+            checkId: runQualityMeasurementsTable.checkId,
+            passed: runQualityMeasurementsTable.passed,
+            createdAt: runQualityMeasurementsTable.createdAt,
+            id: runQualityMeasurementsTable.id,
+          },
+        )
+        .from(runQualityMeasurementsTable)
+        .where(and(
+          eq(runQualityMeasurementsTable.facilityId, access.membership.facilityId),
+          inArray(
+            runQualityMeasurementsTable.runId,
+            qualityAttentionRuns.map((run) => run.id),
+          ),
+        ))
+        .orderBy(
+          asc(runQualityMeasurementsTable.runId),
+          asc(runQualityMeasurementsTable.checkId),
+          desc(runQualityMeasurementsTable.createdAt),
+          desc(runQualityMeasurementsTable.id),
+        )
+    : [];
+  const failedQualityChecksByRun = new Map<string, number>();
+  for (const measurement of latestQualityMeasurements) {
+    if (measurement.passed) continue;
+    failedQualityChecksByRun.set(
+      measurement.runId,
+      (failedQualityChecksByRun.get(measurement.runId) ?? 0) + 1,
+    );
+  }
+  const qualityAttention = qualityAttentionRuns.flatMap((run) => {
+    const failedChecks = failedQualityChecksByRun.get(run.id) ?? 0;
+    const unresolvedChecks = buildRunQualityTargets(run.productSnapshot).checks
+      .filter((check) => check.status === "unresolved").length;
+    return failedChecks || unresolvedChecks
+      ? [{
+          runId: run.id,
+          runLabel: toContractRun(run).setupSnapshot.label,
+          runStatus: run.status,
+          failedChecks,
+          unresolvedChecks,
+        }]
+      : [];
+  });
 
   const counts = { active: 0, planned: 0, completed: 0 };
   for (const item of statusCounts) {
@@ -1781,6 +1876,7 @@ router.get(
       activeRuns: activeRuns.map(toContractRun),
       plannedRuns: plannedRuns.map(toContractRun),
       activeRunProgress,
+      qualityAttention,
       recentRuns: recentRuns.map(toContractRun),
     }),
   );

@@ -7,25 +7,29 @@ A secure production operations app for facility teams to create and control runs
 When GitHub `main` is updated outside Replit, issue **Replit sync: pull latest GitHub main** (`label: replit-sync`) is opened/updated automatically. Pull before continuing:
 
 ```bash
-git fetch origin && git pull --ff-only origin main && pnpm install --frozen-lockfile
+git fetch origin && git pull --ff-only origin main
+corepack pnpm@9.15.9 install --frozen-lockfile
 ```
 
 Details: `docs/replit-github-sync.md`.
+The patched lockfile was verified with PNPM 9.15.9; GitHub CI installs PNPM 9.
+The current Replit shell's PNPM 10 rejects this patched lockfile, so use the
+Corepack command above and do not regenerate the lockfile under PNPM 10.
 
 ## Run & Operate
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
 - `pnpm --filter @workspace/lucia-production-assistant-v2 run dev` — run the V2 web app
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
+- `corepack pnpm@9.15.9 run typecheck` — full typecheck across all packages
+- `PORT=4173 BASE_PATH=/ corepack pnpm@9.15.9 run build` — typecheck + build all packages
+- `corepack pnpm@9.15.9 --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
+- `corepack pnpm@9.15.9 --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — this V2 project's PostgreSQL connection string
 - Authentication uses the Replit-managed Clerk setup; do not add V1 credentials.
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
+- pnpm 9.15.9 workspaces, Node.js 24, TypeScript 5.9
 - API: Express 5
 - DB: PostgreSQL + Drizzle ORM
 - Validation: Zod (`zod/v4`), `drizzle-zod`
@@ -55,21 +59,23 @@ Lucia's Production Assistant is for pizza-line production planning, scheduling, 
 
 ### Current capabilities and gaps
 
-- Facility identity, membership, invitations, revision-safe run lifecycle, run history, dashboard summaries, and editable facility station lineups are implemented.
-- Station status and elapsed timers follow the production-line timer. Per-station counts, pulls, and stage confirmation are still incomplete.
-- Workbook import supports product profiles, name cleanup, and schedule-created planned runs. Schedule runs now carry reviewed, separately calculated requirement snapshots, but the real-workbook-to-floor day-plan path remains partial and must be verified before calling V2 purpose-complete.
-- The run-requirements planner is pre-run calculation and source review. It is not the live station production calculator.
-- Inventory deduction from confirmed production and minimal run-tied quality checks are not implemented.
+- Facility identity, membership, invitations, revision-safe run lifecycle, run history, editable facility station lineups, and active-run dashboard summaries are implemented. Active cards include shared line time, station case counts, and preparation status.
+- Station status and elapsed timers follow the shared production-line timer. Revision-checked per-station counts and a station-level preparation-pull status exist. Imported pull instructions (including days-early notes) are visible as source references, but are not individually confirmed checklist items; stage workflow and multi-session floor verification remain incomplete.
+- Workbook import supports product specifications, dough, cheese, sauce, premix, shipping references, name cleanup, and schedule-created planned runs. Run requirements are captured from reviewed source data. The signed-in real-workbook-to-floor day-plan path still needs end-to-end verification.
+- The run-requirements planner is pre-run calculation and source review. Run detail also shows count-based station progress; broader live production math still needs the golden-fixture and floor-flow checks listed in `docs/purpose-completion-status.md`.
+- Inventory supports facility balances/adjustments and run-level actual-use confirmation. The full confirmed-production-to-on-hand deduction path still needs end-to-end verification.
+- Run-tied ounce quality checks, customer-spec tolerances, and finished-weight ranges are implemented. Unfamiliar applicator rows remain unresolved until reviewed; the signed-in import-and-record path still needs end-to-end verification.
 - The separate-project Reserved VM pilot is still unverified; continue using only synthetic data in the disposable V2 database.
 
 ### Purpose-first build order
 
-1. Harden the day-plan import path from real workbooks into runs and station preparation. Keep the user's workbook-family priority in the V1 import-to-run memory.
+1. Harden the day-plan import path from real workbooks into runs and station preparation. Follow the user's workbook priority: product specs, dough, cheese, sauce, mix/premix, shipping, then schedule; ignore schedule dates earlier than the import date.
 2. Complete station execution: progress, counts, and preparation pulls against the facility lineup, while every station continues to follow the line timer.
-3. Build trusted live production math on the V2 run and station state; do not port the V1 sync engine.
-4. Deduct inventory from confirmed run or station events; use a new physical count for any inventory cutover.
-5. Add only minimal quality checks tied to a run.
-6. Defer templates, broad multi-day lookahead, advanced shipping/allergen programs, and AI diagnostics until a full day can run on V2.
+3. Finish and verify live production math on V2 run/station state; do not port the V1 sync engine.
+4. Verify inventory deductions from confirmed run or station use; use a new physical count for any inventory cutover.
+5. Verify minimal run-tied quality checks and dashboard response to failed or unresolved checks.
+6. Complete dashboard coherence and mobile floor usability; defer templates, broad multi-day lookahead, advanced shipping/allergen programs, and AI diagnostics until a full day can run on V2.
+7. Keep workspace CI and the lockfile green; do not push to GitHub main until the required checks pass.
 
 ## User preferences
 

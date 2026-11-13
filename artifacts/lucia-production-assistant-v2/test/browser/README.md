@@ -23,6 +23,13 @@ synthetic ingredient targets, a finished-weight range, sample history, and an
 unresolved source. It runs outside sign-in, is available only in Vite
 development mode, and its save action does not call the API.
 
+## Dev-only dashboard preview
+
+Open `/__visual-preview/dashboard` to render the live-run dashboard card with
+synthetic case counts and station preparation statuses. It runs outside
+sign-in, is available only in Vite development mode, and uses no facility data
+or save actions.
+
 ## Profile snapshot regression
 
 `profile_snapshots.py` runs the real UI against the real development API, with

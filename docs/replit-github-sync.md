@@ -18,7 +18,7 @@ On every push to `main`, workflow **Replit sync notice**:
 git fetch origin
 git checkout main
 git pull --ff-only origin main
-pnpm install --frozen-lockfile
+corepack pnpm@9.15.9 install --frozen-lockfile
 ```
 
 If the lockfile changed, commit only after a successful frozen install.

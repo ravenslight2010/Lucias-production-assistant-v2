@@ -6,9 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { DashboardAreaProgress } from './dashboardAreaProgress.ts';
+import type { DashboardPreparationStatusCounts } from './dashboardPreparationStatusCounts.ts';
 
 export interface DashboardRunProgress {
   runId: string;
   /** @maxItems 4 */
   areas: DashboardAreaProgress[];
+  preparationStatusCounts: DashboardPreparationStatusCounts;
 }

@@ -130,7 +130,7 @@ async function sendCommand(
   });
 }
 
-test("development pilot check verifies auth, line timer, station counts, inventory freshness, and restart persistence", {
+test("development pilot check verifies auth, line timer, station counts, inventory freshness, quality attention, and restart persistence", {
   timeout: 90_000,
 }, async () => {
   const [facility] = await db
@@ -290,6 +290,12 @@ test("development pilot check verifies auth, line timer, station counts, invento
   const activeDashboard = await activeDashboardResponse.json() as {
     activeRunProgress: Array<{
       runId: string;
+      preparationStatusCounts: {
+        notStarted: number;
+        inProgress: number;
+        ready: number;
+        notRequired: number;
+      };
       areas: Array<{
         area: string;
         stationCount: number;
@@ -324,6 +330,12 @@ test("development pilot check verifies auth, line timer, station counts, invento
       },
     ],
   );
+  assert.deepEqual(activeProgress.preparationStatusCounts, {
+    notStarted: 0,
+    inProgress: 1,
+    ready: 1,
+    notRequired: 0,
+  });
 
   const pausedResponse = await sendCommand(created.run.id, "pause", 1);
   assert.equal(pausedResponse.status, 200);
@@ -392,14 +404,33 @@ test("development pilot check verifies auth, line timer, station counts, invento
       status: "completed",
       revision: 1,
       productSnapshot: {
+        id: "pilot-inventory-profile",
+        brand: "Pilot",
+        flavor: "Inventory fixture",
+        revision: 1,
+        productData: {},
         runRequirements: {
+          version: 1,
+          productLabel: "Pilot Inventory fixture",
+          profileRevision: 1,
+          nameRevision: 1,
           targetCases: 2,
+          unitsPerCase: 1,
+          casePackSource: "Synthetic pilot fixture",
+          totalPizzas: 2,
+          status: "ready",
+          options: { unitsPerCase: 1 },
+          sections: [],
+          sectionId: null,
+          recipes: [],
           items: [
             {
               id: "pilot-ingredient",
               name: "Pilot ingredient",
               originalName: "Pilot ingredient",
               source: "Synthetic pilot fixture",
+              ingredientRole: "ingredient",
+              sourceCoordinates: { sheet: "Synthetic pilot fixture", row: 1, nameColumn: "A" },
               station: "Pilot line",
               stationArea: "production_line",
               amountChoices: [],
@@ -422,11 +453,32 @@ test("development pilot check verifies auth, line timer, station counts, invento
             },
           ],
           batchPreparation: [],
+          preparation: [],
+          packaging: [],
+          issues: [],
         },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       },
       createdBy: actorId,
     })
     .returning({ id: productionRunsTable.id });
+  const qualityMeasurementResponse = await request(
+    `/v2/runs/${inventoryRun.id}/quality-checks`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        commandId: randomUUID(),
+        items: [{ checkId: "ingredient:pilot-ingredient", observedOz: 20 }],
+      }),
+    },
+  );
+  const qualityMeasurementText = await qualityMeasurementResponse.text();
+  if (qualityMeasurementResponse.status !== 200) {
+    throw new Error(
+      `Quality measurement returned ${qualityMeasurementResponse.status}: ${qualityMeasurementText}`,
+    );
+  }
   const countedAt = new Date();
   await db.insert(runStationProgressTable).values({
     runId: inventoryRun.id,
@@ -520,4 +572,31 @@ test("development pilot check verifies auth, line timer, station counts, invento
     items: Array<{ inventoryOnHand: number | null; actualUsed: number | null }>;
   };
   assert.equal(confirmedUsage.items.find((item) => item.actualUsed !== null)?.inventoryOnHand, -1);
+
+  const attentionDashboardResponse = await request("/dashboard/summary");
+  const attentionDashboardText = await attentionDashboardResponse.text();
+  if (attentionDashboardResponse.status !== 200) {
+    throw new Error(
+      `Dashboard attention summary returned ${attentionDashboardResponse.status}: ${attentionDashboardText}`,
+    );
+  }
+  const attentionDashboard = JSON.parse(attentionDashboardText) as {
+    qualityAttention: Array<{
+      runId: string;
+      runLabel: string;
+      runStatus: string;
+      failedChecks: number;
+      unresolvedChecks: number;
+    }>;
+  };
+  assert.deepEqual(
+    attentionDashboard.qualityAttention.find((item) => item.runId === inventoryRun.id),
+    {
+      runId: inventoryRun.id,
+      runLabel: "Automatic inventory verification run",
+      runStatus: "completed",
+      failedChecks: 1,
+      unresolvedChecks: 1,
+    },
+  );
 });

@@ -3227,6 +3227,78 @@ export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequi
 
 export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsOptionsLinksMax = 200;
 
+export const getDashboardSummaryResponsePlannedRunsItemRevisionMin = 0;
+export const getDashboardSummaryResponsePlannedRunsItemRevisionMax = 9007199254740991;
+
+export const getDashboardSummaryResponsePlannedRunsItemScheduleSourceOneFileMax = 255;
+
+export const getDashboardSummaryResponsePlannedRunsItemScheduleSourceOneSheetMax = 80;
+
+export const getDashboardSummaryResponsePlannedRunsItemScheduleSourceOneRowMax = 20000;
+
+export const getDashboardSummaryResponsePlannedRunsItemScheduleSourceOneBrandMax = 120;
+
+export const getDashboardSummaryResponsePlannedRunsItemScheduleSourceOneFlavorMax = 120;
+
+export const getDashboardSummaryResponsePlannedRunsItemSetupSnapshotLabelMax = 120;
+
+export const getDashboardSummaryResponsePlannedRunsItemSetupSnapshotTargetCasesMax = 9007199254740991;
+
+export const getDashboardSummaryResponsePlannedRunsItemSetupSnapshotPlanningExpectedProfileRevisionMin = 0;
+
+export const getDashboardSummaryResponsePlannedRunsItemSetupSnapshotPlanningExpectedNameRevisionMin = 0;
+
+export const getDashboardSummaryResponsePlannedRunsItemSetupSnapshotPlanningOptionsUnitsPerCaseMax = 1000;
+
+export const getDashboardSummaryResponsePlannedRunsItemSetupSnapshotPlanningOptionsSectionIdMax = 200;
+
+export const getDashboardSummaryResponsePlannedRunsItemSetupSnapshotPlanningOptionsLinksItemItemIdMax = 200;
+
+export const getDashboardSummaryResponsePlannedRunsItemSetupSnapshotPlanningOptionsLinksItemRecipeIdMax = 200;
+
+export const getDashboardSummaryResponsePlannedRunsItemSetupSnapshotPlanningOptionsLinksItemAmountColumnMax = 100;
+
+export const getDashboardSummaryResponsePlannedRunsItemSetupSnapshotPlanningOptionsLinksItemBatchColumnMax = 10000;
+
+export const getDashboardSummaryResponsePlannedRunsItemSetupSnapshotPlanningOptionsLinksMax = 200;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneNameResolutionRulesItemSourceBrandMax = 120;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneNameResolutionRulesItemSourceNameMax = 300;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneNameResolutionRulesItemTargetBrandMax = 120;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneNameResolutionRulesItemTargetNameMax = 300;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsOptionsUnitsPerCaseMax = 1000;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsOptionsSectionIdMax = 200;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemItemIdMax = 200;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemRecipeIdMax = 200;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemAmountColumnMax = 100;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemBatchColumnMax = 10000;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsOptionsLinksMax = 200;
+
+export const getDashboardSummaryResponsePlannedRunsMax = 10;
+
+export const getDashboardSummaryResponseActiveRunProgressItemAreasItemStationCountMin = 0;
+export const getDashboardSummaryResponseActiveRunProgressItemAreasItemStationCountMax = 50;
+
+export const getDashboardSummaryResponseActiveRunProgressItemAreasItemCountedStationsMin = 0;
+export const getDashboardSummaryResponseActiveRunProgressItemAreasItemCountedStationsMax = 50;
+
+export const getDashboardSummaryResponseActiveRunProgressItemAreasItemLowestReportedCasesMin = 0;
+export const getDashboardSummaryResponseActiveRunProgressItemAreasItemLowestReportedCasesMax = 2147483647;
+
+export const getDashboardSummaryResponseActiveRunProgressItemAreasMax = 4;
+
+export const getDashboardSummaryResponseActiveRunProgressMax = 10;
+
 export const getDashboardSummaryResponseRecentRunsItemRevisionMin = 0;
 export const getDashboardSummaryResponseRecentRunsItemRevisionMax = 9007199254740991;
 
@@ -3483,6 +3555,201 @@ export const GetDashboardSummaryResponse = zod.object({
   "endedAt": zod.coerce.date().nullable()
 }))
 })),
+  "plannedRuns": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.enum(['planned', 'running', 'paused', 'completed']),
+  "revision": zod.number().int().min(getDashboardSummaryResponsePlannedRunsItemRevisionMin).max(getDashboardSummaryResponsePlannedRunsItemRevisionMax),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "scheduledFor": zod.coerce.date().nullable(),
+  "scheduleNotes": zod.string().nullable(),
+  "scheduleSource": zod.union([zod.object({
+  "importId": zod.string().uuid(),
+  "file": zod.string().max(getDashboardSummaryResponsePlannedRunsItemScheduleSourceOneFileMax),
+  "sheet": zod.string().max(getDashboardSummaryResponsePlannedRunsItemScheduleSourceOneSheetMax),
+  "row": zod.number().int().min(1).max(getDashboardSummaryResponsePlannedRunsItemScheduleSourceOneRowMax),
+  "brand": zod.string().max(getDashboardSummaryResponsePlannedRunsItemScheduleSourceOneBrandMax),
+  "flavor": zod.string().max(getDashboardSummaryResponsePlannedRunsItemScheduleSourceOneFlavorMax)
+}),zod.null()]),
+  "startedAt": zod.coerce.date().nullable(),
+  "pausedAt": zod.coerce.date().nullable(),
+  "resumedAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "setupSnapshot": zod.object({
+  "label": zod.string().min(1).max(getDashboardSummaryResponsePlannedRunsItemSetupSnapshotLabelMax),
+  "targetCases": zod.number().int().min(1).max(getDashboardSummaryResponsePlannedRunsItemSetupSnapshotTargetCasesMax),
+  "productProfileId": zod.string().uuid().nullish(),
+  "planning": zod.object({
+  "expectedProfileRevision": zod.number().int().min(getDashboardSummaryResponsePlannedRunsItemSetupSnapshotPlanningExpectedProfileRevisionMin),
+  "expectedNameRevision": zod.number().int().min(getDashboardSummaryResponsePlannedRunsItemSetupSnapshotPlanningExpectedNameRevisionMin),
+  "options": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(getDashboardSummaryResponsePlannedRunsItemSetupSnapshotPlanningOptionsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(getDashboardSummaryResponsePlannedRunsItemSetupSnapshotPlanningOptionsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(getDashboardSummaryResponsePlannedRunsItemSetupSnapshotPlanningOptionsLinksItemItemIdMax),
+  "recipeId": zod.string().max(getDashboardSummaryResponsePlannedRunsItemSetupSnapshotPlanningOptionsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(getDashboardSummaryResponsePlannedRunsItemSetupSnapshotPlanningOptionsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(getDashboardSummaryResponsePlannedRunsItemSetupSnapshotPlanningOptionsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(getDashboardSummaryResponsePlannedRunsItemSetupSnapshotPlanningOptionsLinksMax).optional()
+})
+}).optional()
+}),
+  "productSnapshot": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "brand": zod.string(),
+  "flavor": zod.string(),
+  "revision": zod.number().int(),
+  "productData": zod.record(zod.string(), zod.unknown()),
+  "nameResolution": zod.object({
+  "revision": zod.number().int(),
+  "rules": zod.array(zod.object({
+  "source": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneNameResolutionRulesItemSourceBrandMax),
+  "name": zod.string().min(1).max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneNameResolutionRulesItemSourceNameMax)
+}),
+  "target": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneNameResolutionRulesItemTargetBrandMax),
+  "name": zod.string().min(1).max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneNameResolutionRulesItemTargetNameMax)
+})
+}))
+}).optional(),
+  "runRequirements": zod.object({
+  "version": zod.literal(1),
+  "productLabel": zod.string(),
+  "profileRevision": zod.number().int(),
+  "nameRevision": zod.number().int(),
+  "targetCases": zod.number().int(),
+  "unitsPerCase": zod.number().int().nullable(),
+  "casePackSource": zod.string(),
+  "totalPizzas": zod.number().int().nullable(),
+  "status": zod.enum(['ready', 'needs_review']),
+  "options": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsOptionsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsOptionsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemItemIdMax),
+  "recipeId": zod.string().max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsOptionsLinksMax).optional()
+}),
+  "sections": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "source": zod.string(),
+  "notes": zod.array(zod.string())
+})),
+  "sectionId": zod.string().nullable(),
+  "recipes": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "brand": zod.string(),
+  "kind": zod.string(),
+  "source": zod.string(),
+  "columns": zod.array(zod.object({
+  "column": zod.number().int(),
+  "label": zod.string(),
+  "unit": zod.string().nullable(),
+  "yield": zod.number().nullable()
+})),
+  "issues": zod.array(zod.string())
+})),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "batchPreparation": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "preparation": zod.array(zod.string()),
+  "packaging": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+}).optional(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "mergedIntoId": zod.string().uuid().nullable()
+}),zod.null()]),
+  "pauseIntervals": zod.array(zod.object({
+  "startedAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().nullable()
+}))
+})).max(getDashboardSummaryResponsePlannedRunsMax),
+  "activeRunProgress": zod.array(zod.object({
+  "runId": zod.string().uuid(),
+  "areas": zod.array(zod.object({
+  "area": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']),
+  "stationCount": zod.number().int().min(getDashboardSummaryResponseActiveRunProgressItemAreasItemStationCountMin).max(getDashboardSummaryResponseActiveRunProgressItemAreasItemStationCountMax),
+  "countedStations": zod.number().int().min(getDashboardSummaryResponseActiveRunProgressItemAreasItemCountedStationsMin).max(getDashboardSummaryResponseActiveRunProgressItemAreasItemCountedStationsMax),
+  "lowestReportedCases": zod.number().int().min(getDashboardSummaryResponseActiveRunProgressItemAreasItemLowestReportedCasesMin).max(getDashboardSummaryResponseActiveRunProgressItemAreasItemLowestReportedCasesMax).nullable()
+})).max(getDashboardSummaryResponseActiveRunProgressItemAreasMax)
+})).max(getDashboardSummaryResponseActiveRunProgressMax),
   "recentRuns": zod.array(zod.object({
   "id": zod.string().uuid(),
   "status": zod.enum(['planned', 'running', 'paused', 'completed']),

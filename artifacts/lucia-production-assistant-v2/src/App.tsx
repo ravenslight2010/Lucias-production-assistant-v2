@@ -27,7 +27,7 @@ import {
   useListRuns,
   useListProductProfiles,
 } from '@workspace/api-client-react';
-import type { HealthStatus, Run, RunCommandRequest, RunStatus, RunPlanningReview } from '@workspace/api-client-react';
+import type { DashboardSummary, HealthStatus, Run, RunCommandRequest, RunStatus, RunPlanningReview } from '@workspace/api-client-react';
 import { Link, Redirect, Route, Switch, Router as WouterRouter, useLocation, useRoute } from 'wouter';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { OperationalSetupSummary } from '@/components/operational-setup-summary';
@@ -36,6 +36,7 @@ import { RunRequirementsEditor, RunRequirementsSummary } from '@/components/run-
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
+import { elapsedMilliseconds, formatElapsed } from '@/run-timer';
 
 const SignInPage = lazy(() => import('@/pages/sign-in'));
 const SignUpPage = lazy(() => import('@/pages/sign-up'));
@@ -330,6 +331,14 @@ function FacilityDashboard({ facilityName }: { facilityName: string }) {
   const data = summary.data;
   const latestRuns = data?.recentRuns ?? [];
   const activeRuns = data?.activeRuns ?? [];
+  const plannedRuns = data?.plannedRuns ?? [];
+  const activeRunProgress = new Map((data?.activeRunProgress ?? []).map((item) => [item.runId, item.areas]));
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (activeRuns.length === 0) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [activeRuns.length]);
   return (
     <SiteShell facilityName={data?.facility.name || facilityName}>
       <main className="workspace">
@@ -347,9 +356,13 @@ function FacilityDashboard({ facilityName }: { facilityName: string }) {
             <Stat label="Planned" value={data.counts.planned} detail="Ready to start" icon={<ClipboardList size={16} />} />
             <Stat label="Completed" value={data.counts.completed} detail="Recorded runs" icon={<Check size={16} />} />
           </section>
-          <div className="section-heading"><h2>Active now</h2><Link href="/runs" className="text-link">All runs <ArrowRight size={14} /></Link></div>
-          <section className="panel run-list" aria-label="Active production runs">
-            {activeRuns.length ? activeRuns.map((run) => <RunRow key={run.id} run={run} />) : <EmptyState title="No active runs" copy="When a run starts, its current state will show here for the whole team." />}
+          <div className="section-heading"><div><h2>Active now</h2><p className="field-help">Line timers and saved station counts update with shared run state.</p></div><Link href="/runs" className="text-link">All runs <ArrowRight size={14} /></Link></div>
+          <section className="active-run-grid" aria-label="Live production overview">
+            {activeRuns.length ? activeRuns.map((run) => <ActiveRunCard key={run.id} run={run} areas={activeRunProgress.get(run.id) ?? []} now={now} />) : <div className="panel active-run-empty"><EmptyState title="No active runs" copy="When a run starts, its line timer and saved station counts will show here for the whole team." /></div>}
+          </section>
+          <div className="section-heading" style={{ marginTop: 30 }}><h2>Planned runs</h2><Link href="/runs" className="text-link">Manage schedule <ArrowRight size={14} /></Link></div>
+          <section className="panel run-list" aria-label="Planned production runs">
+            {plannedRuns.length ? plannedRuns.map((run) => <RunRow key={run.id} run={run} />) : <EmptyState title="No planned runs" copy="Create a planned run or import a schedule to build the production queue." action={<Link href="/runs" className="button button-secondary">Create a run <ArrowRight size={15} /></Link>} />}
           </section>
           <div className="section-heading" style={{ marginTop: 30 }}><h2>Recently updated</h2><span className="eyebrow">Latest activity</span></div>
           <section className="panel run-list" aria-label="Recently updated runs">
@@ -359,6 +372,68 @@ function FacilityDashboard({ facilityName }: { facilityName: string }) {
         {!online && data && <p className="field-help" style={{ marginTop: 14 }}>Read-only cached data. No changes are being queued offline.</p>}
       </main>
     </SiteShell>
+  );
+}
+
+type DashboardAreaProgress = DashboardSummary['activeRunProgress'][number]['areas'][number];
+
+const stationAreaLabels: Record<DashboardAreaProgress['area'], string> = {
+  dough_sauce_prep: 'Dough & sauce prep',
+  production_line: 'Production line',
+  freezing_packaging: 'Freezing & packaging',
+  warehouse: 'Warehouse',
+};
+
+function ActiveRunCard({
+  run,
+  areas,
+  now,
+}: {
+  run: Run;
+  areas: DashboardAreaProgress[];
+  now: number;
+}) {
+  const targetCases = run.setupSnapshot.targetCases;
+  const elapsed = formatElapsed(elapsedMilliseconds(run, now));
+  return (
+    <article className="panel active-run-card" data-testid={`card-active-run-${run.id}`}>
+      <div className="active-run-card-head">
+        <div>
+          <span className="eyebrow">Live production</span>
+          <Link href={`/runs/${encodeURIComponent(run.id)}`} className="active-run-title">{run.setupSnapshot.label}</Link>
+        </div>
+        <Status status={run.status} />
+      </div>
+      <div className="active-run-clock">
+        <div><span className="eyebrow">Line timer</span><strong className="mono" data-testid={`text-dashboard-timer-${run.id}`}>{elapsed}</strong></div>
+        <span>{run.status === 'paused' ? 'Paused' : 'Elapsed time'}</span>
+      </div>
+      <div className="active-run-area-list">
+        {areas.length ? areas.map((area) => {
+          const label = stationAreaLabels[area.area];
+          const count = area.lowestReportedCases;
+          return (
+            <div className="active-run-area" key={area.area}>
+              <div className="active-run-area-head">
+                <strong>{label}</strong>
+                <span>{area.countedStations} of {area.stationCount} station{area.stationCount === 1 ? '' : 's'} reported</span>
+              </div>
+              {count === null
+                ? <p className="field-help">No case count saved yet.</p>
+                : <div className="active-run-case-progress">
+                    <span>Lowest saved count</span>
+                    <strong>{count} / {targetCases} cases</strong>
+                    <progress aria-label={`${label}: lowest saved station count`} value={Math.min(count, targetCases)} max={targetCases} />
+                  </div>}
+            </div>
+          );
+        }) : <p className="field-help">Station progress is not available for this run yet.</p>}
+      </div>
+      <div className="active-run-card-foot">
+        <span>{targetCases} target cases</span>
+        <Link href={`/runs/${encodeURIComponent(run.id)}`} className="text-link">Open run <ArrowRight size={14} /></Link>
+      </div>
+    </article>
   );
 }
 

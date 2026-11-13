@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gt, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, isNull, lte, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { doughImportSelectionIdentity } from "../lib/dough-import-selection";
 import { cheeseImportSelectionIdentity } from "../lib/cheese-import-selection";
@@ -75,6 +75,7 @@ import {
   facilityProductProfilesTable,
   facilityStationLayoutsTable,
   productionRunsTable,
+  runStationProgressTable,
 } from "@workspace/db";
 import { getActorId, requireAuth } from "../middlewares/auth";
 import {
@@ -1572,7 +1573,7 @@ router.get(
   const access = await membershipOrRespond(req, res);
   if (!access) return;
 
-  const [statusCounts, activeRuns, recentRuns] = await Promise.all([
+  const [statusCounts, activeRuns, plannedRuns, recentRuns] = await Promise.all([
     db
       .select({ status: productionRunsTable.status, total: count() })
       .from(productionRunsTable)
@@ -1592,10 +1593,70 @@ router.get(
     db
       .select()
       .from(productionRunsTable)
+      .where(
+        and(
+          eq(productionRunsTable.facilityId, access.membership.facilityId),
+          inArray(productionRunsTable.status, ["planned", "draft"]),
+        ),
+      )
+      .orderBy(asc(productionRunsTable.scheduledFor), desc(productionRunsTable.updatedAt))
+      .limit(10),
+    db
+      .select()
+      .from(productionRunsTable)
       .where(eq(productionRunsTable.facilityId, access.membership.facilityId))
       .orderBy(desc(productionRunsTable.updatedAt))
       .limit(8),
   ]);
+
+  const progressRows = activeRuns.length
+    ? await db
+        .select({
+          runId: runStationProgressTable.runId,
+          area: runStationProgressTable.stationArea,
+          completedCases: runStationProgressTable.completedCases,
+          countUpdatedAt: runStationProgressTable.countUpdatedAt,
+        })
+        .from(runStationProgressTable)
+        .where(inArray(runStationProgressTable.runId, activeRuns.map((run) => run.id)))
+        .orderBy(asc(runStationProgressTable.stationOrder))
+    : [];
+  type DashboardAreaSummary = {
+    area: string;
+    stationCount: number;
+    countedStations: number;
+    lowestReportedCases: number | null;
+  };
+  const progressByRun = new Map<string, Map<string, DashboardAreaSummary>>();
+  for (const station of progressRows) {
+    let areas = progressByRun.get(station.runId);
+    if (!areas) {
+      areas = new Map();
+      progressByRun.set(station.runId, areas);
+    }
+    let area = areas.get(station.area);
+    if (!area) {
+      area = {
+        area: station.area,
+        stationCount: 0,
+        countedStations: 0,
+        lowestReportedCases: null,
+      };
+      areas.set(station.area, area);
+    }
+    area.stationCount += 1;
+    if (station.countUpdatedAt !== null) {
+      area.countedStations += 1;
+      area.lowestReportedCases =
+        area.lowestReportedCases === null
+          ? station.completedCases
+          : Math.min(area.lowestReportedCases, station.completedCases);
+    }
+  }
+  const activeRunProgress = activeRuns.map((run) => ({
+    runId: run.id,
+    areas: [...(progressByRun.get(run.id)?.values() ?? [])],
+  }));
 
   const counts = { active: 0, planned: 0, completed: 0 };
   for (const item of statusCounts) {
@@ -1618,6 +1679,8 @@ router.get(
       facility,
       counts,
       activeRuns: activeRuns.map(toContractRun),
+      plannedRuns: plannedRuns.map(toContractRun),
+      activeRunProgress,
       recentRuns: recentRuns.map(toContractRun),
     }),
   );

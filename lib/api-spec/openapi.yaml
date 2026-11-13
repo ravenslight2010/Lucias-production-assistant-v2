@@ -2230,11 +2230,53 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Run"
+        plannedRuns:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/Run"
+        activeRunProgress:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/DashboardRunProgress"
         recentRuns:
           type: array
           items:
             $ref: "#/components/schemas/Run"
-      required: [facility, counts, activeRuns, recentRuns]
+      required: [facility, counts, activeRuns, plannedRuns, activeRunProgress, recentRuns]
+    DashboardAreaProgress:
+      type: object
+      additionalProperties: false
+      properties:
+        area:
+          $ref: "#/components/schemas/FacilityStationArea"
+        stationCount:
+          type: integer
+          minimum: 0
+          maximum: 50
+        countedStations:
+          type: integer
+          minimum: 0
+          maximum: 50
+        lowestReportedCases:
+          type: ["integer", "null"]
+          minimum: 0
+          maximum: 2147483647
+      required: [area, stationCount, countedStations, lowestReportedCases]
+    DashboardRunProgress:
+      type: object
+      additionalProperties: false
+      properties:
+        runId:
+          type: string
+          format: uuid
+        areas:
+          type: array
+          maxItems: 4
+          items:
+            $ref: "#/components/schemas/DashboardAreaProgress"
+      required: [runId, areas]
   parameters:
     CsrfToken:
       in: header

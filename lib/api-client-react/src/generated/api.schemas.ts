@@ -1209,10 +1209,40 @@ export type DashboardSummaryCounts = {
   completed: number;
 };
 
+export interface DashboardAreaProgress {
+  area: FacilityStationArea;
+  /**
+     * @minimum 0
+     * @maximum 50
+     */
+  stationCount: number;
+  /**
+     * @minimum 0
+     * @maximum 50
+     */
+  countedStations: number;
+  /**
+     * @minimum 0
+     * @maximum 2147483647
+     * @nullable
+     */
+  lowestReportedCases: number | null;
+}
+
+export interface DashboardRunProgress {
+  runId: string;
+  /** @maxItems 4 */
+  areas: DashboardAreaProgress[];
+}
+
 export interface DashboardSummary {
   facility: Facility;
   counts: DashboardSummaryCounts;
   activeRuns: Run[];
+  /** @maxItems 10 */
+  plannedRuns: Run[];
+  /** @maxItems 10 */
+  activeRunProgress: DashboardRunProgress[];
   recentRuns: Run[];
 }
 

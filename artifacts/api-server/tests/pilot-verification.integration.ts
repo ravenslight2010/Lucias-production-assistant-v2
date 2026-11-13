@@ -199,6 +199,16 @@ test("development pilot check verifies auth, line timer, station counts, invento
   assert.equal(replay.replayed, true);
   assert.equal(replay.run.id, created.run.id);
 
+  const plannedDashboardResponse = await request("/dashboard/summary");
+  assert.equal(plannedDashboardResponse.status, 200);
+  const plannedDashboard = await plannedDashboardResponse.json() as {
+    plannedRuns: Array<{ id: string }>;
+  };
+  assert.ok(
+    plannedDashboard.plannedRuns.some((run) => run.id === created.run.id),
+    "planned runs should appear in the dashboard queue",
+  );
+
   const initialProgressResponse = await request(`/v2/runs/${created.run.id}/stations`);
   assert.equal(initialProgressResponse.status, 200);
   const initialProgress = await initialProgressResponse.json() as {
@@ -240,6 +250,7 @@ test("development pilot check verifies auth, line timer, station counts, invento
       status: string;
       producedCount: number;
       preparationStatus: string;
+      revision: number;
     }>;
   };
   assert.ok(runningProgress.stations.every((station) => station.status === "in_progress"));
@@ -251,6 +262,66 @@ test("development pilot check verifies auth, line timer, station counts, invento
     [
       { producedCount: 7, preparationStatus: "ready" },
       { producedCount: 5, preparationStatus: "in_progress" },
+    ],
+  );
+
+  for (const [stationId, completedCases] of [
+    ["pilot-prep", 0],
+    ["pilot-line", 1],
+  ] as const) {
+    const station = runningProgress.stations.find((item) => item.stationId === stationId);
+    assert.ok(station, `saved progress should include ${stationId}`);
+    const savedCount = await request(
+      `/v2/runs/${created.run.id}/stations/${stationId}/count`,
+      {
+        method: "PUT",
+        body: JSON.stringify({
+          commandId: randomUUID(),
+          expectedRevision: station.revision,
+          completedCases,
+        }),
+      },
+    );
+    assert.equal(savedCount.status, 200, `station count should save for ${stationId}`);
+  }
+
+  const activeDashboardResponse = await request("/dashboard/summary");
+  assert.equal(activeDashboardResponse.status, 200);
+  const activeDashboard = await activeDashboardResponse.json() as {
+    activeRunProgress: Array<{
+      runId: string;
+      areas: Array<{
+        area: string;
+        stationCount: number;
+        countedStations: number;
+        lowestReportedCases: number | null;
+      }>;
+    }>;
+  };
+  const activeProgress = activeDashboard.activeRunProgress.find(
+    (item) => item.runId === created.run.id,
+  );
+  assert.ok(activeProgress, "active run progress should appear in the dashboard");
+  assert.deepEqual(
+    activeProgress.areas.map(({ area, stationCount, countedStations, lowestReportedCases }) => ({
+      area,
+      stationCount,
+      countedStations,
+      lowestReportedCases,
+    })).sort((left, right) => left.area.localeCompare(right.area)),
+    [
+      {
+        area: "dough_sauce_prep",
+        stationCount: 1,
+        countedStations: 1,
+        lowestReportedCases: 0,
+      },
+      {
+        area: "production_line",
+        stationCount: 1,
+        countedStations: 1,
+        lowestReportedCases: 1,
+      },
     ],
   );
 

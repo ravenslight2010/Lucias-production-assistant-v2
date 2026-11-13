@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { isUnconfirmedApplicator, parsePreservedProductSpec } from "../importing/product-spec";
+import { isUnconfirmedApplicator, parsePreservedProductSpec, productSpecIngredientRole } from "../importing/product-spec";
 import type { ProductSpecData, ProductSpecSectionData } from "../importing/product-spec";
 import type { NameResolution } from "@workspace/api-client-react";
 import { ResolvedName } from "./resolved-name";
@@ -87,6 +87,15 @@ function amountCount(data: ProductSpecData) {
   );
 }
 
+function ingredientRoleLabel(role: ReturnType<typeof productSpecIngredientRole>) {
+  switch (role) {
+    case "sauce": return "Sauce";
+    case "pep_applicator": return "Pepperoni applicator";
+    case "cheese_applicator": return "Cheese applicator";
+    case "ingredient": return "Ingredient";
+  }
+}
+
 export function ProductSpecSummary({
   data,
   title = "Product specifications",
@@ -146,20 +155,27 @@ export function ProductSpecSummary({
                   <div>
                     <strong className="product-spec-subheading">Formula / ingredients</strong>
                     <ul className="product-spec-ingredients">
-                      {section.ingredients.map((ingredient, index) => (
-                        <li key={`${ingredient.sourceRow}:${index}`}>
-                          <ResolvedName name={ingredient.name} kind="spec" brand={spec.sourceBrand || brand || spec.brand} rules={nameResolution?.rules} />
-                          {isUnconfirmedApplicator(ingredient) && (
-                            <span className="product-spec-applicator-warning" role="status">
-                              Unrecognized applicator label — verify its role before using this run plan.
-                            </span>
-                          )}
-                          {ingredient.amounts.length > 0 && (
-                            <small>{ingredient.amounts.map((amount) => `${amount.value} (${amount.column}${section.unit ? ` ${section.unit}` : ""})`).join(" · ")}</small>
-                          )}
-                          <small className="product-spec-row">Source row {ingredient.sourceRow}</small>
-                        </li>
-                      ))}
+                        {section.ingredients.map((ingredient, index) => {
+                          const unconfirmed = isUnconfirmedApplicator(ingredient);
+                          const roleLabel = ingredientRoleLabel(productSpecIngredientRole(ingredient));
+                          return (
+                            <li key={`${ingredient.sourceRow}:${index}`}>
+                              <ResolvedName name={ingredient.name} kind="spec" brand={spec.sourceBrand || brand || spec.brand} rules={nameResolution?.rules} />
+                              <small className="product-spec-role">
+                                Role: {roleLabel}{unconfirmed ? " (unconfirmed)" : ""}
+                              </small>
+                              {unconfirmed && (
+                                <span className="product-spec-applicator-warning" role="status">
+                                  Unrecognized applicator label — verify its role before using this run plan.
+                                </span>
+                              )}
+                              {ingredient.amounts.length > 0 && (
+                                <small>{ingredient.amounts.map((amount) => `${amount.value} (${amount.column}${section.unit ? ` ${section.unit}` : ""})`).join(" · ")}</small>
+                              )}
+                              <small className="product-spec-row">Source row {ingredient.sourceRow}</small>
+                            </li>
+                          );
+                        })}
                     </ul>
                   </div>
                 )}

@@ -86,6 +86,14 @@ export function isProductSpecIngredientRole(value: unknown): value is ProductSpe
     value === "cheese_applicator" || value === "ingredient";
 }
 
+export function productSpecIngredientRole(
+  ingredient: { name: string; ingredientRole?: unknown },
+): ProductSpecIngredientRole {
+  return isProductSpecIngredientRole(ingredient.ingredientRole)
+    ? ingredient.ingredientRole
+    : ingredientRole(ingredient.name);
+}
+
 function parseRoleOverrides(value: unknown): ProductSpecRoleOverrides | null {
   if (value === undefined) return {};
   if (!isRecord(value) || Object.keys(value).length > 200) return null;

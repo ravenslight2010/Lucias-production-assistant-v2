@@ -2,8 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   defaultProductSpecRoleOverrides,
+  isUnconfirmedApplicator,
   parsePreservedProductSpec,
   parseProductSpecData,
+  productSpecIngredientRole,
   productSpecRoleKey,
 } from "../src/importing/product-spec.ts";
 import { parseProductSpecProfiles } from "../src/importing/workbook.ts";
@@ -107,6 +109,23 @@ test("preserves row roles and worksheet coordinates for applicators across brand
       nameColumn: "A",
     });
   }
+});
+
+test("uses saved ingredient roles and safely infers roles for older saved rows", () => {
+  assert.equal(productSpecIngredientRole({
+    name: "Generic label",
+    ingredientRole: "pep_applicator",
+  }), "pep_applicator", "the reviewed role takes precedence over the source label");
+  assert.equal(productSpecIngredientRole({
+    name: "Cheese Applicator",
+  }), "cheese_applicator", "older rows can derive a recognizable role from their label");
+  assert.equal(productSpecIngredientRole({
+    name: "Applicator - New Model",
+    ingredientRole: "invalid",
+  }), "ingredient", "unknown roles safely fall back to the source-label classification");
+  assert.equal(isUnconfirmedApplicator({
+    name: "Applicator - New Model",
+  }), true, "older applicator rows without confirmation metadata remain flagged");
 });
 
 test("maps source labels from customer spec workbooks to roles with original coordinates", () => {

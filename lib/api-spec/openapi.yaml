@@ -1873,7 +1873,36 @@ components:
             $ref: "#/components/schemas/RunPreparationPullItem"
         packaging: {type: array, items: {type: string}}
         issues: {type: array, items: {type: string}}
+        productSetup:
+          $ref: "#/components/schemas/RunProductSetup"
       required: [version, productLabel, profileRevision, nameRevision, targetCases, unitsPerCase, casePackSource, totalPizzas, status, options, sections, sectionId, recipes, items, batchPreparation, preparation, packaging, issues]
+    ProductSetupEvidence:
+      type: object
+      additionalProperties: false
+      properties:
+        value: {type: string, maxLength: 1000}
+        source: {type: string, maxLength: 500}
+      required: [value, source]
+    RunProductSetup:
+      type: object
+      additionalProperties: false
+      properties:
+        line: {type: ["string", "null"], maxLength: 120}
+        lineStatus: {type: string, enum: [confirmed, missing, conflict]}
+        lineCandidates:
+          type: array
+          maxItems: 100
+          items: {$ref: "#/components/schemas/ProductSetupEvidence"}
+        allergens:
+          type: array
+          maxItems: 100
+          items: {type: string, minLength: 1, maxLength: 120}
+        allergenReview: {type: string, enum: [unreviewed, confirmed, not_applicable]}
+        allergenEvidence:
+          type: array
+          maxItems: 200
+          items: {$ref: "#/components/schemas/ProductSetupEvidence"}
+      required: [line, lineStatus, lineCandidates, allergens, allergenReview, allergenEvidence]
     RunPreparationPullItem:
       type: object
       additionalProperties: false
@@ -2165,6 +2194,17 @@ components:
         name: {type: string, minLength: 1, maxLength: 200}
         recipeData: {$ref: "#/components/schemas/ManagerRecipeDefinition"}
       required: [id, category, brand, flavor, name, recipeData]
+    ProductSetupDefaults:
+      type: object
+      additionalProperties: false
+      properties:
+        line: {type: ["string", "null"], maxLength: 120}
+        allergens:
+          type: array
+          maxItems: 100
+          items: {type: string, minLength: 1, maxLength: 120}
+        allergenReview: {type: string, enum: [unreviewed, confirmed, not_applicable]}
+      required: [line, allergens, allergenReview]
     ProductProfileManagerData:
       type: object
       additionalProperties: false
@@ -2180,6 +2220,8 @@ components:
           items: {$ref: "#/components/schemas/ManagerManualRecipe"}
         setupDefaults:
           $ref: "#/components/schemas/RunPlanningOptions"
+        productSetup:
+          $ref: "#/components/schemas/ProductSetupDefaults"
       required: [recipeOverrides, manualRecipes]
     ProductProfileManagerDataUpdate:
       type: object

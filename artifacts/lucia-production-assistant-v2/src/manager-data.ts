@@ -3,6 +3,7 @@ import type {
   ManagerRecipeDefinition,
   ProductProfile,
   ProductProfileManagerData,
+  ProductSetupDefaults,
 } from '@workspace/api-client-react';
 
 export const MANAGER_FORMAT = 'lucia.manager-profile.v1';
@@ -17,6 +18,11 @@ export type ImportedRecipe = {
   sheet: string;
   row: number;
   definition: ManagerRecipeDefinition;
+};
+export type ProductSetupEvidence = { value: string; source: string };
+export type ImportedProductSetupEvidence = {
+  lineCandidates: ProductSetupEvidence[];
+  allergenEvidence: ProductSetupEvidence[];
 };
 
 const record = (value: unknown): AnyRecord | null =>
@@ -34,6 +40,17 @@ const numeric = (value: unknown): number | null => {
 
 export function emptyManagerData(): ProductProfileManagerData {
   return { recipeOverrides: {}, manualRecipes: [] };
+}
+
+function isProductSetupDefaults(value: unknown): value is ProductSetupDefaults {
+  const setup = record(value);
+  return Boolean(setup && (setup.line === null || typeof setup.line === 'string') &&
+    (typeof setup.line !== 'string' || setup.line.length <= 120) &&
+    Array.isArray(setup.allergens) && setup.allergens.every((item) => typeof item === 'string') &&
+    setup.allergens.length <= 100 && setup.allergens.every((item) => item.trim().length > 0 && item.length <= 120) &&
+    ['unreviewed', 'confirmed', 'not_applicable'].includes(String(setup.allergenReview)) &&
+    !(setup.allergenReview === 'confirmed' && setup.allergens.length === 0) &&
+    !(setup.allergenReview === 'not_applicable' && setup.allergens.length > 0));
 }
 
 export function getManagerData(profile: ProductProfile): ProductProfileManagerData {
@@ -60,7 +77,58 @@ export function getManagerData(profile: ProductProfile): ProductProfileManagerDa
     if (!result.setupDefaults && record(content.setupDefaults)) {
       result.setupDefaults = content.setupDefaults as ProductProfileManagerData['setupDefaults'];
     }
+    if (!result.productSetup && isProductSetupDefaults(content.productSetup)) {
+      result.productSetup = content.productSetup;
+    }
   }
+  return result;
+}
+
+export function getImportedProductSetupEvidence(profile: ProductProfile): ImportedProductSetupEvidence {
+  const result: ImportedProductSetupEvidence = { lineCandidates: [], allergenEvidence: [] };
+  const seen = new Set<string>();
+  const visited = new Set<object>();
+  const add = (target: ProductSetupEvidence[], value: unknown, source: string) => {
+    if (typeof value !== 'string' || !value.trim() ||
+      target.length >= (target === result.lineCandidates ? 100 : 200)) return;
+    const normalized = value.trim().slice(0, 1000);
+    const sourceLabel = source.slice(0, 500) || 'Imported product data';
+    const key = JSON.stringify([target === result.lineCandidates ? 'line' : 'allergen', normalized, sourceLabel]);
+    if (seen.has(key)) return;
+    seen.add(key);
+    target.push({ value: normalized, source: sourceLabel });
+  };
+  const visit = (value: unknown, source: string, depth: number) => {
+    if (!value || typeof value !== 'object' || visited.has(value) || depth > 18 || visited.size >= 4000) return;
+    visited.add(value);
+    if (Array.isArray(value)) {
+      value.forEach((entry) => visit(entry, source, depth + 1));
+      return;
+    }
+    const item = value as AnyRecord;
+    const content = record(item.content);
+    if (content?.format === MANAGER_FORMAT) return;
+    const label = text(item.sourceName).trim() || text(item.importKind).trim() || source;
+    for (const [key, child] of Object.entries(item)) {
+      const normalizedKey = key.toLowerCase().replace(/[^a-z]/g, '');
+      if (['line', 'productionline', 'linename', 'lineassignment'].includes(normalizedKey)) {
+        if (Array.isArray(child)) child.forEach((entry) => add(result.lineCandidates, entry, label));
+        else add(result.lineCandidates, child, label);
+      }
+      if ((normalizedKey === 'allergen' || normalizedKey === 'allergens') &&
+        (typeof child === 'string' || Array.isArray(child))) {
+        if (Array.isArray(child)) child.forEach((entry) => add(result.allergenEvidence, entry, label));
+        else add(result.allergenEvidence, child, label);
+      }
+      if (normalizedKey === 'notes' && Array.isArray(child)) {
+        child.forEach((entry) => {
+          if (typeof entry === 'string' && /\ballergen\b/i.test(entry)) add(result.allergenEvidence, entry, label);
+        });
+      }
+      if (child && typeof child === 'object') visit(child, label, depth + 1);
+    }
+  };
+  visit(profile.productData, 'Imported product data', 0);
   return result;
 }
 

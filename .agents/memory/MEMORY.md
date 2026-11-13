@@ -13,3 +13,4 @@
 - [Authenticated browser notebooks](authenticated-browser-notebooks.md) — Bundle reusable scenarios when the authenticated notebook cannot import ESM; normalize upload buffers at the harness boundary.
 - [Deferred visual verification](deferred-visual-verification.md) — Group visual checks blocked by missing browser access and run them together when it returns.
 - [Product quality tolerances](product-quality-tolerances.md) — Ingredient weights use ±0.1 oz generally and ±0.05 oz for sauce/pep applicators; finished weight uses the spec-sheet range.
+- [Product setup provenance](product-setup-provenance.md) — Keep imported line and allergen details as source evidence until an owner or manager confirms product-specific defaults.

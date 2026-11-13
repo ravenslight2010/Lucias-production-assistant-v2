@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { extractImportedRecipes, getManagerData } from '../src/manager-data.ts';
+import { extractImportedRecipes, getImportedProductSetupEvidence, getManagerData } from '../src/manager-data.ts';
 
 const managerSource = (content) => ({
   importKind: 'manager_profile',
@@ -106,12 +106,66 @@ test('manager data merges recipe edits from merged profiles and keeps survivor s
     flavor: 'Original',
     revision: 5,
     productData: { sources: [
-      managerSource({ recipeOverrides: { survivor: { notes: ['target'] } }, manualRecipes: [firstManual], setupDefaults: { unitsPerCase: 12 } }),
-      managerSource({ recipeOverrides: { merged: { notes: ['source'] } }, manualRecipes: [secondManual], setupDefaults: { unitsPerCase: 24 } }),
+      managerSource({
+        recipeOverrides: { survivor: { notes: ['target'] } },
+        manualRecipes: [firstManual],
+        setupDefaults: { unitsPerCase: 12 },
+        productSetup: { line: 'Line 2', allergens: ['Milk'], allergenReview: 'confirmed' },
+      }),
+      managerSource({
+        recipeOverrides: { merged: { notes: ['source'] } },
+        manualRecipes: [secondManual],
+        setupDefaults: { unitsPerCase: 24 },
+        productSetup: { line: 'Line 4', allergens: ['Wheat'], allergenReview: 'confirmed' },
+      }),
     ] },
   };
   const data = getManagerData(profile);
   assert.deepEqual(Object.keys(data.recipeOverrides).sort(), ['merged', 'survivor']);
   assert.deepEqual(data.manualRecipes.map((recipe) => recipe.id), ['manual-one', 'manual-two']);
   assert.equal(data.setupDefaults.unitsPerCase, 12);
+  assert.deepEqual(data.productSetup, { line: 'Line 2', allergens: ['Milk'], allergenReview: 'confirmed' });
+});
+
+test('imported product line and allergen clues are evidence, never applied defaults', () => {
+  const profile = {
+    id: 'profile',
+    brand: 'Lucia',
+    flavor: 'Evidence sampler',
+    revision: 1,
+    productData: { sources: [
+      {
+        sourceName: 'product-spec.xlsx',
+        content: {
+          format: 'lucia.product-spec.v1',
+          productionLine: 'Line 1',
+          sections: [{ notes: ['EGG ALLERGEN sticker required'] }],
+        },
+      },
+      {
+        sourceName: 'setup.xlsx',
+        content: { line: 'Line 2', allergens: ['Soy'] },
+      },
+      managerSource({
+        recipeOverrides: {},
+        manualRecipes: [],
+        productSetup: { line: null, allergens: [], allergenReview: 'unreviewed' },
+      }),
+    ] },
+  };
+  assert.deepEqual(getManagerData(profile).productSetup, {
+    line: null,
+    allergens: [],
+    allergenReview: 'unreviewed',
+  });
+  assert.deepEqual(getImportedProductSetupEvidence(profile), {
+    lineCandidates: [
+      { value: 'Line 1', source: 'product-spec.xlsx' },
+      { value: 'Line 2', source: 'setup.xlsx' },
+    ],
+    allergenEvidence: [
+      { value: 'EGG ALLERGEN sticker required', source: 'product-spec.xlsx' },
+      { value: 'Soy', source: 'setup.xlsx' },
+    ],
+  });
 });

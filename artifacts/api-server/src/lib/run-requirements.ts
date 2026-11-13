@@ -3,6 +3,7 @@ import type {
   ManagerManualRecipe,
   ManagerRecipeDefinition,
   FacilityStationArea,
+  RunProductSetup,
   RunRequirementsPlan,
   RunPlanningOptions,
   RunRequirementItem,
@@ -16,6 +17,7 @@ import {
   applyManagerRecipeDefinition,
   categoryImportKind,
   managerProfileData,
+  importedProductSetupEvidence,
   managerRecipeSourceKey,
   manualRecipeRaw,
 } from "./manager-profile-data";
@@ -114,6 +116,23 @@ function columns(recipe: RecordValue): RunBatchColumn[] {
 export function buildRunRequirements(profile: Profile, targetCases: number, optionsInput?: RunPlanningOptions): RunRequirementsPlan {
   if (!Number.isSafeInteger(targetCases) || targetCases < 1 || targetCases > 1e6) throw new HttpError(400, "Planning supports between 1 and 1,000,000 target cases.");
   const manager = managerProfileData(profile.productData);
+  const productSetupDefaults = manager.productSetup ?? {
+    line: null,
+    allergens: [],
+    allergenReview: "unreviewed" as const,
+  };
+  const setupEvidence = importedProductSetupEvidence(profile.productData);
+  const distinctLineCandidates = new Set(setupEvidence.lineCandidates.map((candidate) => candidate.value.toLocaleLowerCase()));
+  const productSetup: RunProductSetup = {
+    line: productSetupDefaults.line?.trim() || null,
+    lineStatus: productSetupDefaults.line?.trim()
+      ? "confirmed"
+      : distinctLineCandidates.size > 1 ? "conflict" : "missing",
+    lineCandidates: setupEvidence.lineCandidates,
+    allergens: productSetupDefaults.allergens,
+    allergenReview: productSetupDefaults.allergenReview,
+    allergenEvidence: setupEvidence.allergenEvidence,
+  };
   const savedDefaults = optionsInput === undefined ? manager.setupDefaults : undefined;
   let options = optionsInput ?? savedDefaults ?? {};
   const rules = profile.nameResolution?.rules ?? [];
@@ -450,6 +469,6 @@ export function buildRunRequirements(profile: Profile, targetCases: number, opti
     sections: sections.map(({ raw: _raw, brand: _brand, ...s }) => s), sectionId: selected?.id ?? null,
     recipes: [...recipes.values()].map(r => r.choice), items, batchPreparation,
     preparationItems,
-    preparation: [...new Set(preparation)], packaging, issues: globalIssues,
+    preparation: [...new Set(preparation)], packaging, issues: globalIssues, productSetup,
   };
 }

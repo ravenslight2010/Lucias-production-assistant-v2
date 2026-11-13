@@ -96,3 +96,57 @@ test("golden run math keeps dough, sauce, cheese, tray, batch, and live counts d
     19.2,
   );
 });
+
+test("run plans preserve confirmed setup and expose conflicting imported clues without choosing one", () => {
+  const profile = {
+    ...runMathGoldenProfile,
+    productData: {
+      sources: [
+        {
+          sourceName: "product-spec.xlsx",
+          content: {
+            format: "lucia.product-spec.v1",
+            productionLine: "Line 1",
+            sections: [{ sheet: "OZ", notes: ["EGG ALLERGEN sticker required"], ingredients: [] }],
+          },
+        },
+        {
+          sourceName: "setup-guide.xlsx",
+          content: { line: "Line 2", allergens: ["Soy"] },
+        },
+      ],
+    },
+  };
+  const unresolved = buildRunRequirements(profile, 1, { unitsPerCase: 12 });
+  assert.equal(unresolved.productSetup.line, null);
+  assert.equal(unresolved.productSetup.lineStatus, "conflict");
+  assert.deepEqual(unresolved.productSetup.lineCandidates.map((item) => item.value), ["Line 1", "Line 2"]);
+  assert.equal(unresolved.productSetup.allergenReview, "unreviewed");
+  assert.deepEqual(unresolved.productSetup.allergenEvidence.map((item) => item.value), [
+    "EGG ALLERGEN sticker required",
+    "Soy",
+  ]);
+
+  const confirmed = buildRunRequirements({
+    ...profile,
+    productData: {
+      ...profile.productData,
+      sources: [...profile.productData.sources, {
+        importKind: "manager_profile",
+        sourceName: "Manager profile setup",
+        content: {
+          format: "lucia.manager-profile.v1",
+          recipeOverrides: {},
+          manualRecipes: [],
+          productSetup: { line: "Line 2", allergens: ["Soy"], allergenReview: "confirmed" },
+        },
+      }],
+    },
+  }, 1, { unitsPerCase: 12 });
+  assert.equal(confirmed.productSetup.line, "Line 2");
+  assert.equal(confirmed.productSetup.lineStatus, "confirmed");
+  assert.deepEqual(confirmed.productSetup.allergens, ["Soy"]);
+  assert.equal(confirmed.productSetup.allergenReview, "confirmed");
+  assert.equal(confirmed.productSetup.lineCandidates.length, 2);
+  assert.equal(confirmed.productSetup.allergenEvidence.length, 2);
+});

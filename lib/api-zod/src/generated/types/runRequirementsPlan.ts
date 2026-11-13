@@ -9,6 +9,7 @@ import type { RunFinishedWeightSpec } from './runFinishedWeightSpec.ts';
 import type { RunPlanningOptions } from './runPlanningOptions.ts';
 import type { RunPlanSection } from './runPlanSection.ts';
 import type { RunPreparationPullItem } from './runPreparationPullItem.ts';
+import type { RunProductSetup } from './runProductSetup.ts';
 import type { RunRecipeChoice } from './runRecipeChoice.ts';
 import type { RunRequirementItem } from './runRequirementItem.ts';
 import type { RunRequirementsPlanStatus } from './runRequirementsPlanStatus.ts';
@@ -39,4 +40,5 @@ export interface RunRequirementsPlan {
   preparationItems?: RunPreparationPullItem[];
   packaging: string[];
   issues: string[];
+  productSetup?: RunProductSetup;
 }

@@ -852,6 +852,51 @@ export interface RunPreparationPullItem {
   daysEarly: number | null;
 }
 
+export type RunProductSetupLineStatus = typeof RunProductSetupLineStatus[keyof typeof RunProductSetupLineStatus];
+
+
+export const RunProductSetupLineStatus = {
+  confirmed: 'confirmed',
+  missing: 'missing',
+  conflict: 'conflict',
+} as const;
+
+export interface ProductSetupEvidence {
+  /** @maxLength 1000 */
+  value: string;
+  /** @maxLength 500 */
+  source: string;
+}
+
+export type RunProductSetupAllergenReview = typeof RunProductSetupAllergenReview[keyof typeof RunProductSetupAllergenReview];
+
+
+export const RunProductSetupAllergenReview = {
+  unreviewed: 'unreviewed',
+  confirmed: 'confirmed',
+  not_applicable: 'not_applicable',
+} as const;
+
+export interface RunProductSetup {
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  line: string | null;
+  lineStatus: RunProductSetupLineStatus;
+  /** @maxItems 100 */
+  lineCandidates: ProductSetupEvidence[];
+  /**
+     * @maxItems 100
+     * @items.minLength 1
+     * @items.maxLength 120
+     */
+  allergens: string[];
+  allergenReview: RunProductSetupAllergenReview;
+  /** @maxItems 200 */
+  allergenEvidence: ProductSetupEvidence[];
+}
+
 export interface RunRequirementsPlan {
   version: RunRequirementsPlanVersion;
   productLabel: string;
@@ -877,6 +922,7 @@ export interface RunRequirementsPlan {
   preparationItems?: RunPreparationPullItem[];
   packaging: string[];
   issues: string[];
+  productSetup?: RunProductSetup;
 }
 
 export type RunPreparationTaskStatus = typeof RunPreparationTaskStatus[keyof typeof RunPreparationTaskStatus];
@@ -1276,6 +1322,30 @@ export interface ManagerManualRecipe {
   recipeData: ManagerRecipeDefinition;
 }
 
+export type ProductSetupDefaultsAllergenReview = typeof ProductSetupDefaultsAllergenReview[keyof typeof ProductSetupDefaultsAllergenReview];
+
+
+export const ProductSetupDefaultsAllergenReview = {
+  unreviewed: 'unreviewed',
+  confirmed: 'confirmed',
+  not_applicable: 'not_applicable',
+} as const;
+
+export interface ProductSetupDefaults {
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  line: string | null;
+  /**
+     * @maxItems 100
+     * @items.minLength 1
+     * @items.maxLength 120
+     */
+  allergens: string[];
+  allergenReview: ProductSetupDefaultsAllergenReview;
+}
+
 export type ProductProfileManagerDataRecipeOverrides = {[key: string]: ManagerRecipeDefinition};
 
 export interface ProductProfileManagerData {
@@ -1283,6 +1353,7 @@ export interface ProductProfileManagerData {
   /** @maxItems 200 */
   manualRecipes: ManagerManualRecipe[];
   setupDefaults?: RunPlanningOptions;
+  productSetup?: ProductSetupDefaults;
 }
 
 export interface ProductProfileManagerDataUpdate {

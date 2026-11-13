@@ -70,6 +70,9 @@
 .rr-notes ul { margin: 6px 0 0; padding-left: 18px; font-size: 12px; line-height: 1.6; }
 .rr-notes h4 { margin: 0 0 4px; font-size: 13px; }
 .rr-footnote { padding-top: 10px; border-top: 1px solid hsl(var(--border)); color: hsl(var(--muted-foreground)); font-size: 11px; line-height: 1.55; }
+.rr-setup-evidence { display: grid; gap: 5px; margin: 8px 0 12px; padding: 10px; border-radius: 8px; background: hsl(var(--muted) / .55); font-size: 11px; }
+.rr-setup-evidence p { margin: 0; overflow-wrap: anywhere; }
+.rr-setup-evidence small { display: block; margin-top: 3px; color: hsl(var(--muted-foreground)); }
 
 @media (min-width: 640px) {
   .rr-control-grid, .rr-item-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }

@@ -1391,6 +1391,13 @@ router.patch(
       res.status(403).json({ error: "Only owners and managers can edit recipe libraries and profile setup." });
       return;
     }
+    const productSetup = body.data.managerData.productSetup;
+    if (productSetup &&
+      ((productSetup.allergenReview === "confirmed" && productSetup.allergens.length === 0) ||
+        (productSetup.allergenReview === "not_applicable" && productSetup.allergens.length > 0))) {
+      res.status(400).json({ error: "Confirm at least one allergen, or mark the profile as having no listed allergens." });
+      return;
+    }
 
     const profile = await db.transaction(async (tx) => {
       const [current] = await tx.select().from(facilityProductProfilesTable).where(and(

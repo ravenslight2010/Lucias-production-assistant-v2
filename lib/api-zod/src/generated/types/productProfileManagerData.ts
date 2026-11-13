@@ -7,6 +7,7 @@
  */
 import type { ManagerManualRecipe } from './managerManualRecipe.ts';
 import type { ProductProfileManagerDataRecipeOverrides } from './productProfileManagerDataRecipeOverrides.ts';
+import type { ProductSetupDefaults } from './productSetupDefaults.ts';
 import type { RunPlanningOptions } from './runPlanningOptions.ts';
 
 export interface ProductProfileManagerData {
@@ -14,4 +15,5 @@ export interface ProductProfileManagerData {
   /** @maxItems 200 */
   manualRecipes: ManagerManualRecipe[];
   setupDefaults?: RunPlanningOptions;
+  productSetup?: ProductSetupDefaults;
 }

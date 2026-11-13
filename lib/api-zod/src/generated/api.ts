@@ -87,6 +87,24 @@ export const previewRunRequirementsResponsePreparationItemsItemDaysEarlyMax = 36
 
 export const previewRunRequirementsResponsePreparationItemsMax = 500;
 
+export const previewRunRequirementsResponseProductSetupLineMax = 120;
+
+export const previewRunRequirementsResponseProductSetupLineCandidatesItemValueMax = 1000;
+
+export const previewRunRequirementsResponseProductSetupLineCandidatesItemSourceMax = 500;
+
+export const previewRunRequirementsResponseProductSetupLineCandidatesMax = 100;
+
+export const previewRunRequirementsResponseProductSetupAllergensItemMax = 120;
+
+export const previewRunRequirementsResponseProductSetupAllergensMax = 100;
+
+export const previewRunRequirementsResponseProductSetupAllergenEvidenceItemValueMax = 1000;
+
+export const previewRunRequirementsResponseProductSetupAllergenEvidenceItemSourceMax = 500;
+
+export const previewRunRequirementsResponseProductSetupAllergenEvidenceMax = 200;
+
 
 
 export const PreviewRunRequirementsResponse = zod.object({
@@ -230,7 +248,21 @@ export const PreviewRunRequirementsResponse = zod.object({
   "daysEarly": zod.number().int().min(previewRunRequirementsResponsePreparationItemsItemDaysEarlyMin).max(previewRunRequirementsResponsePreparationItemsItemDaysEarlyMax).nullable()
 })).max(previewRunRequirementsResponsePreparationItemsMax).optional(),
   "packaging": zod.array(zod.string()),
-  "issues": zod.array(zod.string())
+  "issues": zod.array(zod.string()),
+  "productSetup": zod.object({
+  "line": zod.string().max(previewRunRequirementsResponseProductSetupLineMax).nullable(),
+  "lineStatus": zod.enum(['confirmed', 'missing', 'conflict']),
+  "lineCandidates": zod.array(zod.object({
+  "value": zod.string().max(previewRunRequirementsResponseProductSetupLineCandidatesItemValueMax),
+  "source": zod.string().max(previewRunRequirementsResponseProductSetupLineCandidatesItemSourceMax)
+})).max(previewRunRequirementsResponseProductSetupLineCandidatesMax),
+  "allergens": zod.array(zod.string().min(1).max(previewRunRequirementsResponseProductSetupAllergensItemMax)).max(previewRunRequirementsResponseProductSetupAllergensMax),
+  "allergenReview": zod.enum(['unreviewed', 'confirmed', 'not_applicable']),
+  "allergenEvidence": zod.array(zod.object({
+  "value": zod.string().max(previewRunRequirementsResponseProductSetupAllergenEvidenceItemValueMax),
+  "source": zod.string().max(previewRunRequirementsResponseProductSetupAllergenEvidenceItemSourceMax)
+})).max(previewRunRequirementsResponseProductSetupAllergenEvidenceMax)
+}).optional()
 })
 
 
@@ -572,6 +604,24 @@ export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsPreparatio
 
 export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsPreparationItemsMax = 500;
 
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsProductSetupLineMax = 120;
+
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemValueMax = 1000;
+
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemSourceMax = 500;
+
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesMax = 100;
+
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsProductSetupAllergensItemMax = 120;
+
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsProductSetupAllergensMax = 100;
+
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemValueMax = 1000;
+
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemSourceMax = 500;
+
+export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceMax = 200;
+
 
 
 export const ListRunsResponse = zod.object({
@@ -778,7 +828,21 @@ export const ListRunsResponse = zod.object({
   "daysEarly": zod.number().int().min(listRunsResponseRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMin).max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax).nullable()
 })).max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsPreparationItemsMax).optional(),
   "packaging": zod.array(zod.string()),
-  "issues": zod.array(zod.string())
+  "issues": zod.array(zod.string()),
+  "productSetup": zod.object({
+  "line": zod.string().max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsProductSetupLineMax).nullable(),
+  "lineStatus": zod.enum(['confirmed', 'missing', 'conflict']),
+  "lineCandidates": zod.array(zod.object({
+  "value": zod.string().max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemValueMax),
+  "source": zod.string().max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemSourceMax)
+})).max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesMax),
+  "allergens": zod.array(zod.string().min(1).max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsProductSetupAllergensItemMax)).max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsProductSetupAllergensMax),
+  "allergenReview": zod.enum(['unreviewed', 'confirmed', 'not_applicable']),
+  "allergenEvidence": zod.array(zod.object({
+  "value": zod.string().max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemValueMax),
+  "source": zod.string().max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemSourceMax)
+})).max(listRunsResponseRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceMax)
+}).optional()
 }).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -927,6 +991,24 @@ export const createRunResponseRunProductSnapshotOneRunRequirementsPreparationIte
 export const createRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax = 3650;
 
 export const createRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsMax = 500;
+
+export const createRunResponseRunProductSnapshotOneRunRequirementsProductSetupLineMax = 120;
+
+export const createRunResponseRunProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemValueMax = 1000;
+
+export const createRunResponseRunProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemSourceMax = 500;
+
+export const createRunResponseRunProductSnapshotOneRunRequirementsProductSetupLineCandidatesMax = 100;
+
+export const createRunResponseRunProductSnapshotOneRunRequirementsProductSetupAllergensItemMax = 120;
+
+export const createRunResponseRunProductSnapshotOneRunRequirementsProductSetupAllergensMax = 100;
+
+export const createRunResponseRunProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemValueMax = 1000;
+
+export const createRunResponseRunProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemSourceMax = 500;
+
+export const createRunResponseRunProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceMax = 200;
 
 
 
@@ -1136,7 +1218,21 @@ export const CreateRunResponse = zod.object({
   "daysEarly": zod.number().int().min(createRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMin).max(createRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax).nullable()
 })).max(createRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsMax).optional(),
   "packaging": zod.array(zod.string()),
-  "issues": zod.array(zod.string())
+  "issues": zod.array(zod.string()),
+  "productSetup": zod.object({
+  "line": zod.string().max(createRunResponseRunProductSnapshotOneRunRequirementsProductSetupLineMax).nullable(),
+  "lineStatus": zod.enum(['confirmed', 'missing', 'conflict']),
+  "lineCandidates": zod.array(zod.object({
+  "value": zod.string().max(createRunResponseRunProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemValueMax),
+  "source": zod.string().max(createRunResponseRunProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemSourceMax)
+})).max(createRunResponseRunProductSnapshotOneRunRequirementsProductSetupLineCandidatesMax),
+  "allergens": zod.array(zod.string().min(1).max(createRunResponseRunProductSnapshotOneRunRequirementsProductSetupAllergensItemMax)).max(createRunResponseRunProductSnapshotOneRunRequirementsProductSetupAllergensMax),
+  "allergenReview": zod.enum(['unreviewed', 'confirmed', 'not_applicable']),
+  "allergenEvidence": zod.array(zod.object({
+  "value": zod.string().max(createRunResponseRunProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemValueMax),
+  "source": zod.string().max(createRunResponseRunProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemSourceMax)
+})).max(createRunResponseRunProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceMax)
+}).optional()
 }).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -1442,6 +1538,24 @@ export const listProductProfilesResponseProfilesItemRunRequirementsPreparationIt
 
 export const listProductProfilesResponseProfilesItemRunRequirementsPreparationItemsMax = 500;
 
+export const listProductProfilesResponseProfilesItemRunRequirementsProductSetupLineMax = 120;
+
+export const listProductProfilesResponseProfilesItemRunRequirementsProductSetupLineCandidatesItemValueMax = 1000;
+
+export const listProductProfilesResponseProfilesItemRunRequirementsProductSetupLineCandidatesItemSourceMax = 500;
+
+export const listProductProfilesResponseProfilesItemRunRequirementsProductSetupLineCandidatesMax = 100;
+
+export const listProductProfilesResponseProfilesItemRunRequirementsProductSetupAllergensItemMax = 120;
+
+export const listProductProfilesResponseProfilesItemRunRequirementsProductSetupAllergensMax = 100;
+
+export const listProductProfilesResponseProfilesItemRunRequirementsProductSetupAllergenEvidenceItemValueMax = 1000;
+
+export const listProductProfilesResponseProfilesItemRunRequirementsProductSetupAllergenEvidenceItemSourceMax = 500;
+
+export const listProductProfilesResponseProfilesItemRunRequirementsProductSetupAllergenEvidenceMax = 200;
+
 export const listProductProfilesResponseReferenceNamesRulesItemSourceBrandMax = 120;
 
 export const listProductProfilesResponseReferenceNamesRulesItemSourceNameMax = 300;
@@ -1615,7 +1729,21 @@ export const ListProductProfilesResponse = zod.object({
   "daysEarly": zod.number().int().min(listProductProfilesResponseProfilesItemRunRequirementsPreparationItemsItemDaysEarlyMin).max(listProductProfilesResponseProfilesItemRunRequirementsPreparationItemsItemDaysEarlyMax).nullable()
 })).max(listProductProfilesResponseProfilesItemRunRequirementsPreparationItemsMax).optional(),
   "packaging": zod.array(zod.string()),
-  "issues": zod.array(zod.string())
+  "issues": zod.array(zod.string()),
+  "productSetup": zod.object({
+  "line": zod.string().max(listProductProfilesResponseProfilesItemRunRequirementsProductSetupLineMax).nullable(),
+  "lineStatus": zod.enum(['confirmed', 'missing', 'conflict']),
+  "lineCandidates": zod.array(zod.object({
+  "value": zod.string().max(listProductProfilesResponseProfilesItemRunRequirementsProductSetupLineCandidatesItemValueMax),
+  "source": zod.string().max(listProductProfilesResponseProfilesItemRunRequirementsProductSetupLineCandidatesItemSourceMax)
+})).max(listProductProfilesResponseProfilesItemRunRequirementsProductSetupLineCandidatesMax),
+  "allergens": zod.array(zod.string().min(1).max(listProductProfilesResponseProfilesItemRunRequirementsProductSetupAllergensItemMax)).max(listProductProfilesResponseProfilesItemRunRequirementsProductSetupAllergensMax),
+  "allergenReview": zod.enum(['unreviewed', 'confirmed', 'not_applicable']),
+  "allergenEvidence": zod.array(zod.object({
+  "value": zod.string().max(listProductProfilesResponseProfilesItemRunRequirementsProductSetupAllergenEvidenceItemValueMax),
+  "source": zod.string().max(listProductProfilesResponseProfilesItemRunRequirementsProductSetupAllergenEvidenceItemSourceMax)
+})).max(listProductProfilesResponseProfilesItemRunRequirementsProductSetupAllergenEvidenceMax)
+}).optional()
 }).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -1717,6 +1845,24 @@ export const importProductProfileResponseProfileRunRequirementsPreparationItemsI
 export const importProductProfileResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMax = 3650;
 
 export const importProductProfileResponseProfileRunRequirementsPreparationItemsMax = 500;
+
+export const importProductProfileResponseProfileRunRequirementsProductSetupLineMax = 120;
+
+export const importProductProfileResponseProfileRunRequirementsProductSetupLineCandidatesItemValueMax = 1000;
+
+export const importProductProfileResponseProfileRunRequirementsProductSetupLineCandidatesItemSourceMax = 500;
+
+export const importProductProfileResponseProfileRunRequirementsProductSetupLineCandidatesMax = 100;
+
+export const importProductProfileResponseProfileRunRequirementsProductSetupAllergensItemMax = 120;
+
+export const importProductProfileResponseProfileRunRequirementsProductSetupAllergensMax = 100;
+
+export const importProductProfileResponseProfileRunRequirementsProductSetupAllergenEvidenceItemValueMax = 1000;
+
+export const importProductProfileResponseProfileRunRequirementsProductSetupAllergenEvidenceItemSourceMax = 500;
+
+export const importProductProfileResponseProfileRunRequirementsProductSetupAllergenEvidenceMax = 200;
 
 
 
@@ -1883,7 +2029,21 @@ export const ImportProductProfileResponse = zod.object({
   "daysEarly": zod.number().int().min(importProductProfileResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMin).max(importProductProfileResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMax).nullable()
 })).max(importProductProfileResponseProfileRunRequirementsPreparationItemsMax).optional(),
   "packaging": zod.array(zod.string()),
-  "issues": zod.array(zod.string())
+  "issues": zod.array(zod.string()),
+  "productSetup": zod.object({
+  "line": zod.string().max(importProductProfileResponseProfileRunRequirementsProductSetupLineMax).nullable(),
+  "lineStatus": zod.enum(['confirmed', 'missing', 'conflict']),
+  "lineCandidates": zod.array(zod.object({
+  "value": zod.string().max(importProductProfileResponseProfileRunRequirementsProductSetupLineCandidatesItemValueMax),
+  "source": zod.string().max(importProductProfileResponseProfileRunRequirementsProductSetupLineCandidatesItemSourceMax)
+})).max(importProductProfileResponseProfileRunRequirementsProductSetupLineCandidatesMax),
+  "allergens": zod.array(zod.string().min(1).max(importProductProfileResponseProfileRunRequirementsProductSetupAllergensItemMax)).max(importProductProfileResponseProfileRunRequirementsProductSetupAllergensMax),
+  "allergenReview": zod.enum(['unreviewed', 'confirmed', 'not_applicable']),
+  "allergenEvidence": zod.array(zod.object({
+  "value": zod.string().max(importProductProfileResponseProfileRunRequirementsProductSetupAllergenEvidenceItemValueMax),
+  "source": zod.string().max(importProductProfileResponseProfileRunRequirementsProductSetupAllergenEvidenceItemSourceMax)
+})).max(importProductProfileResponseProfileRunRequirementsProductSetupAllergenEvidenceMax)
+}).optional()
 }).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -1990,6 +2150,24 @@ export const renameProductProfileResponseProfileRunRequirementsPreparationItemsI
 export const renameProductProfileResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMax = 3650;
 
 export const renameProductProfileResponseProfileRunRequirementsPreparationItemsMax = 500;
+
+export const renameProductProfileResponseProfileRunRequirementsProductSetupLineMax = 120;
+
+export const renameProductProfileResponseProfileRunRequirementsProductSetupLineCandidatesItemValueMax = 1000;
+
+export const renameProductProfileResponseProfileRunRequirementsProductSetupLineCandidatesItemSourceMax = 500;
+
+export const renameProductProfileResponseProfileRunRequirementsProductSetupLineCandidatesMax = 100;
+
+export const renameProductProfileResponseProfileRunRequirementsProductSetupAllergensItemMax = 120;
+
+export const renameProductProfileResponseProfileRunRequirementsProductSetupAllergensMax = 100;
+
+export const renameProductProfileResponseProfileRunRequirementsProductSetupAllergenEvidenceItemValueMax = 1000;
+
+export const renameProductProfileResponseProfileRunRequirementsProductSetupAllergenEvidenceItemSourceMax = 500;
+
+export const renameProductProfileResponseProfileRunRequirementsProductSetupAllergenEvidenceMax = 200;
 
 
 
@@ -2156,7 +2334,21 @@ export const RenameProductProfileResponse = zod.object({
   "daysEarly": zod.number().int().min(renameProductProfileResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMin).max(renameProductProfileResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMax).nullable()
 })).max(renameProductProfileResponseProfileRunRequirementsPreparationItemsMax).optional(),
   "packaging": zod.array(zod.string()),
-  "issues": zod.array(zod.string())
+  "issues": zod.array(zod.string()),
+  "productSetup": zod.object({
+  "line": zod.string().max(renameProductProfileResponseProfileRunRequirementsProductSetupLineMax).nullable(),
+  "lineStatus": zod.enum(['confirmed', 'missing', 'conflict']),
+  "lineCandidates": zod.array(zod.object({
+  "value": zod.string().max(renameProductProfileResponseProfileRunRequirementsProductSetupLineCandidatesItemValueMax),
+  "source": zod.string().max(renameProductProfileResponseProfileRunRequirementsProductSetupLineCandidatesItemSourceMax)
+})).max(renameProductProfileResponseProfileRunRequirementsProductSetupLineCandidatesMax),
+  "allergens": zod.array(zod.string().min(1).max(renameProductProfileResponseProfileRunRequirementsProductSetupAllergensItemMax)).max(renameProductProfileResponseProfileRunRequirementsProductSetupAllergensMax),
+  "allergenReview": zod.enum(['unreviewed', 'confirmed', 'not_applicable']),
+  "allergenEvidence": zod.array(zod.object({
+  "value": zod.string().max(renameProductProfileResponseProfileRunRequirementsProductSetupAllergenEvidenceItemValueMax),
+  "source": zod.string().max(renameProductProfileResponseProfileRunRequirementsProductSetupAllergenEvidenceItemSourceMax)
+})).max(renameProductProfileResponseProfileRunRequirementsProductSetupAllergenEvidenceMax)
+}).optional()
 }).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -2234,6 +2426,24 @@ export const mergeProductProfileResponseProfileRunRequirementsPreparationItemsIt
 export const mergeProductProfileResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMax = 3650;
 
 export const mergeProductProfileResponseProfileRunRequirementsPreparationItemsMax = 500;
+
+export const mergeProductProfileResponseProfileRunRequirementsProductSetupLineMax = 120;
+
+export const mergeProductProfileResponseProfileRunRequirementsProductSetupLineCandidatesItemValueMax = 1000;
+
+export const mergeProductProfileResponseProfileRunRequirementsProductSetupLineCandidatesItemSourceMax = 500;
+
+export const mergeProductProfileResponseProfileRunRequirementsProductSetupLineCandidatesMax = 100;
+
+export const mergeProductProfileResponseProfileRunRequirementsProductSetupAllergensItemMax = 120;
+
+export const mergeProductProfileResponseProfileRunRequirementsProductSetupAllergensMax = 100;
+
+export const mergeProductProfileResponseProfileRunRequirementsProductSetupAllergenEvidenceItemValueMax = 1000;
+
+export const mergeProductProfileResponseProfileRunRequirementsProductSetupAllergenEvidenceItemSourceMax = 500;
+
+export const mergeProductProfileResponseProfileRunRequirementsProductSetupAllergenEvidenceMax = 200;
 
 
 
@@ -2400,7 +2610,21 @@ export const MergeProductProfileResponse = zod.object({
   "daysEarly": zod.number().int().min(mergeProductProfileResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMin).max(mergeProductProfileResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMax).nullable()
 })).max(mergeProductProfileResponseProfileRunRequirementsPreparationItemsMax).optional(),
   "packaging": zod.array(zod.string()),
-  "issues": zod.array(zod.string())
+  "issues": zod.array(zod.string()),
+  "productSetup": zod.object({
+  "line": zod.string().max(mergeProductProfileResponseProfileRunRequirementsProductSetupLineMax).nullable(),
+  "lineStatus": zod.enum(['confirmed', 'missing', 'conflict']),
+  "lineCandidates": zod.array(zod.object({
+  "value": zod.string().max(mergeProductProfileResponseProfileRunRequirementsProductSetupLineCandidatesItemValueMax),
+  "source": zod.string().max(mergeProductProfileResponseProfileRunRequirementsProductSetupLineCandidatesItemSourceMax)
+})).max(mergeProductProfileResponseProfileRunRequirementsProductSetupLineCandidatesMax),
+  "allergens": zod.array(zod.string().min(1).max(mergeProductProfileResponseProfileRunRequirementsProductSetupAllergensItemMax)).max(mergeProductProfileResponseProfileRunRequirementsProductSetupAllergensMax),
+  "allergenReview": zod.enum(['unreviewed', 'confirmed', 'not_applicable']),
+  "allergenEvidence": zod.array(zod.object({
+  "value": zod.string().max(mergeProductProfileResponseProfileRunRequirementsProductSetupAllergenEvidenceItemValueMax),
+  "source": zod.string().max(mergeProductProfileResponseProfileRunRequirementsProductSetupAllergenEvidenceItemSourceMax)
+})).max(mergeProductProfileResponseProfileRunRequirementsProductSetupAllergenEvidenceMax)
+}).optional()
 }).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -2542,6 +2766,12 @@ export const updateProductProfileManagerDataBodyManagerDataSetupDefaultsLinksIte
 
 export const updateProductProfileManagerDataBodyManagerDataSetupDefaultsLinksMax = 200;
 
+export const updateProductProfileManagerDataBodyManagerDataProductSetupLineMax = 120;
+
+export const updateProductProfileManagerDataBodyManagerDataProductSetupAllergensItemMax = 120;
+
+export const updateProductProfileManagerDataBodyManagerDataProductSetupAllergensMax = 100;
+
 
 
 export const UpdateProductProfileManagerDataBody = zod.object({
@@ -2617,6 +2847,11 @@ export const UpdateProductProfileManagerDataBody = zod.object({
   "batchColumn": zod.number().int().min(1).max(updateProductProfileManagerDataBodyManagerDataSetupDefaultsLinksItemBatchColumnMax).optional(),
   "directIngredient": zod.boolean().optional()
 })).max(updateProductProfileManagerDataBodyManagerDataSetupDefaultsLinksMax).optional()
+}).optional(),
+  "productSetup": zod.object({
+  "line": zod.string().max(updateProductProfileManagerDataBodyManagerDataProductSetupLineMax).nullable(),
+  "allergens": zod.array(zod.string().min(1).max(updateProductProfileManagerDataBodyManagerDataProductSetupAllergensItemMax)).max(updateProductProfileManagerDataBodyManagerDataProductSetupAllergensMax),
+  "allergenReview": zod.enum(['unreviewed', 'confirmed', 'not_applicable'])
 }).optional()
 })
 })
@@ -2664,6 +2899,24 @@ export const updateProductProfileManagerDataResponseProfileRunRequirementsPrepar
 export const updateProductProfileManagerDataResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMax = 3650;
 
 export const updateProductProfileManagerDataResponseProfileRunRequirementsPreparationItemsMax = 500;
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsProductSetupLineMax = 120;
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsProductSetupLineCandidatesItemValueMax = 1000;
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsProductSetupLineCandidatesItemSourceMax = 500;
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsProductSetupLineCandidatesMax = 100;
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsProductSetupAllergensItemMax = 120;
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsProductSetupAllergensMax = 100;
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsProductSetupAllergenEvidenceItemValueMax = 1000;
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsProductSetupAllergenEvidenceItemSourceMax = 500;
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsProductSetupAllergenEvidenceMax = 200;
 
 
 
@@ -2830,7 +3083,21 @@ export const UpdateProductProfileManagerDataResponse = zod.object({
   "daysEarly": zod.number().int().min(updateProductProfileManagerDataResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMin).max(updateProductProfileManagerDataResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMax).nullable()
 })).max(updateProductProfileManagerDataResponseProfileRunRequirementsPreparationItemsMax).optional(),
   "packaging": zod.array(zod.string()),
-  "issues": zod.array(zod.string())
+  "issues": zod.array(zod.string()),
+  "productSetup": zod.object({
+  "line": zod.string().max(updateProductProfileManagerDataResponseProfileRunRequirementsProductSetupLineMax).nullable(),
+  "lineStatus": zod.enum(['confirmed', 'missing', 'conflict']),
+  "lineCandidates": zod.array(zod.object({
+  "value": zod.string().max(updateProductProfileManagerDataResponseProfileRunRequirementsProductSetupLineCandidatesItemValueMax),
+  "source": zod.string().max(updateProductProfileManagerDataResponseProfileRunRequirementsProductSetupLineCandidatesItemSourceMax)
+})).max(updateProductProfileManagerDataResponseProfileRunRequirementsProductSetupLineCandidatesMax),
+  "allergens": zod.array(zod.string().min(1).max(updateProductProfileManagerDataResponseProfileRunRequirementsProductSetupAllergensItemMax)).max(updateProductProfileManagerDataResponseProfileRunRequirementsProductSetupAllergensMax),
+  "allergenReview": zod.enum(['unreviewed', 'confirmed', 'not_applicable']),
+  "allergenEvidence": zod.array(zod.object({
+  "value": zod.string().max(updateProductProfileManagerDataResponseProfileRunRequirementsProductSetupAllergenEvidenceItemValueMax),
+  "source": zod.string().max(updateProductProfileManagerDataResponseProfileRunRequirementsProductSetupAllergenEvidenceItemSourceMax)
+})).max(updateProductProfileManagerDataResponseProfileRunRequirementsProductSetupAllergenEvidenceMax)
+}).optional()
 }).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -2927,6 +3194,24 @@ export const getRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsI
 export const getRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax = 3650;
 
 export const getRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsMax = 500;
+
+export const getRunResponseRunProductSnapshotOneRunRequirementsProductSetupLineMax = 120;
+
+export const getRunResponseRunProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemValueMax = 1000;
+
+export const getRunResponseRunProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemSourceMax = 500;
+
+export const getRunResponseRunProductSnapshotOneRunRequirementsProductSetupLineCandidatesMax = 100;
+
+export const getRunResponseRunProductSnapshotOneRunRequirementsProductSetupAllergensItemMax = 120;
+
+export const getRunResponseRunProductSnapshotOneRunRequirementsProductSetupAllergensMax = 100;
+
+export const getRunResponseRunProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemValueMax = 1000;
+
+export const getRunResponseRunProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemSourceMax = 500;
+
+export const getRunResponseRunProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceMax = 200;
 
 
 
@@ -3134,7 +3419,21 @@ export const GetRunResponse = zod.object({
   "daysEarly": zod.number().int().min(getRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMin).max(getRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax).nullable()
 })).max(getRunResponseRunProductSnapshotOneRunRequirementsPreparationItemsMax).optional(),
   "packaging": zod.array(zod.string()),
-  "issues": zod.array(zod.string())
+  "issues": zod.array(zod.string()),
+  "productSetup": zod.object({
+  "line": zod.string().max(getRunResponseRunProductSnapshotOneRunRequirementsProductSetupLineMax).nullable(),
+  "lineStatus": zod.enum(['confirmed', 'missing', 'conflict']),
+  "lineCandidates": zod.array(zod.object({
+  "value": zod.string().max(getRunResponseRunProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemValueMax),
+  "source": zod.string().max(getRunResponseRunProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemSourceMax)
+})).max(getRunResponseRunProductSnapshotOneRunRequirementsProductSetupLineCandidatesMax),
+  "allergens": zod.array(zod.string().min(1).max(getRunResponseRunProductSnapshotOneRunRequirementsProductSetupAllergensItemMax)).max(getRunResponseRunProductSnapshotOneRunRequirementsProductSetupAllergensMax),
+  "allergenReview": zod.enum(['unreviewed', 'confirmed', 'not_applicable']),
+  "allergenEvidence": zod.array(zod.object({
+  "value": zod.string().max(getRunResponseRunProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemValueMax),
+  "source": zod.string().max(getRunResponseRunProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemSourceMax)
+})).max(getRunResponseRunProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceMax)
+}).optional()
 }).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -3253,6 +3552,24 @@ export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsPreparat
 export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax = 3650;
 
 export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsPreparationItemsMax = 500;
+
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsProductSetupLineMax = 120;
+
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemValueMax = 1000;
+
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemSourceMax = 500;
+
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsProductSetupLineCandidatesMax = 100;
+
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsProductSetupAllergensItemMax = 120;
+
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsProductSetupAllergensMax = 100;
+
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemValueMax = 1000;
+
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemSourceMax = 500;
+
+export const applyRunCommandResponseRunProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceMax = 200;
 
 
 
@@ -3463,7 +3780,21 @@ export const ApplyRunCommandResponse = zod.object({
   "daysEarly": zod.number().int().min(applyRunCommandResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMin).max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax).nullable()
 })).max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsPreparationItemsMax).optional(),
   "packaging": zod.array(zod.string()),
-  "issues": zod.array(zod.string())
+  "issues": zod.array(zod.string()),
+  "productSetup": zod.object({
+  "line": zod.string().max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsProductSetupLineMax).nullable(),
+  "lineStatus": zod.enum(['confirmed', 'missing', 'conflict']),
+  "lineCandidates": zod.array(zod.object({
+  "value": zod.string().max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemValueMax),
+  "source": zod.string().max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemSourceMax)
+})).max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsProductSetupLineCandidatesMax),
+  "allergens": zod.array(zod.string().min(1).max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsProductSetupAllergensItemMax)).max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsProductSetupAllergensMax),
+  "allergenReview": zod.enum(['unreviewed', 'confirmed', 'not_applicable']),
+  "allergenEvidence": zod.array(zod.object({
+  "value": zod.string().max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemValueMax),
+  "source": zod.string().max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemSourceMax)
+})).max(applyRunCommandResponseRunProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceMax)
+}).optional()
 }).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -4402,6 +4733,24 @@ export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequi
 
 export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsPreparationItemsMax = 500;
 
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsProductSetupLineMax = 120;
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemValueMax = 1000;
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemSourceMax = 500;
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesMax = 100;
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsProductSetupAllergensItemMax = 120;
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsProductSetupAllergensMax = 100;
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemValueMax = 1000;
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemSourceMax = 500;
+
+export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceMax = 200;
+
 export const getDashboardSummaryResponsePlannedRunsItemRevisionMin = 0;
 export const getDashboardSummaryResponsePlannedRunsItemRevisionMax = 9007199254740991;
 
@@ -4480,6 +4829,24 @@ export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequ
 export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax = 3650;
 
 export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsPreparationItemsMax = 500;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsProductSetupLineMax = 120;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemValueMax = 1000;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemSourceMax = 500;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesMax = 100;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsProductSetupAllergensItemMax = 120;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsProductSetupAllergensMax = 100;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemValueMax = 1000;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemSourceMax = 500;
+
+export const getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceMax = 200;
 
 export const getDashboardSummaryResponsePlannedRunsMax = 10;
 
@@ -4596,6 +4963,24 @@ export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequi
 export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax = 3650;
 
 export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsPreparationItemsMax = 500;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsProductSetupLineMax = 120;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemValueMax = 1000;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemSourceMax = 500;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesMax = 100;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsProductSetupAllergensItemMax = 120;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsProductSetupAllergensMax = 100;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemValueMax = 1000;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemSourceMax = 500;
+
+export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceMax = 200;
 
 
 
@@ -4813,7 +5198,21 @@ export const GetDashboardSummaryResponse = zod.object({
   "daysEarly": zod.number().int().min(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMin).max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax).nullable()
 })).max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsPreparationItemsMax).optional(),
   "packaging": zod.array(zod.string()),
-  "issues": zod.array(zod.string())
+  "issues": zod.array(zod.string()),
+  "productSetup": zod.object({
+  "line": zod.string().max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsProductSetupLineMax).nullable(),
+  "lineStatus": zod.enum(['confirmed', 'missing', 'conflict']),
+  "lineCandidates": zod.array(zod.object({
+  "value": zod.string().max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemValueMax),
+  "source": zod.string().max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemSourceMax)
+})).max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesMax),
+  "allergens": zod.array(zod.string().min(1).max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsProductSetupAllergensItemMax)).max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsProductSetupAllergensMax),
+  "allergenReview": zod.enum(['unreviewed', 'confirmed', 'not_applicable']),
+  "allergenEvidence": zod.array(zod.object({
+  "value": zod.string().max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemValueMax),
+  "source": zod.string().max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemSourceMax)
+})).max(getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceMax)
+}).optional()
 }).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -5027,7 +5426,21 @@ export const GetDashboardSummaryResponse = zod.object({
   "daysEarly": zod.number().int().min(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMin).max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax).nullable()
 })).max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsPreparationItemsMax).optional(),
   "packaging": zod.array(zod.string()),
-  "issues": zod.array(zod.string())
+  "issues": zod.array(zod.string()),
+  "productSetup": zod.object({
+  "line": zod.string().max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsProductSetupLineMax).nullable(),
+  "lineStatus": zod.enum(['confirmed', 'missing', 'conflict']),
+  "lineCandidates": zod.array(zod.object({
+  "value": zod.string().max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemValueMax),
+  "source": zod.string().max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemSourceMax)
+})).max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesMax),
+  "allergens": zod.array(zod.string().min(1).max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsProductSetupAllergensItemMax)).max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsProductSetupAllergensMax),
+  "allergenReview": zod.enum(['unreviewed', 'confirmed', 'not_applicable']),
+  "allergenEvidence": zod.array(zod.object({
+  "value": zod.string().max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemValueMax),
+  "source": zod.string().max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemSourceMax)
+})).max(getDashboardSummaryResponsePlannedRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceMax)
+}).optional()
 }).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -5263,7 +5676,21 @@ export const GetDashboardSummaryResponse = zod.object({
   "daysEarly": zod.number().int().min(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMin).max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax).nullable()
 })).max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsPreparationItemsMax).optional(),
   "packaging": zod.array(zod.string()),
-  "issues": zod.array(zod.string())
+  "issues": zod.array(zod.string()),
+  "productSetup": zod.object({
+  "line": zod.string().max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsProductSetupLineMax).nullable(),
+  "lineStatus": zod.enum(['confirmed', 'missing', 'conflict']),
+  "lineCandidates": zod.array(zod.object({
+  "value": zod.string().max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemValueMax),
+  "source": zod.string().max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemSourceMax)
+})).max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesMax),
+  "allergens": zod.array(zod.string().min(1).max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsProductSetupAllergensItemMax)).max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsProductSetupAllergensMax),
+  "allergenReview": zod.enum(['unreviewed', 'confirmed', 'not_applicable']),
+  "allergenEvidence": zod.array(zod.object({
+  "value": zod.string().max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemValueMax),
+  "source": zod.string().max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemSourceMax)
+})).max(getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceMax)
+}).optional()
 }).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),

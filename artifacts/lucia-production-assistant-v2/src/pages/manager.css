@@ -91,6 +91,23 @@
 .manager-save-defaults > div { display: grid; gap: 4px; }
 .manager-save-defaults strong { font-size: 12px; }
 .manager-save-defaults span { color: hsl(var(--muted-foreground)); font-size: 11px; line-height: 1.45; }
+.manager-product-setup { display: grid; grid-template-columns: minmax(220px,.7fr) minmax(0,1.3fr); gap: 18px; margin-bottom: 34px; padding: 19px; }
+.manager-product-setup h2 { margin: 5px 0 8px; font-size: 22px; }
+.manager-product-setup > div > .field-help { max-width: 380px; line-height: 1.55; }
+.manager-product-setup form { display: grid; gap: 12px; min-width: 0; }
+.manager-product-setup form > label { display: grid; gap: 6px; color: hsl(var(--muted-foreground)); font-size: 11px; font-weight: 700; }
+.manager-product-setup input, .manager-product-setup select, .manager-product-setup textarea {
+  width: 100%; min-width: 0; min-height: 42px; padding: 8px 11px; border: 1px solid hsl(var(--input)); border-radius: 8px; background: hsl(var(--background)); color: hsl(var(--foreground)); font: 500 13px var(--app-font-sans);
+}
+.manager-product-setup textarea { min-height: 90px; resize: vertical; line-height: 1.5; }
+.manager-setup-evidence { display: grid; gap: 7px; padding: 10px; border: 1px solid hsl(var(--border)); border-radius: 9px; background: hsl(var(--muted) / .3); font-size: 11px; }
+.manager-setup-evidence > div { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding-top: 6px; border-top: 1px solid hsl(var(--border)); }
+.manager-setup-evidence > div > span { min-width: 0; overflow-wrap: anywhere; }
+.manager-setup-evidence small { display: block; margin-top: 3px; color: hsl(var(--muted-foreground)); font-size: 10px; font-weight: 400; }
+.manager-setup-evidence .button { flex: 0 0 auto; min-height: 34px; padding: 0 9px; font-size: 10px; }
+.manager-setup-warning { margin: 0; padding: 9px 11px; border: 1px solid #e6c8a2; border-radius: 8px; background: #fff5e8; color: #694b2c; font-size: 11px; line-height: 1.5; }
+.manager-setup-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.manager-setup-actions > .field-help { margin: 0; }
 .manager-no-access { max-width: 600px; margin: 7vh auto; }
 .manager-modal-dialog { width: min(760px, calc(100vw - 16px)) !important; max-width: 760px !important; max-height: 94dvh !important; overflow: visible !important; padding: 0 !important; border: 0 !important; background: transparent !important; box-shadow: none !important; }
 .manager-modal { width: min(760px, 100%); max-height: min(90dvh, 900px); overflow: auto; padding: clamp(18px,3vw,28px); box-shadow: 0 28px 90px rgba(26,38,34,.24); }
@@ -103,6 +120,7 @@
 .dark .manager-confirm { border-color: #694d3b; background: #392f28; color: #ead0bb; }
 @media (max-width: 900px) {
   .manager-defaults { grid-template-columns: 1fr; }
+  .manager-product-setup { grid-template-columns: 1fr; }
   .manager-defaults-intro { position: static; }
   .manager-defaults-intro > p { max-width: 700px; }
 }

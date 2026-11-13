@@ -10,7 +10,9 @@ import {
 import type {
   ManagerManualRecipe,
   ManagerRecipeDefinition,
+  ProductProfile,
   ProductProfileManagerData,
+  ProductSetupDefaults,
   RunPlanningReview,
 } from '@workspace/api-client-react';
 import {
@@ -20,7 +22,7 @@ import {
 import { Link } from 'wouter';
 import { RunRequirementsEditor } from '@/components/run-requirements';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
-import { extractImportedRecipes, getManagerData } from '@/manager-data';
+import { extractImportedRecipes, getImportedProductSetupEvidence, getManagerData } from '@/manager-data';
 import './manager.css';
 
 const categories = ['all', 'cheese', 'mix', 'dough', 'sauce'] as const;
@@ -228,6 +230,15 @@ export default function ManagerPage() {
     {profileQuery.data && !profiles.length && <section className="panel empty-state manager-empty"><div className="empty-mark"><FileSpreadsheet size={20} /></div><h2>No product profiles yet</h2><p>Import and approve product setup before managing recipes or reviewing run requirements.</p><Link href="/imports" className="button button-primary" data-testid="link-manager-imports">Open product profiles</Link></section>}
 
     {profile && <>
+      <ProductSetupEditor
+        key={`${profile.id}:${profile.revision}`}
+        profile={profile}
+        pending={saveMutation.isPending}
+        onSave={(productSetup) => commit(
+          { ...getManagerData(profile), productSetup },
+          'Product line and allergen setup saved for future runs.',
+        )}
+      />
       <section className="manager-library" aria-labelledby="manager-recipes-heading">
         <div className="section-heading manager-section-head"><div><div className="eyebrow">Formula library</div><h2 id="manager-recipes-heading">Recipes for {profile.brand} / {profile.flavor}</h2><p className="field-help">Imported formulas remain source references. Changes below save as manager-only overrides.</p></div>
           <button className="button button-primary" type="button" onClick={() => { setManualDraft({ id: makeId(), category: 'cheese', brand: profile.brand, flavor: profile.flavor, name: '', recipeData: freshDefinition() }); setManualRevision(profile.revision); setManualOpen(true); }} data-testid="button-manager-add-recipe"><Plus size={16} /> Add manual recipe</button>
@@ -314,6 +325,95 @@ export default function ManagerPage() {
       </section>
     </>}
   </main>;
+}
+
+function ProductSetupEditor({ profile, pending, onSave }: {
+  profile: ProductProfile;
+  pending: boolean;
+  onSave: (setup: ProductSetupDefaults) => void;
+}) {
+  const saved = getManagerData(profile).productSetup ?? {
+    line: null,
+    allergens: [],
+    allergenReview: 'unreviewed' as const,
+  };
+  const evidence = getImportedProductSetupEvidence(profile);
+  const [line, setLine] = useState(saved.line ?? '');
+  const [allergensText, setAllergensText] = useState(saved.allergens.join('\n'));
+  const [allergenReview, setAllergenReview] = useState<ProductSetupDefaults['allergenReview']>(saved.allergenReview);
+  const [validation, setValidation] = useState('');
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const allergens = [...new Set(allergensText.split(/\r?\n/).map((value) => value.trim()).filter(Boolean))];
+    if (allergens.some((value) => value.length > 120)) {
+      setValidation('Keep each allergen label to 120 characters or fewer.');
+      return;
+    }
+    if (allergens.length > 100) {
+      setValidation('Use no more than 100 allergen labels for one product.');
+      return;
+    }
+    if (allergenReview === 'confirmed' && !allergens.length) {
+      setValidation('List at least one allergen, or choose “No listed allergens”.');
+      return;
+    }
+    if (allergenReview === 'not_applicable' && allergens.length) {
+      setValidation('Clear the allergen list before choosing “No listed allergens”.');
+      return;
+    }
+    if (line.trim().length > 120) {
+      setValidation('Keep the production line name to 120 characters or fewer.');
+      return;
+    }
+    setValidation('');
+    onSave({ line: line.trim() || null, allergens, allergenReview });
+  };
+
+  return <section className="manager-product-setup panel" aria-labelledby="manager-product-setup-heading">
+    <div>
+      <div className="eyebrow">Product-specific floor defaults</div>
+      <h2 id="manager-product-setup-heading">Production line and allergens</h2>
+      <p className="field-help">Imported values are shown as evidence only. Confirm the correct line and allergen setup for this product; nothing is guessed or applied from a source automatically.</p>
+    </div>
+    <form onSubmit={submit} data-testid="form-manager-product-setup">
+      <label>Production line
+        <input maxLength={120} value={line} onChange={(event) => setLine(event.target.value)} placeholder="Enter the confirmed line" data-testid="input-manager-product-line" />
+      </label>
+      {evidence.lineCandidates.length > 0 && <div className="manager-setup-evidence">
+        <strong>Imported line values to review</strong>
+        {evidence.lineCandidates.map((candidate, index) => <div key={`${candidate.value}:${candidate.source}:${index}`}>
+          <span>{candidate.value}<small>{candidate.source}</small></span>
+          <button type="button" className="button button-quiet" onClick={() => setLine(candidate.value)} data-testid={`button-manager-use-line-${index}`}>Use this value</button>
+        </div>)}
+      </div>}
+      {evidence.lineCandidates.length > 1 && new Set(evidence.lineCandidates.map((item) => item.value.toLocaleLowerCase())).size > 1 &&
+        <p className="manager-setup-warning" role="status">Imported sources disagree about the line. Choose one explicitly or enter the confirmed line.</p>}
+      <label>Allergens, one per line
+        <textarea className="manager-long-field" maxLength={12000} rows={4} value={allergensText} onChange={(event) => setAllergensText(event.target.value)} placeholder="For example: milk&#10;wheat" data-testid="textarea-manager-product-allergens" />
+      </label>
+      <label>Allergen review
+        <select value={allergenReview} onChange={(event) => setAllergenReview(event.target.value as ProductSetupDefaults['allergenReview'])} data-testid="select-manager-allergen-review">
+          <option value="unreviewed">Not reviewed</option>
+          <option value="confirmed">Allergens confirmed</option>
+          <option value="not_applicable">No listed allergens</option>
+        </select>
+      </label>
+      {evidence.allergenEvidence.length > 0 && <div className="manager-setup-evidence">
+        <strong>Imported allergen evidence</strong>
+        {evidence.allergenEvidence.map((item, index) => <div key={`${item.value}:${item.source}:${index}`}>
+          <span>{item.value}<small>{item.source}</small></span>
+        </div>)}
+      </div>}
+      {validation && <p className="manager-setup-warning" role="alert">{validation}</p>}
+      <div className="manager-setup-actions">
+        <span className="field-help">Saved values apply to future runs only. Existing run snapshots stay unchanged.</span>
+        <button type="submit" className="button button-primary" disabled={pending} data-testid="button-manager-save-product-setup">
+          {pending ? 'Saving…' : <><Save size={15} /> Save product setup</>}
+        </button>
+      </div>
+    </form>
+  </section>;
 }
 
 function RecipeReadout({ definition }: { definition: ManagerRecipeDefinition }) {

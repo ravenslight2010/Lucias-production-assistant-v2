@@ -448,6 +448,30 @@ export function RunRequirementsSummary({ plan, runId, runStatus, online = true, 
       </dl>
 
       {plan.issues.length > 0 && <IssueList issues={plan.issues} label="Plan issues" />}
+      {plan.productSetup && <section className="rr-station" aria-label="Captured product line and allergen setup" data-testid="section-rr-product-setup">
+        <h4>Product line and allergen setup</h4>
+        <div className="property-row">
+          <span>Production line</span>
+          <strong>{plan.productSetup.lineStatus === 'confirmed'
+            ? plan.productSetup.line
+            : plan.productSetup.lineStatus === 'conflict' ? 'Conflicting imported values; no line selected' : 'No line confirmed'}</strong>
+        </div>
+        {plan.productSetup.lineCandidates.length > 0 && <div className="rr-setup-evidence">
+          <strong>Imported line evidence — not selected automatically</strong>
+          {plan.productSetup.lineCandidates.map((item, index) => <p key={`${item.value}:${item.source}:${index}`}>{item.value}<small>{item.source}</small></p>)}
+        </div>}
+        <div className="property-row">
+          <span>Allergen review</span>
+          <strong>{plan.productSetup.allergenReview === 'confirmed'
+            ? `Confirmed: ${plan.productSetup.allergens.join(', ')}`
+            : plan.productSetup.allergenReview === 'not_applicable' ? 'Reviewed: no listed allergens' : 'Not reviewed'}</strong>
+        </div>
+        {plan.productSetup.allergenEvidence.length > 0 && <div className="rr-setup-evidence">
+          <strong>Imported allergen evidence — review against the product</strong>
+          {plan.productSetup.allergenEvidence.map((item, index) => <p key={`${item.value}:${item.source}:${index}`}>{item.value}<small>{item.source}</small></p>)}
+        </div>}
+        <p className="field-help">Imported values remain source evidence. Only saved manager selections are used as product defaults.</p>
+      </section>}
       {runId && (plan.preparationItems?.length ?? 0) > 0 && runStatus && (
         <RunPreparationChecklist runId={runId} runStatus={runStatus} online={online} />
       )}

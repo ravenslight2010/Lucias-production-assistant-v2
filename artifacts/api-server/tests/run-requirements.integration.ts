@@ -81,6 +81,7 @@ test("manager recipe edits and reviewed setup defaults feed future run previews"
       },
       manualRecipes: [],
       setupDefaults: { unitsPerCase: 24 },
+      productSetup: { line: "Line 2", allergens: ["Milk"], allergenReview: "confirmed" },
     },
   };
   profile.productData.sources.push(managerSource as unknown as (typeof profile.productData.sources)[number]);
@@ -88,6 +89,14 @@ test("manager recipe edits and reviewed setup defaults feed future run previews"
   assert.equal(preview.totalPizzas, 240);
   assert.equal(preview.items[0].batchYield, 100);
   assert.equal(preview.items[0].ingredients[0].wholeBatchRequired, 80);
+  assert.deepEqual(preview.productSetup, {
+    line: "Line 2",
+    lineStatus: "confirmed",
+    lineCandidates: [],
+    allergens: ["Milk"],
+    allergenReview: "confirmed",
+    allergenEvidence: [],
+  });
   assert.equal(preview.status, "ready");
 });
 
@@ -261,6 +270,19 @@ test("reviewed shipping supplies the case pack; early-pull and saved premix tota
 test("run creation recomputes and freezes requirements; stale reviews and changed retries cannot overwrite them", async () => {
   const [facility] = await db.insert(facilitiesTable).values({ name: "Synthetic requirements" }).returning();
   const p = fixture();
+  p.productData.sources.push({
+    profileId: "profile-test",
+    brand: p.brand,
+    flavor: p.flavor,
+    importKind: "manager_profile",
+    sourceName: "Manager profile setup",
+    content: {
+      format: "lucia.manager-profile.v1",
+      recipeOverrides: {},
+      manualRecipes: [],
+      productSetup: { line: "Line 3", allergens: ["Wheat"], allergenReview: "confirmed" },
+    },
+  } as unknown as (typeof p.productData.sources)[number]);
   const [profile] = await db.insert(facilityProductProfilesTable).values({
     facilityId: facility.id, brand: p.brand, flavor: p.flavor, normalizedKey: "lucia::cheese",
     createdBy: "synthetic-requirements", productData: p.productData,
@@ -271,6 +293,8 @@ test("run creation recomputes and freezes requirements; stale reviews and change
   const result = await createPlannedRun(request);
   const contract = CreateRunResponse.parse(result);
   assert.equal(contract.run.productSnapshot!.runRequirements!.items[0].batchesExact, 0.3);
+  assert.equal(contract.run.productSnapshot!.runRequirements!.productSetup?.line, "Line 3");
+  assert.deepEqual(contract.run.productSnapshot!.runRequirements!.productSetup?.allergens, ["Wheat"]);
   const frozen = JSON.stringify(contract.run.productSnapshot);
   await db.update(facilityProductProfilesTable).set({ revision: 1, productData: fixture("3").productData }).where(eq(facilityProductProfilesTable.id, profile.id));
   assert.equal((await createPlannedRun(request)).replayed, true);

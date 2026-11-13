@@ -34,6 +34,7 @@ import {
   isUnrecognizedApplicatorLabel,
   parseProductSpecData,
   productSpecRoleKey,
+  defaultProductSpecRoleOverrides,
   type ProductSpecData,
   type ProductSpecIngredientRole,
   type ProductSpecRoleOverrides,
@@ -148,18 +149,22 @@ type SchedulePlanningReview = {
 };
 
 function prepareProductSpecDrafts(workbook: ParsedWorkbook): ProductSpecDraft[] {
-  return parseProductSpecProfiles(workbook).map((candidate) => ({
-    ...candidate,
-    roleOverrides: {},
-    extracted: parseProductSpecData(workbook, candidate, {}),
-  }));
+  return parseProductSpecProfiles(workbook).map((candidate) => {
+    const extracted = parseProductSpecData(workbook, candidate, {});
+    const roleOverrides = defaultProductSpecRoleOverrides(extracted);
+    return {
+      ...candidate,
+      roleOverrides,
+      extracted: parseProductSpecData(workbook, candidate, roleOverrides),
+    };
+  });
 }
 
 const productSpecRoleLabels: Record<ProductSpecIngredientRole, string> = {
+  ingredient: 'Ordinary ingredient (±0.1 oz)',
   sauce: 'Sauce (±0.05 oz)',
   pep_applicator: 'Pep applicator (±0.05 oz)',
   cheese_applicator: 'Cheese applicator (±0.1 oz)',
-  ingredient: 'Ordinary ingredient (±0.1 oz)',
 };
 
 const visualPreviewWorkbook: ParsedWorkbook = {
@@ -1336,8 +1341,8 @@ function WorkbookReview({
                     data-testid={`product-spec-role-review-${index}`}
                   >
                     <div>
-                      <strong>Unrecognized applicator rows</strong>
-                      <p className="field-help">Confirm each row’s role. Rows left unconfirmed stay flagged and won’t receive a quality-check target.</p>
+                      <strong>Review applicator row roles</strong>
+                      <p className="field-help">Ordinary ingredient is the safe default (±0.1 oz). Choose another role only when the source confirms it.</p>
                     </div>
                     {applicatorRows.map(({ section, ingredient }, roleIndex) => {
                       const sourceKey = productSpecRoleKey(ingredient.sourceCoordinates);
@@ -1346,18 +1351,17 @@ function WorkbookReview({
                       return <div className="product-spec-role-row" key={`${sourceKey}:${roleIndex}`}>
                         <div className="product-spec-role-source">
                           <strong>{ingredient.name}</strong>
-                          <small>{section.sheet} · row {ingredient.sourceRow} · {ingredient.roleConfirmed ? 'Role confirmed' : 'Needs confirmation'}</small>
+                          <small>{section.sheet} · row {ingredient.sourceRow} · {currentRole === 'ingredient' ? 'Ordinary ingredient by default' : 'Role confirmed'}</small>
                         </div>
                         <div className="form-field">
                           <label htmlFor={controlId}>Confirmed role</label>
                           <select
                             id={controlId}
                             data-testid={`select-product-spec-role-${index}-${roleIndex}`}
-                            value={currentRole ?? ''}
+                            value={currentRole ?? 'ingredient'}
                             onChange={(event) => updateProductSpecRole(draft, sourceKey, event.target.value)}
                             disabled={locked}
                           >
-                            <option value="">Choose a role</option>
                             {Object.entries(productSpecRoleLabels).map(([role, label]) => (
                               <option value={role} key={role}>{label}</option>
                             ))}

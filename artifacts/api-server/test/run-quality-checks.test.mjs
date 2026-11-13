@@ -344,6 +344,24 @@ test("unknown applicator variants remain unresolved until source-role review", (
   });
   assert.equal(confirmedQuality.checks[0].status, "ready");
   assert.equal(confirmedQuality.checks[0].toleranceOz, 0.05);
+
+  profile.productData.sources[0].content.sections[0].ingredients[0].ingredientRole = "ingredient";
+  const ordinaryInitialPlan = buildRunRequirements(profile, 1, { unitsPerCase: 12 });
+  const ordinaryPlan = buildRunRequirements(profile, 1, {
+    unitsPerCase: 12,
+    sectionId: ordinaryInitialPlan.sectionId,
+    links: [{ itemId: ordinaryInitialPlan.items[0].id, directIngredient: true }],
+  });
+  assert.equal(ordinaryPlan.items[0].ingredientRole, "ingredient");
+  assert.equal(ordinaryPlan.items[0].ingredientRoleConfirmed, true);
+  const ordinaryQuality = buildRunQualityTargets({
+    runRequirements: {
+      items: [ordinaryPlan.items[0]],
+      finishedWeightSpec: { range: "11 - 13", unit: "oz", source: "customer-spec.xlsx · OZ row 9" },
+    },
+  });
+  assert.equal(ordinaryQuality.checks[0].status, "ready");
+  assert.equal(ordinaryQuality.checks[0].toleranceOz, 0.1);
 });
 
 test("does not invent a finished-weight target for an unclear or unlabelled source range", () => {

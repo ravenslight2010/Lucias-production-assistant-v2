@@ -124,6 +124,14 @@ export function isUnrecognizedApplicatorLabel(name: string) {
   return /\bapplicators?\b/.test(label) && ingredientRole(name) === "ingredient";
 }
 
+export function defaultProductSpecRoleOverrides(data: ProductSpecData): ProductSpecRoleOverrides {
+  return Object.fromEntries(data.sections.flatMap((section) =>
+    section.ingredients
+      .filter((ingredient) => isUnrecognizedApplicatorLabel(ingredient.name))
+      .map((ingredient) => [productSpecRoleKey(ingredient.sourceCoordinates), "ingredient"] as const),
+  ));
+}
+
 export function isUnconfirmedApplicator(ingredient: Pick<ProductSpecIngredient, "name" | "roleConfirmed">) {
   return isUnrecognizedApplicatorLabel(ingredient.name) && ingredient.roleConfirmed !== true;
 }

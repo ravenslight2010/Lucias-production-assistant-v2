@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parsePreservedProductSpec, parseProductSpecData, productSpecRoleKey } from "../src/importing/product-spec.ts";
+import {
+  defaultProductSpecRoleOverrides,
+  parsePreservedProductSpec,
+  parseProductSpecData,
+  productSpecRoleKey,
+} from "../src/importing/product-spec.ts";
 import { parseProductSpecProfiles } from "../src/importing/workbook.ts";
 import { customerProductSpecFixtures } from "./fixtures/product-spec-role-workbooks.mjs";
 
@@ -177,6 +182,27 @@ test("flags unfamiliar applicator labels with source sheet and row while keeping
   assert.match(section.warnings[1], /OZ row 3.*Cheese applicators.*Confirm its role/);
   assert.equal(section.ingredients[2].ingredientRole, "pep_applicator");
   assert.equal(section.warnings.length, 2);
+});
+
+test("defaults unfamiliar applicator rows to confirmed ordinary ingredient", () => {
+  const source = workbook([
+    ["Sample Brand", "Special"],
+    ["Applicator - Unmapped model", 0.5],
+    ["Pep Applicator", 0.25],
+    ["TARGET WEIGHT", 12],
+    ["WEIGHT SPEC RANGE", "11.75 - 12.25"],
+  ]);
+  const profile = parseProductSpecProfiles(source)[0];
+  const extracted = parseProductSpecData(source, profile);
+  const roleOverrides = defaultProductSpecRoleOverrides(extracted);
+  const key = productSpecRoleKey(extracted.sections[0].ingredients[0].sourceCoordinates);
+  const reviewed = parseProductSpecData(source, profile, roleOverrides);
+
+  assert.deepEqual(roleOverrides, { [key]: "ingredient" });
+  assert.equal(reviewed.sections[0].ingredients[0].ingredientRole, "ingredient");
+  assert.equal(reviewed.sections[0].ingredients[0].roleConfirmed, true);
+  assert.equal(reviewed.sections[0].warnings.some((warning) => /unrecognized applicator/i.test(warning)), false);
+  assert.equal(roleOverrides[productSpecRoleKey(extracted.sections[0].ingredients[1].sourceCoordinates)], undefined);
 });
 
 test("confirmed applicator roles persist with their exact source coordinates", () => {

@@ -30,7 +30,10 @@ function unresolvedTarget(
   };
 }
 
-function ingredientTolerance(role: unknown) {
+function ingredientTolerance(role: unknown, sourceName: string) {
+  const label = sourceName.normalize("NFKC").trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const knownApplicator = /^(?:(?:pizza )?sauce(?: applicator)?|(?:pep|pepperoni) applicator|cheese applicator)$/.test(label);
+  if (/\bapplicators?\b/.test(label) && !knownApplicator) return 0.1;
   return role === "sauce" || role === "pep_applicator" ? 0.05 : 0.1;
 }
 
@@ -94,7 +97,7 @@ export function buildRunQualityTargets(productSnapshot: unknown): {
       continue;
     }
     const targetOz = round(convertedTarget);
-    const toleranceOz = ingredientTolerance(rawItem.ingredientRole);
+    const toleranceOz = ingredientTolerance(rawItem.ingredientRole, text(rawItem.originalName) || name);
     checks.push({
       ...check,
       status: "ready",

@@ -24,6 +24,11 @@ const rows = (v: unknown): RecordValue[] => {
   return v.filter(record);
 };
 const strings = (v: unknown) => Array.isArray(v) ? v.filter((s): s is string => typeof s === "string") : [];
+function isUnrecognizedApplicatorLabel(value: string) {
+  const label = value.normalize("NFKC").trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const knownRole = /^(?:(?:pizza )?sauce(?: applicator)?|(?:pep|pepperoni) applicator|cheese applicator)$/.test(label);
+  return /\bapplicators?\b/.test(label) && !knownRole;
+}
 const numeric = (v: unknown): number | null => {
   if (typeof v !== "number" && (typeof v !== "string" || !/^\d+(?:\.\d+)?$/.test(v.trim()))) return null;
   const n = Number(v);
@@ -168,6 +173,7 @@ export function buildRunRequirements(profile: Profile, targetCases: number, opti
     const itemId = `${selected.id}:${index}`;
     const link = links.find(l => l.itemId === itemId);
     const originalName = text(raw.name);
+    const unknownApplicator = isUnrecognizedApplicatorLabel(originalName);
     const ref = canonical("recipe", selected.brand, originalName);
     const exact = [...recipes.values()].filter(r => nameKey({ kind: "recipe", brand: r.choice.brand, name: r.choice.name }) === nameKey(ref));
     if (link?.directIngredient && link.recipeId) throw new HttpError(400, "Choose either a recipe or a direct ingredient, not both.");
@@ -181,6 +187,14 @@ export function buildRunRequirements(profile: Profile, targetCases: number, opti
     if (usageUnit && !["oz", "lb", "g", "kg", "each"].includes(usageUnit)) throw new HttpError(400, "Unsupported per-pizza unit.");
     const perPizza = amount ? numeric(amount.value) : null;
     const issues: string[] = [...strings(selected.raw.warnings)];
+    if (unknownApplicator) {
+      const coordinates = record(raw.sourceCoordinates) ? raw.sourceCoordinates : {};
+      const sourceSheet = text(coordinates.sheet) || text(selected.raw.sheet) || "unknown sheet";
+      const sourceRow = numeric(coordinates.row) ?? numeric(raw.sourceRow);
+      issues.push(
+        `${sourceSheet} row ${sourceRow ?? "?"}: "${originalName}" contains an unrecognized applicator label. Confirm its role before using this requirement; standard ingredient tolerance will apply.`,
+      );
+    }
     if (!amount) issues.push("Select the per-pizza source column; parallel amounts are not added together.");
     if (perPizza === null) issues.push("The per-pizza amount is missing, annotated, or not an unambiguous nonnegative number.");
     if (!usageUnit) issues.push("Confirm the per-pizza unit.");
@@ -223,8 +237,8 @@ export function buildRunRequirements(profile: Profile, targetCases: number, opti
     return {
       id: itemId, name: recipe?.choice.name ?? displayName, originalName,
       source: `${selected.source} · ${text(selected.raw.sheet)} row ${raw.sourceRow ?? "?"}`,
-      ingredientRole: raw.ingredientRole === "sauce" || raw.ingredientRole === "pep_applicator" ||
-        raw.ingredientRole === "cheese_applicator" ? raw.ingredientRole : "ingredient",
+      ingredientRole: !unknownApplicator && (raw.ingredientRole === "sauce" || raw.ingredientRole === "pep_applicator" ||
+        raw.ingredientRole === "cheese_applicator") ? raw.ingredientRole : "ingredient",
       sourceCoordinates: {
         sheet: text(record(raw.sourceCoordinates) ? raw.sourceCoordinates.sheet : null) || text(selected.raw.sheet),
         row: numeric(record(raw.sourceCoordinates) ? raw.sourceCoordinates.row : raw.sourceRow),

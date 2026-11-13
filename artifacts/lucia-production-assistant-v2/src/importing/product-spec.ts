@@ -73,6 +73,11 @@ function ingredientRole(name: string): ProductSpecIngredient["ingredientRole"] {
   return "ingredient";
 }
 
+export function isUnrecognizedApplicatorLabel(name: string) {
+  const label = name.normalize("NFKC").trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return /\bapplicators?\b/.test(label) && ingredientRole(name) === "ingredient";
+}
+
 function sectionColumns(section: ProductSpecSection, sheetColumnCount: number) {
   const first = Math.max(0, section.headerColumn - 1);
   const lastExclusive = Math.max(first + 1, Math.min(sheetColumnCount, section.endColumn ?? sheetColumnCount));
@@ -148,14 +153,21 @@ function parseSection(
       if (!text) break;
       amounts.push({ column: excelColumnLabel(column), value: text });
     }
+    const role = ingredientRole(name);
+    const sourceRow = rowIndex + 1;
+    if (isUnrecognizedApplicatorLabel(name)) {
+      warnings.push(
+        `${section.sheet} row ${sourceRow}: "${name}" contains an unrecognized applicator label. Verify its role before using this run plan; it remains an ordinary ingredient.`,
+      );
+    }
     ingredients.push({
-      sourceRow: rowIndex + 1,
+      sourceRow,
       sourceCoordinates: {
         sheet: section.sheet,
         row: rowIndex + 1,
         nameColumn: excelColumnLabel(labelColumn),
       },
-      ingredientRole: ingredientRole(name),
+      ingredientRole: role,
       name,
       amounts,
     });

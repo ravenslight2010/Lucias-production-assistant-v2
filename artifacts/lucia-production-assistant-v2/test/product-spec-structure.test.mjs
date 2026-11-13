@@ -154,6 +154,31 @@ test("maps source labels from customer spec workbooks to roles with original coo
   }
 });
 
+test("flags unfamiliar applicator labels with source sheet and row while keeping ordinary role", () => {
+  const source = workbook([
+    ["Sample Brand", "Special"],
+    ["Pep Applicator - New Model", 1.25],
+    ["Cheese applicators (alternate)", 1],
+    ["Pep Applicator", 1],
+    ["TARGET WEIGHT", 12],
+    ["WEIGHT SPEC RANGE", "11.75 - 12.25"],
+  ]);
+  const profile = parseProductSpecProfiles(source)[0];
+  const section = parseProductSpecData(source, profile).sections[0];
+
+  assert.equal(section.ingredients[0].ingredientRole, "ingredient");
+  assert.deepEqual(section.ingredients[0].sourceCoordinates, {
+    sheet: "OZ",
+    row: 2,
+    nameColumn: "A",
+  });
+  assert.match(section.warnings[0], /OZ row 2.*Pep Applicator - New Model.*ordinary ingredient/);
+  assert.equal(section.ingredients[1].ingredientRole, "ingredient");
+  assert.match(section.warnings[1], /OZ row 3.*Cheese applicators.*ordinary ingredient/);
+  assert.equal(section.ingredients[2].ingredientRole, "pep_applicator");
+  assert.equal(section.warnings.length, 2);
+});
+
 test("keeps adjacent packaging tables out of ingredient amounts and product boundaries", () => {
   const source = workbook([
     ["Sample Pizzas", "MR12CH14", null, "Shipping notes", "CODE12"],

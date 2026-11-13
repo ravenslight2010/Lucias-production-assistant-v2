@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { parsePreservedProductSpec } from "../importing/product-spec";
+import { isUnrecognizedApplicatorLabel, parsePreservedProductSpec } from "../importing/product-spec";
 import type { ProductSpecData, ProductSpecSectionData } from "../importing/product-spec";
 import type { NameResolution } from "@workspace/api-client-react";
 import { ResolvedName } from "./resolved-name";
@@ -148,6 +148,11 @@ export function ProductSpecSummary({
                       {section.ingredients.map((ingredient, index) => (
                         <li key={`${ingredient.sourceRow}:${index}`}>
                           <ResolvedName name={ingredient.name} kind="spec" brand={spec.sourceBrand || brand || spec.brand} rules={nameResolution?.rules} />
+                          {isUnrecognizedApplicatorLabel(ingredient.name) && (
+                            <span className="product-spec-applicator-warning" role="status">
+                              Unrecognized applicator label — verify its role before using this run plan.
+                            </span>
+                          )}
                           {ingredient.amounts.length > 0 && (
                             <small>{ingredient.amounts.map((amount) => `${amount.value} (${amount.column}${section.unit ? ` ${section.unit}` : ""})`).join(" · ")}</small>
                           )}

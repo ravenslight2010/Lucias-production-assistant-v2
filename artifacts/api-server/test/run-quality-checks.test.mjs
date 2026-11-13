@@ -178,6 +178,63 @@ test("copies imported row role and coordinates into the saved requirements plan"
   assert.doesNotThrow(() => PreviewRunRequirementsResponse.parse(resolvedPlan));
 });
 
+test("unknown applicator variants stay standard ingredients and require source-row review", () => {
+  const profile = {
+    brand: "Lucia",
+    flavor: "Cheese",
+    revision: 0,
+    productData: {
+      sources: [{
+        sourceName: "customer-spec.xlsx",
+        content: {
+          format: "lucia.product-spec.v1",
+          sections: [{
+            sheet: "OZ",
+            headerRow: 1,
+            unit: "oz",
+            notes: [],
+            warnings: [],
+            ingredients: [{
+              sourceRow: 7,
+              sourceCoordinates: { sheet: "OZ", row: 7, nameColumn: "A" },
+              ingredientRole: "pep_applicator",
+              name: "Pep Applicator - New Model",
+              amounts: [{ column: "B", value: "1.25" }],
+            }],
+          }],
+        },
+      }],
+    },
+  };
+  const initialPlan = buildRunRequirements(profile, 1, { unitsPerCase: 12 });
+  const plan = buildRunRequirements(profile, 1, {
+    unitsPerCase: 12,
+    sectionId: initialPlan.sectionId,
+    links: [{ itemId: initialPlan.items[0].id, directIngredient: true }],
+  });
+  const item = plan.items[0];
+
+  assert.equal(item.ingredientRole, "ingredient", "unknown label cannot retain a tighter imported role");
+  assert.deepEqual(item.sourceCoordinates, { sheet: "OZ", row: 7, nameColumn: "A" });
+  assert.ok(item.issues.some(issue => /OZ row 7.*Pep Applicator - New Model.*standard ingredient tolerance/.test(issue)));
+  assert.equal(plan.status, "needs_review");
+  assert.doesNotThrow(() => PreviewRunRequirementsResponse.parse(plan));
+
+  const quality = buildRunQualityTargets({
+    runRequirements: {
+      items: [{
+        id: "legacy-unknown",
+        originalName: "Pep Applicator - New Model",
+        ingredientRole: "pep_applicator",
+        usageUnit: "oz",
+        perPizza: 1.25,
+      }],
+      finishedWeightSpec: { range: "11 - 13", unit: "oz", source: "customer-spec.xlsx · OZ row 9" },
+    },
+  });
+  assert.equal(quality.checks[0].toleranceOz, 0.1, "legacy snapshots also use standard tolerance for unfamiliar labels");
+});
+
 test("does not invent a finished-weight target for an unclear or unlabelled source range", () => {
   const invalid = snapshot();
   invalid.runRequirements.finishedWeightSpec.range = "about 18 oz";

@@ -1,5 +1,8 @@
 # Authenticated browser regressions
 
+For agent guidance on choosing and extending these scenarios, see
+`.agents/skills/v2-browser-regression/SKILL.md`.
+
 ## Dev-only visual importer preview
 
 Open `/__visual-preview/imports` in the development preview to render the real

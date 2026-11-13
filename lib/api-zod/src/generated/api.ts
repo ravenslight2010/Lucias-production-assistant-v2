@@ -2460,6 +2460,19 @@ export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesNotesI
 
 export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesNotesMax = 200;
 
+export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesPullInstructionsItemIdMax = 80;
+
+export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesPullInstructionsItemTextMax = 1000;
+
+export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesPullInstructionsItemDaysEarlyMin = 0;
+export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesPullInstructionsItemDaysEarlyMax = 3650;
+
+export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesPullInstructionsItemSourceRowMax = 1000000;
+
+export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesPullInstructionsItemSourceColumnMax = 32;
+
+export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesPullInstructionsMax = 500;
+
 export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemBrandMax = 120;
 
 export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemFlavorMax = 120;
@@ -2500,6 +2513,19 @@ export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemReci
 
 export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataNotesMax = 200;
 
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataPullInstructionsItemIdMax = 80;
+
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataPullInstructionsItemTextMax = 1000;
+
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataPullInstructionsItemDaysEarlyMin = 0;
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataPullInstructionsItemDaysEarlyMax = 3650;
+
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataPullInstructionsItemSourceRowMax = 1000000;
+
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataPullInstructionsItemSourceColumnMax = 32;
+
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataPullInstructionsMax = 500;
+
 export const updateProductProfileManagerDataBodyManagerDataManualRecipesMax = 200;
 
 export const updateProductProfileManagerDataBodyManagerDataSetupDefaultsUnitsPerCaseMax = 1000;
@@ -2538,7 +2564,14 @@ export const UpdateProductProfileManagerDataBody = zod.object({
 })).max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesIngredientsItemAmountsMax)
 })).max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesIngredientsMax),
   "steps": zod.array(zod.string().max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesStepsItemMax)).max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesStepsMax),
-  "notes": zod.array(zod.string().max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesNotesItemMax)).max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesNotesMax)
+  "notes": zod.array(zod.string().max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesNotesItemMax)).max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesNotesMax),
+  "pullInstructions": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesPullInstructionsItemIdMax),
+  "text": zod.string().max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesPullInstructionsItemTextMax),
+  "daysEarly": zod.number().int().min(updateProductProfileManagerDataBodyManagerDataRecipeOverridesPullInstructionsItemDaysEarlyMin).max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesPullInstructionsItemDaysEarlyMax).nullable(),
+  "sourceRow": zod.number().int().min(1).max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesPullInstructionsItemSourceRowMax).nullable(),
+  "sourceColumn": zod.string().max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesPullInstructionsItemSourceColumnMax).nullable()
+})).max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesPullInstructionsMax).optional()
 })),
   "manualRecipes": zod.array(zod.object({
   "id": zod.string().uuid(),
@@ -2563,7 +2596,14 @@ export const UpdateProductProfileManagerDataBody = zod.object({
 })).max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataIngredientsItemAmountsMax)
 })).max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataIngredientsMax),
   "steps": zod.array(zod.string().max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataStepsItemMax)).max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataStepsMax),
-  "notes": zod.array(zod.string().max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataNotesItemMax)).max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataNotesMax)
+  "notes": zod.array(zod.string().max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataNotesItemMax)).max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataNotesMax),
+  "pullInstructions": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataPullInstructionsItemIdMax),
+  "text": zod.string().max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataPullInstructionsItemTextMax),
+  "daysEarly": zod.number().int().min(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataPullInstructionsItemDaysEarlyMin).max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataPullInstructionsItemDaysEarlyMax).nullable(),
+  "sourceRow": zod.number().int().min(1).max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataPullInstructionsItemSourceRowMax).nullable(),
+  "sourceColumn": zod.string().max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataPullInstructionsItemSourceColumnMax).nullable()
+})).max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataPullInstructionsMax).optional()
 })
 })).max(updateProductProfileManagerDataBodyManagerDataManualRecipesMax),
   "setupDefaults": zod.object({

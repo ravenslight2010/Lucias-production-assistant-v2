@@ -134,6 +134,55 @@ export function buildRunRequirements(profile: Profile, targetCases: number, opti
   const preparationItems: RunRequirementsPlan["preparationItems"] = [];
   const preparationItemIds = new Set<string>();
   const globalIssues: string[] = [];
+  const capturePreparationItems = (input: {
+    pulls: unknown;
+    file: string;
+    sheet: string;
+    itemName: string;
+    documentId: string;
+    recipeSourceRow: number | null;
+    managerOverride: boolean;
+  }) => {
+    for (const pull of rows(input.pulls)) {
+      const pullText = text(pull.text).trim();
+      const rawSourceRow = numeric(pull.sourceRow);
+      const pullSourceRow = rawSourceRow !== null && Number.isSafeInteger(rawSourceRow) && rawSourceRow > 0
+        ? rawSourceRow
+        : null;
+      const sourceRow = pullSourceRow ?? input.recipeSourceRow;
+      const sourceColumn = text(pull.sourceColumn).trim() || null;
+      const daysValue = numeric(pull.daysEarly);
+      const daysEarly = daysValue !== null && Number.isSafeInteger(daysValue) && daysValue >= 0 && daysValue <= 3650
+        ? daysValue
+        : null;
+      const source = `${input.file} · ${input.sheet} · ${input.itemName} · row ${sourceRow ?? "?"}${input.managerOverride ? " · manager override" : ""}`;
+      if (!pullText) continue;
+      if (pullText.length > 1000 || input.itemName.length > 200 || source.length > 500 || (sourceColumn?.length ?? 0) > 32) {
+        throw new HttpError(413, "An early-pull source row is too long to capture safely. Review or split that workbook entry before creating a run.");
+      }
+      preparation.push(`${source}: ${pullText}${daysEarly !== null ? ` (${daysEarly} days early)` : ""}`);
+      const pullId = `pull_${id([
+        input.documentId,
+        input.sheet,
+        input.itemName,
+        text(pull.id) || null,
+        pullSourceRow,
+        sourceColumn,
+        pullText,
+      ])}`;
+      if (preparationItemIds.has(pullId)) continue;
+      preparationItemIds.add(pullId);
+      preparationItems.push({
+        id: pullId,
+        name: input.itemName,
+        instruction: pullText,
+        source,
+        sourceRow,
+        sourceColumn,
+        daysEarly,
+      });
+    }
+  };
   for (const doc of docs) {
     if (doc.data.format === "lucia.product-spec.v1") {
       for (const section of rows(doc.data.sections)) {
@@ -165,45 +214,17 @@ export function buildRunRequirements(profile: Profile, targetCases: number, opti
         const override = manager.recipeOverrides[sourceKey] as ManagerRecipeDefinition | undefined;
         const raw = override ? applyManagerRecipeDefinition(sourceRaw, override) : sourceRaw;
         const premix = record(raw.premix) ? raw.premix : null;
-        for (const pull of premix ? rows(premix.pullInstructions) : []) {
-          const pullText = text(pull.text).trim();
-          const sourceRow = numeric(pull.sourceRow);
-          const sourceColumn = text(pull.sourceColumn).trim() || null;
-          const daysValue = numeric(pull.daysEarly);
-          const daysEarly = daysValue !== null && Number.isSafeInteger(daysValue) && daysValue <= 3650
-            ? daysValue
-            : null;
-          const itemName = text(raw.name).trim() || "Unnamed preparation item";
-          const source = `${doc.file} · ${text(sheet.name)} · ${itemName} · row ${sourceRow ?? "?"}`;
-          if (pullText) {
-            if (pullText.length > 1000 || itemName.length > 200 || source.length > 500 || (sourceColumn?.length ?? 0) > 32) {
-              throw new HttpError(413, "An early-pull source row is too long to capture safely. Review or split that workbook entry before creating a run.");
-            }
-            preparation.push(`${source}: ${pullText}${daysEarly !== null ? ` (${daysEarly} days early)` : ""}`);
-            const pullId = `pull_${id([
-              doc.id,
-              sheet.name,
-              raw.name,
-              sourceRow,
-              sourceColumn,
-              pullText,
-            ])}`;
-            if (!preparationItemIds.has(pullId)) {
-              preparationItemIds.add(pullId);
-              preparationItems.push({
-                id: pullId,
-                name: itemName,
-                instruction: pullText,
-                source,
-                sourceRow: sourceRow !== null && Number.isSafeInteger(sourceRow) && sourceRow > 0
-                  ? sourceRow
-                  : null,
-                sourceColumn,
-                daysEarly,
-              });
-            }
-          }
-        }
+        const itemName = text(raw.name).trim() || "Unnamed preparation item";
+        const managerPullOverride = Boolean(override && Object.hasOwn(override, "pullInstructions"));
+        capturePreparationItems({
+          pulls: premix?.pullInstructions,
+          file: doc.file,
+          sheet: text(sheet.name),
+          itemName,
+          documentId: doc.id,
+          recipeSourceRow: Number.isSafeInteger(sourceRow) && sourceRow > 0 ? sourceRow : null,
+          managerOverride: managerPullOverride,
+        });
         if (premix?.section === "preparation") continue;
         const cheese = record(raw.cheese) ? raw.cheese : null;
         const cheeseSelection = record(doc.data.cheeseSelection) ? doc.data.cheeseSelection : null;
@@ -227,6 +248,16 @@ export function buildRunRequirements(profile: Profile, targetCases: number, opti
     if (manualBrand !== profileBrand) continue;
     const raw = manualRecipeRaw(manual);
     const kind = categoryImportKind(manual.category);
+    const premix = record(raw.premix) ? raw.premix : null;
+    capturePreparationItems({
+      pulls: premix?.pullInstructions,
+      file: "Manager recipe library",
+      sheet: "Manager recipe library",
+      itemName: manual.name,
+      documentId: `manager:${manual.id}`,
+      recipeSourceRow: null,
+      managerOverride: true,
+    });
     const resolved = canonical("recipe", manual.brand, manual.name);
     const key = `manager_${id([manual.id, manual.category, resolved.brand, resolved.name])}`;
     recipes.set(key, {

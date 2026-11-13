@@ -81,6 +81,19 @@ export function applyManagerRecipeDefinition<T extends RecordValue>(
         total: variant.yield,
       })) }
     : undefined;
+  const oldPremix = record(original.premix) ? original.premix : null;
+  const premix = oldPremix && definition.pullInstructions !== undefined
+    ? {
+        ...oldPremix,
+        pullInstructions: definition.pullInstructions.map((pull) => ({
+          id: pull.id,
+          text: pull.text,
+          daysEarly: pull.daysEarly,
+          sourceRow: pull.sourceRow,
+          sourceColumn: pull.sourceColumn,
+        })),
+      }
+    : oldPremix;
   return {
     ...original,
     ingredients: ingredientRows,
@@ -88,6 +101,7 @@ export function applyManagerRecipeDefinition<T extends RecordValue>(
     ...(dough ? { dough } : {}),
     steps: definition.steps.map((step) => ({ text: step })),
     notes: definition.notes,
+    ...(premix ? { premix } : {}),
   } as T;
 }
 
@@ -123,6 +137,20 @@ export function manualRecipeRaw(recipe: ManagerManualRecipe): RecordValue {
     } : {}),
     steps: definition.steps.map((step) => ({ text: step })),
     notes: definition.notes,
+    ...(recipe.category === "mix" ? {
+      premix: {
+        format: "lucia.premix-details.v1",
+        section: "preparation",
+        referenceOnly: true,
+        pullInstructions: (definition.pullInstructions ?? []).map((pull) => ({
+          id: pull.id,
+          text: pull.text,
+          daysEarly: pull.daysEarly,
+          sourceRow: pull.sourceRow,
+          sourceColumn: pull.sourceColumn,
+        })),
+      },
+    } : {}),
   };
 }
 

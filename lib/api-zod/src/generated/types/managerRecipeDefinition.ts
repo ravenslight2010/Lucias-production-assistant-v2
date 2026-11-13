@@ -7,6 +7,7 @@
  */
 import type { ManagerRecipeBatchVariant } from './managerRecipeBatchVariant.ts';
 import type { ManagerRecipeIngredient } from './managerRecipeIngredient.ts';
+import type { ManagerRecipePullInstruction } from './managerRecipePullInstruction.ts';
 
 export interface ManagerRecipeDefinition {
   /** @maxItems 20 */
@@ -23,4 +24,6 @@ export interface ManagerRecipeDefinition {
      * @items.maxLength 1000
      */
   notes: string[];
+  /** @maxItems 500 */
+  pullInstructions?: ManagerRecipePullInstruction[];
 }

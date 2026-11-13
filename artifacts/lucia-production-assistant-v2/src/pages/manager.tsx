@@ -30,7 +30,7 @@ const categoryTitle: Record<Exclude<Category, 'all'>, string> = {
 };
 const freshDefinition = (): ManagerRecipeDefinition => ({
   batchVariants: [{ column: 1, label: 'Batch 1', unit: null, yield: null }],
-  ingredients: [], steps: [], notes: [],
+  ingredients: [], steps: [], notes: [], pullInstructions: [],
 });
 function messageFor(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -65,9 +65,13 @@ export default function ManagerPage() {
   const [search, setSearch] = useState('');
   const [editingKey, setEditingKey] = useState('');
   const [draft, setDraft] = useState<ManagerRecipeDefinition | null>(null);
+  const [editingRevision, setEditingRevision] = useState<number | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualDraft, setManualDraft] = useState<ManagerManualRecipe | null>(null);
+  const [manualRevision, setManualRevision] = useState<number | null>(null);
   const [confirmDelete, setConfirmDelete] = useState('');
+  const [confirmPullRestore, setConfirmPullRestore] = useState('');
+  const [pullRestoreRevision, setPullRestoreRevision] = useState<number | null>(null);
   const [feedback, setFeedback] = useState('');
   const [review, setReview] = useState<RunPlanningReview | null>(null);
   const [targetCases, setTargetCases] = useState(1);
@@ -84,8 +88,14 @@ export default function ManagerPage() {
       category: item.category,
       source: `${item.sourceName} · ${item.sheet}, row ${item.row}`,
       imported: true,
-      definition: managerData.recipeOverrides[item.sourceKey] ?? item.definition,
+      definition: managerData.recipeOverrides[item.sourceKey]
+        ? {
+            ...managerData.recipeOverrides[item.sourceKey],
+            pullInstructions: managerData.recipeOverrides[item.sourceKey].pullInstructions ?? item.definition.pullInstructions ?? [],
+          }
+        : item.definition,
       overridden: Boolean(managerData.recipeOverrides[item.sourceKey]),
+      pullsOverridden: managerData.recipeOverrides[item.sourceKey]?.pullInstructions !== undefined,
     }));
     const manual = managerData.manualRecipes.map((item) => ({
       key: `manual:${item.id}`,
@@ -95,18 +105,19 @@ export default function ManagerPage() {
       imported: false,
       definition: item.recipeData,
       overridden: false,
+      pullsOverridden: false,
     }));
     const normalized = [...imported, ...manual];
     return normalized.filter((item) => (category === 'all' || item.category === category) &&
       `${item.name} ${item.category} ${item.source}`.toLowerCase().includes(search.toLowerCase().trim()));
   }, [profile, category, search]);
 
-  const commit = (managerData: ProductProfileManagerData, done: string) => {
+  const commit = (managerData: ProductProfileManagerData, done: string, expectedRevision?: number) => {
     if (!profile) return;
     setFeedback('');
     saveMutation.mutate({
       profileId: profile.id,
-      data: { expectedRevision: profile.revision, managerData },
+      data: { expectedRevision: expectedRevision ?? profile.revision, managerData },
     }, {
       onSuccess: async () => {
         await client.invalidateQueries({ queryKey: getListProductProfilesQueryKey() });
@@ -114,9 +125,13 @@ export default function ManagerPage() {
         setReview(null);
         setEditingKey('');
         setDraft(null);
+        setEditingRevision(null);
         setManualOpen(false);
         setManualDraft(null);
+        setManualRevision(null);
         setConfirmDelete('');
+        setConfirmPullRestore('');
+        setPullRestoreRevision(null);
       },
       onError: (error) => setFeedback(statusFor(error) === 409
         ? `Conflict: ${messageFor(error, 'This profile changed elsewhere. Reload the latest revision before saving again.')}`
@@ -130,9 +145,9 @@ export default function ManagerPage() {
     const current = getManagerData(profile);
     if (editingKey.startsWith('manual:')) {
       const id = editingKey.slice('manual:'.length);
-      commit({ ...current, manualRecipes: current.manualRecipes.map((item) => item.id === id ? { ...item, recipeData: draft } : item) }, 'Manual recipe saved.');
+      commit({ ...current, manualRecipes: current.manualRecipes.map((item) => item.id === id ? { ...item, recipeData: draft } : item) }, 'Manual recipe saved.', manualRevision ?? profile.revision);
     } else {
-      commit({ ...current, recipeOverrides: { ...current.recipeOverrides, [editingKey]: draft } }, 'Manager override saved. Workbook source data remains preserved.');
+      commit({ ...current, recipeOverrides: { ...current.recipeOverrides, [editingKey]: draft } }, 'Manager override saved. Workbook source data remains preserved.', editingRevision ?? profile.revision);
     }
   };
 
@@ -142,7 +157,7 @@ export default function ManagerPage() {
     const cleaned = { ...manualDraft, brand: manualDraft.brand.trim(), flavor: manualDraft.flavor.trim(), name: manualDraft.name.trim() };
     if (!cleaned.brand || !cleaned.flavor || !cleaned.name) return;
     const managerData = getManagerData(profile);
-    commit({ ...managerData, manualRecipes: [...managerData.manualRecipes, cleaned] }, 'Manual recipe added to this profile.');
+    commit({ ...managerData, manualRecipes: [...managerData.manualRecipes, cleaned] }, 'Manual recipe added to this profile.', manualRevision ?? profile.revision);
   };
 
   const removeManual = (recipeId: string) => {
@@ -156,6 +171,18 @@ export default function ManagerPage() {
     const next = { ...managerData.recipeOverrides };
     delete next[sourceKey];
     commit({ ...managerData, recipeOverrides: next }, 'Override removed. Imported workbook formula is shown again.');
+  };
+  const restorePullInstructions = (sourceKey: string, expectedRevision: number) => {
+    if (!profile) return;
+    const managerData = getManagerData(profile);
+    const override = managerData.recipeOverrides[sourceKey];
+    if (!override || override.pullInstructions === undefined) return;
+    const nextDefinition = { ...override };
+    delete nextDefinition.pullInstructions;
+    commit({
+      ...managerData,
+      recipeOverrides: { ...managerData.recipeOverrides, [sourceKey]: nextDefinition },
+    }, 'Source pull instructions restored. Other formula changes were kept.', expectedRevision);
   };
 
   if (context.isLoading) return <main className="workspace"><div className="eyebrow">Manager workspace</div><h1>Checking facility access</h1><div className="skeleton" /></main>;
@@ -191,7 +218,7 @@ export default function ManagerPage() {
     <section className="manager-profile-bar panel" aria-label="Profile selection">
       <div className="manager-profile-intro"><span className="manager-icon"><BookOpen size={18} /></span><div><span className="eyebrow">Facility library</span><strong>Choose a product profile</strong></div></div>
       {profileQuery.data && profiles.length > 0 && <label className="manager-profile-select">Product profile
-        <select value={profile?.id ?? ''} onChange={(event) => { setSelectedProfileId(event.target.value); setReview(null); setEditingKey(''); setDraft(null); }} data-testid="select-manager-profile">
+        <select value={profile?.id ?? ''} onChange={(event) => { setSelectedProfileId(event.target.value); setReview(null); setEditingKey(''); setDraft(null); setEditingRevision(null); }} data-testid="select-manager-profile">
           {profiles.map((item) => <option value={item.id} key={item.id}>{item.brand} / {item.flavor} · rev {item.revision}</option>)}
         </select>
       </label>}
@@ -203,7 +230,7 @@ export default function ManagerPage() {
     {profile && <>
       <section className="manager-library" aria-labelledby="manager-recipes-heading">
         <div className="section-heading manager-section-head"><div><div className="eyebrow">Formula library</div><h2 id="manager-recipes-heading">Recipes for {profile.brand} / {profile.flavor}</h2><p className="field-help">Imported formulas remain source references. Changes below save as manager-only overrides.</p></div>
-          <button className="button button-primary" type="button" onClick={() => { setManualDraft({ id: makeId(), category: 'cheese', brand: profile.brand, flavor: profile.flavor, name: '', recipeData: freshDefinition() }); setManualOpen(true); }} data-testid="button-manager-add-recipe"><Plus size={16} /> Add manual recipe</button>
+          <button className="button button-primary" type="button" onClick={() => { setManualDraft({ id: makeId(), category: 'cheese', brand: profile.brand, flavor: profile.flavor, name: '', recipeData: freshDefinition() }); setManualRevision(profile.revision); setManualOpen(true); }} data-testid="button-manager-add-recipe"><Plus size={16} /> Add manual recipe</button>
         </div>
         <div className="manager-toolbar">
           <div className="manager-category-tabs" role="group" aria-label="Filter recipes by category">
@@ -222,12 +249,19 @@ export default function ManagerPage() {
                   <div className="manager-recipe-title"><h3>{recipe.name}</h3><p>{recipe.source}</p></div>
                   {recipe.overridden && <span className="manager-override-badge"><Check size={13} /> Manager override</span>}
                 </div>
-                {active && draft ? <RecipeEditor definition={draft} onChange={setDraft} onSubmit={saveRecipe} onCancel={() => { setEditingKey(''); setDraft(null); }} pending={saveMutation.isPending} testId={recipe.key.replace(/[^a-zA-Z0-9_-]/g, '-')} /> :
+                {active && draft ? <RecipeEditor definition={draft} allowPullInstructions={recipe.category === 'mix'} onChange={setDraft} onSubmit={saveRecipe} onCancel={() => { setEditingKey(''); setDraft(null); setEditingRevision(null); }} pending={saveMutation.isPending} testId={recipe.key.replace(/[^a-zA-Z0-9_-]/g, '-')} /> :
                   <RecipeReadout definition={recipe.definition} />}
                 {!active && <div className="manager-recipe-actions">
-                  <button className="button button-secondary" type="button" onClick={() => { setEditingKey(recipe.key); setDraft(structuredClone(recipe.definition)); setFeedback(''); }} data-testid={`button-manager-edit-${recipe.key.replace(/[^a-zA-Z0-9_-]/g, '-')}`}>Edit formula</button>
+                  <button className="button button-secondary" type="button" onClick={() => { setEditingKey(recipe.key); setDraft(structuredClone(recipe.definition)); setEditingRevision(profile.revision); setFeedback(''); }} data-testid={`button-manager-edit-${recipe.key.replace(/[^a-zA-Z0-9_-]/g, '-')}`}>Edit formula</button>
+                  {recipe.imported && recipe.category === 'mix' && recipe.pullsOverridden && <button className="button button-quiet" type="button" disabled={saveMutation.isPending} onClick={() => { setConfirmPullRestore(recipe.key); setPullRestoreRevision(profile.revision); }} data-testid={`button-manager-restore-pulls-${recipe.key.replace(/[^a-zA-Z0-9_-]/g, '-')}`}>Restore source pull instructions</button>}
                   {recipe.imported && recipe.overridden && <button className="button button-quiet" type="button" onClick={() => setConfirmDelete(recipe.key)} data-testid={`button-manager-remove-override-${recipe.key.replace(/[^a-zA-Z0-9_-]/g, '-')}`}>Restore source formula</button>}
                   {!recipe.imported && <button className="button button-quiet manager-delete-button" type="button" onClick={() => setConfirmDelete(manualId)} data-testid={`button-manager-delete-${manualId}`}><Trash2 size={14} /> Remove recipe</button>}
+                </div>}
+                {confirmPullRestore === recipe.key && <div className="manager-confirm" role="group" aria-label="Confirm pull instruction change">
+                  <strong>Restore the imported pull instructions?</strong>
+                  <p>The saved workbook instructions and timing will be used again. Other manager formula changes and existing runs stay unchanged.</p>
+                  <button className="button button-primary" type="button" disabled={saveMutation.isPending || pullRestoreRevision === null} onClick={() => { const revision = pullRestoreRevision; setConfirmPullRestore(''); setPullRestoreRevision(null); if (revision !== null) restorePullInstructions(recipe.key, revision); }} data-testid="button-manager-confirm-restore-pulls">Restore source instructions</button>
+                  <button className="button button-secondary" type="button" onClick={() => { setConfirmPullRestore(''); setPullRestoreRevision(null); }} data-testid="button-manager-cancel-restore-pulls">Cancel</button>
                 </div>}
                 {confirmDelete && (confirmDelete === recipe.key || confirmDelete === manualId) && <div className="manager-confirm" role="group" aria-label="Confirm recipe change">
                   <strong>{recipe.imported ? 'Remove this manager override?' : 'Remove this manual recipe?'}</strong>
@@ -242,11 +276,11 @@ export default function ManagerPage() {
 
       {manualOpen && manualDraft && <Dialog open={manualOpen} onOpenChange={(open) => {
         setManualOpen(open);
-        if (!open) setManualDraft(null);
+        if (!open) { setManualDraft(null); setManualRevision(null); }
       }}>
         <DialogContent className="manager-modal-dialog">
           <section className="manager-modal panel">
-          <header><div><div className="eyebrow">Manager-owned formula</div><DialogTitle id="manager-manual-title">Add a manual recipe</DialogTitle><DialogDescription className="sr-only">This recipe is saved to the selected product profile for future run planning.</DialogDescription></div><button type="button" className="button button-quiet" onClick={() => { setManualOpen(false); setManualDraft(null); }} data-testid="button-manager-close-manual">Cancel</button></header>
+          <header><div><div className="eyebrow">Manager-owned formula</div><DialogTitle id="manager-manual-title">Add a manual recipe</DialogTitle><DialogDescription className="sr-only">This recipe is saved to the selected product profile for future run planning.</DialogDescription></div><button type="button" className="button button-quiet" onClick={() => { setManualOpen(false); setManualDraft(null); setManualRevision(null); }} data-testid="button-manager-close-manual">Cancel</button></header>
           <div>
             <div className="manager-manual-fields">
               <label>Category<select value={manualDraft.category} onChange={(event) => setManualDraft({ ...manualDraft, category: event.target.value as ManagerManualRecipe['category'] })} data-testid="select-manager-manual-category">{(['cheese', 'mix', 'dough', 'sauce'] as const).map((item) => <option key={item} value={item}>{categoryTitle[item]}</option>)}</select></label>
@@ -254,7 +288,7 @@ export default function ManagerPage() {
               <label>Brand<input required maxLength={120} value={manualDraft.brand} onChange={(event) => setManualDraft({ ...manualDraft, brand: event.target.value })} data-testid="input-manager-manual-brand" /></label>
               <label>Flavor<input required maxLength={120} value={manualDraft.flavor} onChange={(event) => setManualDraft({ ...manualDraft, flavor: event.target.value })} data-testid="input-manager-manual-flavor" /></label>
             </div>
-            <RecipeEditor definition={manualDraft.recipeData} onChange={(recipeData) => setManualDraft({ ...manualDraft, recipeData })} onSubmit={addManual} onCancel={() => { setManualOpen(false); setManualDraft(null); }} pending={saveMutation.isPending} testId="manual" compact />
+            <RecipeEditor definition={manualDraft.recipeData} allowPullInstructions={manualDraft.category === 'mix'} onChange={(recipeData) => setManualDraft({ ...manualDraft, recipeData })} onSubmit={addManual} onCancel={() => { setManualOpen(false); setManualDraft(null); setManualRevision(null); }} pending={saveMutation.isPending} testId="manual" compact />
           </div>
           </section>
         </DialogContent>
@@ -288,11 +322,19 @@ function RecipeReadout({ definition }: { definition: ManagerRecipeDefinition }) 
     {definition.ingredients.length > 0 && <ul>{definition.ingredients.map((ingredient) => <li key={ingredient.id}><strong>{ingredient.name}</strong><span>{ingredient.amounts.map((amount) => `Column ${amount.column}: ${amount.amount ?? 'not supplied'} ${amount.unit ?? ''}`).join(' · ') || 'No amount recorded'}</span></li>)}</ul>}
     {definition.steps.length > 0 && <ol>{definition.steps.map((step, index) => <li key={`${index}-${step}`}>{step}</li>)}</ol>}
     {definition.notes.length > 0 && <p className="field-help">Notes: {definition.notes.join(' · ')}</p>}
+    {(definition.pullInstructions?.length ?? 0) > 0 && <div className="manager-pull-readout">
+      <strong>Pull-ahead instructions</strong>
+      <ul>{definition.pullInstructions?.map((pull) => <li key={pull.id}>
+        <span>{pull.text}</span>
+        <small>{pull.daysEarly === null ? 'Timing not specified' : `${pull.daysEarly} ${pull.daysEarly === 1 ? 'day' : 'days'} early`} · {pull.sourceRow === null ? 'Manager-added' : `source row ${pull.sourceRow}`}{pull.sourceColumn ? ` · column ${pull.sourceColumn}` : ''}</small>
+      </li>)}</ul>
+    </div>}
   </div>;
 }
 
-function RecipeEditor({ definition, onChange, onSubmit, onCancel, pending, testId, compact = false }: {
+function RecipeEditor({ definition, allowPullInstructions = false, onChange, onSubmit, onCancel, pending, testId, compact = false }: {
   definition: ManagerRecipeDefinition;
+  allowPullInstructions?: boolean;
   onChange: (definition: ManagerRecipeDefinition) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onCancel: () => void;
@@ -310,12 +352,15 @@ function RecipeEditor({ definition, onChange, onSubmit, onCancel, pending, testI
     }
     if (definition.batchVariants.length > 20 || definition.ingredients.length > 300 ||
       definition.steps.length > 200 || definition.notes.length > 200 ||
+      (definition.pullInstructions?.length ?? 0) > 500 ||
       definition.batchVariants.some((variant) => variant.label.length > 120 || (variant.unit?.length ?? 0) > 20 || (variant.yield ?? 0) > 1_000_000_000) ||
       definition.ingredients.some((ingredient) => ingredient.name.length > 200 ||
         ingredient.amounts.some((amount) => (amount.unit?.length ?? 0) > 20 || (amount.amount ?? 0) > 1_000_000_000)) ||
-      [...definition.steps, ...definition.notes].some((line) => line.length > 1000)) {
+      [...definition.steps, ...definition.notes].some((line) => line.length > 1000) ||
+      (definition.pullInstructions ?? []).some((pull) => !pull.text.trim() || pull.text.length > 1000 ||
+        pull.daysEarly !== null && (!Number.isSafeInteger(pull.daysEarly) || pull.daysEarly < 0 || pull.daysEarly > 3650))) {
       event.preventDefault();
-      setValidation('This formula is larger than the supported recipe limits. Shorten its fields or split it into separate recipes.');
+      setValidation('Check each pull instruction and timing, then shorten any fields that exceed the supported recipe limits.');
       return;
     }
     setValidation('');
@@ -369,6 +414,35 @@ function RecipeEditor({ definition, onChange, onSubmit, onCancel, pending, testI
     </fieldset>
     <label className="manager-long-field">Process steps <textarea rows={4} value={definition.steps.join('\n')} onChange={(event) => onChange({ ...definition, steps: event.target.value.split('\n') })} placeholder="One process step per line" data-testid={`textarea-manager-steps-${testId}`} /></label>
     <label className="manager-long-field">Notes <textarea rows={3} value={definition.notes.join('\n')} onChange={(event) => onChange({ ...definition, notes: event.target.value.split('\n') })} placeholder="One note per line" data-testid={`textarea-manager-notes-${testId}`} /></label>
+    {allowPullInstructions && <fieldset className="manager-pull-editor">
+      <legend>Mix pull-ahead instructions</legend>
+      <p className="field-help">These profile overrides affect future runs only. Imported workbook instructions remain unchanged.</p>
+      {(definition.pullInstructions ?? []).map((pull, index) => <div className="manager-pull-row" key={pull.id}>
+        <label>Instruction<textarea rows={2} maxLength={1000} value={pull.text} onChange={(event) => onChange({
+          ...definition,
+          pullInstructions: (definition.pullInstructions ?? []).map((item, i) => i === index ? { ...item, text: event.target.value } : item),
+        })} data-testid={`textarea-manager-pull-text-${testId}-${index}`} /></label>
+        <label>Days early<input type="number" min={0} max={3650} step={1} value={pull.daysEarly ?? ''} onChange={(event) => onChange({
+          ...definition,
+          pullInstructions: (definition.pullInstructions ?? []).map((item, i) => i === index ? { ...item, daysEarly: event.target.value === '' ? null : Number(event.target.value) } : item),
+        })} data-testid={`input-manager-pull-days-${testId}-${index}`} /></label>
+        <p className="manager-pull-source">{pull.sourceRow === null ? 'Manager-added' : `Workbook row ${pull.sourceRow}`}{pull.sourceColumn ? ` · column ${pull.sourceColumn}` : ''}</p>
+        <button className="button button-quiet manager-pull-remove" type="button" onClick={() => onChange({
+          ...definition,
+          pullInstructions: (definition.pullInstructions ?? []).filter((item) => item.id !== pull.id),
+        })} data-testid={`button-manager-remove-pull-${testId}-${index}`}><Trash2 size={14} /> Remove</button>
+      </div>)}
+      <button className="button button-quiet" type="button" disabled={(definition.pullInstructions?.length ?? 0) >= 500} onClick={() => onChange({
+        ...definition,
+        pullInstructions: [...(definition.pullInstructions ?? []), {
+          id: `manager-${makeId()}`,
+          text: '',
+          daysEarly: null,
+          sourceRow: null,
+          sourceColumn: null,
+        }],
+      })} data-testid={`button-manager-add-pull-${testId}`}><Plus size={14} /> Add pull instruction</button>
+    </fieldset>}
     {validation && <p className="error-banner" role="alert" data-testid={`status-manager-validation-${testId}`}>{validation}</p>}
     <div className="manager-editor-actions"><button className="button button-primary" type="submit" disabled={pending} data-testid={`button-manager-save-recipe-${testId}`}><Save size={15} />{pending ? 'Saving…' : 'Save formula'}</button><button className="button button-secondary" type="button" disabled={pending} onClick={onCancel} data-testid={`button-manager-cancel-recipe-${testId}`}>Cancel</button></div>
   </form>;

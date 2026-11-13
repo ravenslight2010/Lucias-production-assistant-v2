@@ -1199,6 +1199,33 @@ export interface ManagerRecipeBatchVariant {
   yield: number | null;
 }
 
+export interface ManagerRecipePullInstruction {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  id: string;
+  /** @maxLength 1000 */
+  text: string;
+  /**
+     * @minimum 0
+     * @maximum 3650
+     * @nullable
+     */
+  daysEarly: number | null;
+  /**
+     * @minimum 1
+     * @maximum 1000000
+     * @nullable
+     */
+  sourceRow: number | null;
+  /**
+     * @maxLength 32
+     * @nullable
+     */
+  sourceColumn: string | null;
+}
+
 export interface ManagerRecipeDefinition {
   /** @maxItems 20 */
   batchVariants: ManagerRecipeBatchVariant[];
@@ -1214,6 +1241,8 @@ export interface ManagerRecipeDefinition {
      * @items.maxLength 1000
      */
   notes: string[];
+  /** @maxItems 500 */
+  pullInstructions?: ManagerRecipePullInstruction[];
 }
 
 export type ManagerManualRecipeCategory = typeof ManagerManualRecipeCategory[keyof typeof ManagerManualRecipeCategory];

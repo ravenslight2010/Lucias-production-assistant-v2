@@ -267,6 +267,108 @@ test("captures each early-pull instruction as a stable, source-traceable run ite
   assert.doesNotThrow(() => PreviewRunRequirementsResponse.parse(first));
 });
 
+test("uses manager mix pull overrides only for future source-traceable run plans", () => {
+  const workbookSource = {
+    profileId: "profile-1",
+    brand: "Lucia",
+    sourceName: "Mix workbook.xlsx",
+    importKind: "premix",
+    content: {
+      format: "lucia.operational-workbook.v1",
+      importKind: "premix",
+      sheets: [{
+        name: "Mix Pulls",
+        recipes: [{
+          name: "Garlic Mix",
+          source: { startRow: 5 },
+          premix: {
+            pullInstructions: [
+              { text: "Original workbook wording", sourceRow: 15, sourceColumn: "C", daysEarly: 2 },
+              { text: "Remove this instruction", sourceRow: 16, sourceColumn: "D", daysEarly: 1 },
+            ],
+          },
+        }],
+      }],
+    },
+  };
+  const originalSnapshot = structuredClone(workbookSource);
+  const sourceKey = JSON.stringify([
+    "profile-1", "Mix workbook.xlsx", "premix", "Mix Pulls", 5, "Garlic Mix",
+  ]);
+  const profile = {
+    id: "profile-1",
+    brand: "Lucia",
+    flavor: "Original",
+    revision: 3,
+    productData: {
+      sources: [
+        workbookSource,
+        {
+          profileId: "profile-1",
+          importKind: "manager_profile",
+          sourceName: "Manager profile setup",
+          content: {
+            format: "lucia.manager-profile.v1",
+            recipeOverrides: {
+              [sourceKey]: {
+                batchVariants: [],
+                ingredients: [],
+                steps: [],
+                notes: [],
+                pullInstructions: [
+                  {
+                    id: "source-pull-15-c-1",
+                    text: "Move the sealed mix to the cooler",
+                    daysEarly: 4,
+                    sourceRow: 15,
+                    sourceColumn: "C",
+                  },
+                  {
+                    id: "manager-added-pull",
+                    text: "Check the container before moving it",
+                    daysEarly: null,
+                    sourceRow: null,
+                    sourceColumn: null,
+                  },
+                ],
+              },
+            },
+            manualRecipes: [],
+          },
+        },
+      ],
+    },
+  };
+
+  const plan = buildRunRequirements(profile, 24, { unitsPerCase: 12 });
+
+  assert.deepEqual(plan.preparationItems.map((item) => ({
+    instruction: item.instruction,
+    source: item.source,
+    sourceRow: item.sourceRow,
+    sourceColumn: item.sourceColumn,
+    daysEarly: item.daysEarly,
+  })), [
+    {
+      instruction: "Move the sealed mix to the cooler",
+      source: "Mix workbook.xlsx · Mix Pulls · Garlic Mix · row 15 · manager override",
+      sourceRow: 15,
+      sourceColumn: "C",
+      daysEarly: 4,
+    },
+    {
+      instruction: "Check the container before moving it",
+      source: "Mix workbook.xlsx · Mix Pulls · Garlic Mix · row 5 · manager override",
+      sourceRow: 5,
+      sourceColumn: null,
+      daysEarly: null,
+    },
+  ]);
+  assert.notEqual(plan.preparationItems[0].id, plan.preparationItems[1].id);
+  assert.deepEqual(workbookSource, originalSnapshot);
+  assert.doesNotThrow(() => PreviewRunRequirementsResponse.parse(plan));
+});
+
 test("unknown applicator variants remain unresolved until source-role review", () => {
   const profile = {
     brand: "Lucia",

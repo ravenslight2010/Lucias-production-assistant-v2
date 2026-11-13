@@ -63,6 +63,7 @@ export * from './managerRecipeBatchVariant.ts';
 export * from './managerRecipeDefinition.ts';
 export * from './managerRecipeIngredient.ts';
 export * from './managerRecipeIngredientAmount.ts';
+export * from './managerRecipePullInstruction.ts';
 export * from './nameLibrary.ts';
 export * from './nameReference.ts';
 export * from './nameReferenceKind.ts';

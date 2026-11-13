@@ -74,6 +74,27 @@ function categoryFor(importKind: string): ImportedRecipe['category'] | null {
 
 function managerDefinition(recipeValue: unknown): ManagerRecipeDefinition {
   const recipe = record(recipeValue) ?? {};
+  const premix = record(recipe.premix);
+  const pullInstructions = Array.isArray(premix?.pullInstructions)
+    ? premix.pullInstructions.flatMap((pullValue, index) => {
+      const pull = record(pullValue);
+      if (!pull) return [];
+      const rawSourceRow = finite(pull.sourceRow);
+      const sourceRow = rawSourceRow !== null && Number.isSafeInteger(rawSourceRow) &&
+        rawSourceRow > 0 && rawSourceRow <= 1_000_000 ? rawSourceRow : null;
+      const rawSourceColumn = text(pull.sourceColumn).trim();
+      const sourceColumn = rawSourceColumn && rawSourceColumn.length <= 32 ? rawSourceColumn : null;
+      const rawDaysEarly = numeric(pull.daysEarly);
+      return [{
+        id: `source-${sourceRow ?? 'unknown'}-${sourceColumn ?? 'unknown'}-${index + 1}`.slice(0, 80),
+        text: text(pull.text),
+        daysEarly: rawDaysEarly !== null && Number.isSafeInteger(rawDaysEarly) &&
+          rawDaysEarly >= 0 && rawDaysEarly <= 3650 ? rawDaysEarly : null,
+        sourceRow,
+        sourceColumn,
+      }];
+    })
+    : [];
   const ingredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
   const metrics = Array.isArray(recipe.metrics) ? recipe.metrics : [];
   const dough = record(recipe.dough);
@@ -128,6 +149,7 @@ function managerDefinition(recipeValue: unknown): ManagerRecipeDefinition {
       return text(item?.text);
     }).filter(Boolean),
     notes: (Array.isArray(recipe.notes) ? recipe.notes : []).filter((note): note is string => typeof note === 'string'),
+    pullInstructions,
   };
 }
 

@@ -47,6 +47,56 @@ test('manager recipe identity follows the original merged source profile and wor
   assert.equal(recipe.definition.steps[0], 'Mix until smooth.');
 });
 
+test('manager recipe extraction retains premix pull text, timing, and source coordinates', () => {
+  const profile = {
+    id: 'mix-profile',
+    brand: 'Lucia',
+    flavor: 'Garlic',
+    revision: 1,
+    productData: { sources: [{
+      sourceName: 'Mixes.xlsx',
+      importKind: 'premix',
+      content: {
+        format: 'lucia.operational-workbook.v1',
+        importKind: 'premix',
+        sheets: [{
+          name: 'Pulls',
+          recipes: [{
+            name: 'Garlic Mix',
+            source: { startRow: 8 },
+            premix: {
+              pullInstructions: [
+                { text: 'Move to cooler', sourceRow: 17, sourceColumn: 'B', daysEarly: 2 },
+                { text: 'Check before use', sourceRow: 18, sourceColumn: 'C' },
+              ],
+            },
+          }],
+        }],
+      },
+    }] },
+  };
+
+  const [recipe] = extractImportedRecipes(profile);
+
+  assert.equal(recipe.category, 'mix');
+  assert.deepEqual(recipe.definition.pullInstructions, [
+    {
+      id: 'source-17-B-1',
+      text: 'Move to cooler',
+      daysEarly: 2,
+      sourceRow: 17,
+      sourceColumn: 'B',
+    },
+    {
+      id: 'source-18-C-2',
+      text: 'Check before use',
+      daysEarly: null,
+      sourceRow: 18,
+      sourceColumn: 'C',
+    },
+  ]);
+});
+
 test('manager data merges recipe edits from merged profiles and keeps survivor setup defaults', () => {
   const firstManual = { id: 'manual-one', category: 'cheese', brand: 'Lucia', flavor: 'Original', name: 'Cheese One', recipeData: {} };
   const secondManual = { id: 'manual-two', category: 'sauce', brand: 'Lucia', flavor: 'Original', name: 'Sauce Two', recipeData: {} };

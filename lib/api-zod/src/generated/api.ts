@@ -2723,6 +2723,10 @@ export const GetRunInventoryUsageParams = zod.object({
 
 export const getRunInventoryUsageResponseBlockedCountMin = 0;
 
+export const getRunInventoryUsageResponseItemsItemInventoryRevisionMin = 0;
+
+export const getRunInventoryUsageResponseReconciliationOneEntriesItemInventoryRevisionMin = 0;
+
 
 
 export const GetRunInventoryUsageResponse = zod.object({
@@ -2744,6 +2748,7 @@ export const GetRunInventoryUsageResponse = zod.object({
   "proposedQuantity": zod.number().nullable(),
   "actualUsed": zod.number().nullable(),
   "inventoryOnHand": zod.number().nullable(),
+  "inventoryRevision": zod.number().int().min(getRunInventoryUsageResponseItemsItemInventoryRevisionMin).nullable(),
   "blockedReason": zod.string().nullable()
 })),
   "reconciliation": zod.union([zod.object({
@@ -2763,6 +2768,7 @@ export const GetRunInventoryUsageResponse = zod.object({
   "proposedQuantity": zod.number().nullable(),
   "actualUsed": zod.number().nullable(),
   "inventoryOnHand": zod.number().nullable(),
+  "inventoryRevision": zod.number().int().min(getRunInventoryUsageResponseReconciliationOneEntriesItemInventoryRevisionMin).nullable(),
   "blockedReason": zod.string().nullable()
 }))
 }),zod.null()])
@@ -2788,6 +2794,8 @@ export const confirmRunInventoryUsageBodyItemsItemIdMax = 300;
 export const confirmRunInventoryUsageBodyItemsItemActualUsedMin = 0;
 export const confirmRunInventoryUsageBodyItemsItemActualUsedMax = 999999999999;
 
+export const confirmRunInventoryUsageBodyItemsItemExpectedInventoryRevisionMin = 0;
+
 export const confirmRunInventoryUsageBodyItemsMax = 500;
 
 
@@ -2796,11 +2804,16 @@ export const ConfirmRunInventoryUsageBody = zod.object({
   "commandId": zod.string().uuid(),
   "items": zod.array(zod.object({
   "id": zod.string().min(1).max(confirmRunInventoryUsageBodyItemsItemIdMax),
-  "actualUsed": zod.number().min(confirmRunInventoryUsageBodyItemsItemActualUsedMin).max(confirmRunInventoryUsageBodyItemsItemActualUsedMax)
+  "actualUsed": zod.number().min(confirmRunInventoryUsageBodyItemsItemActualUsedMin).max(confirmRunInventoryUsageBodyItemsItemActualUsedMax),
+  "expectedInventoryRevision": zod.number().int().min(confirmRunInventoryUsageBodyItemsItemExpectedInventoryRevisionMin).nullish()
 })).min(1).max(confirmRunInventoryUsageBodyItemsMax)
 })
 
 export const confirmRunInventoryUsageResponseBlockedCountMin = 0;
+
+export const confirmRunInventoryUsageResponseItemsItemInventoryRevisionMin = 0;
+
+export const confirmRunInventoryUsageResponseReconciliationOneEntriesItemInventoryRevisionMin = 0;
 
 
 
@@ -2823,6 +2836,7 @@ export const ConfirmRunInventoryUsageResponse = zod.object({
   "proposedQuantity": zod.number().nullable(),
   "actualUsed": zod.number().nullable(),
   "inventoryOnHand": zod.number().nullable(),
+  "inventoryRevision": zod.number().int().min(confirmRunInventoryUsageResponseItemsItemInventoryRevisionMin).nullable(),
   "blockedReason": zod.string().nullable()
 })),
   "reconciliation": zod.union([zod.object({
@@ -2842,6 +2856,7 @@ export const ConfirmRunInventoryUsageResponse = zod.object({
   "proposedQuantity": zod.number().nullable(),
   "actualUsed": zod.number().nullable(),
   "inventoryOnHand": zod.number().nullable(),
+  "inventoryRevision": zod.number().int().min(confirmRunInventoryUsageResponseReconciliationOneEntriesItemInventoryRevisionMin).nullable(),
   "blockedReason": zod.string().nullable()
 }))
 }),zod.null()])

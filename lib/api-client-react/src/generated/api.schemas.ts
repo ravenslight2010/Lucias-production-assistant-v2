@@ -563,6 +563,11 @@ export interface RunInventoryUsageEntry {
   actualUsed: number | null;
   /** @nullable */
   inventoryOnHand: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  inventoryRevision: number | null;
   /** @nullable */
   blockedReason: string | null;
 }
@@ -594,6 +599,11 @@ export interface RunInventoryUsageItemInput {
      * @maximum 999999999999
      */
   actualUsed: number;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  expectedInventoryRevision?: number | null;
 }
 
 export interface RunInventoryUsageInput {

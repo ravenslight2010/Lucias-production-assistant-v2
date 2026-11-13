@@ -1509,8 +1509,9 @@ components:
         proposedQuantity: {type: ["number", "null"]}
         actualUsed: {type: ["number", "null"]}
         inventoryOnHand: {type: ["number", "null"]}
+        inventoryRevision: {type: ["integer", "null"], minimum: 0}
         blockedReason: {type: ["string", "null"]}
-      required: [id, requirementId, requirementName, ingredientName, unit, source, sourceAmount, quantityBasis, amountColumn, batchColumn, proposedQuantity, actualUsed, inventoryOnHand, blockedReason]
+      required: [id, requirementId, requirementName, ingredientName, unit, source, sourceAmount, quantityBasis, amountColumn, batchColumn, proposedQuantity, actualUsed, inventoryOnHand, inventoryRevision, blockedReason]
     RunInventoryReconciliation:
       type: object
       properties:
@@ -1543,6 +1544,7 @@ components:
       properties:
         id: {type: string, minLength: 1, maxLength: 300}
         actualUsed: {type: number, minimum: 0, maximum: 999999999999}
+        expectedInventoryRevision: {type: ["integer", "null"], minimum: 0}
       required: [id, actualUsed]
     RunInventoryUsageInput:
       type: object

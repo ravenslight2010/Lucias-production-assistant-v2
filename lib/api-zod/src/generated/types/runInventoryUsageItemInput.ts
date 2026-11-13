@@ -17,4 +17,9 @@ export interface RunInventoryUsageItemInput {
      * @maximum 999999999999
      */
   actualUsed: number;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  expectedInventoryRevision?: number | null;
 }

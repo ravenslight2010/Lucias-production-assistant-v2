@@ -885,6 +885,31 @@ test("operators confirm source-based usage once and managers append linked corre
                 instructions: [],
                 issues: ["Confirm the source unit."],
               },
+              {
+                id: "cheese-use-second",
+                name: "Cheese",
+                originalName: "Cheese",
+                source: "Specs.xlsx · row 6",
+                station: "Production line",
+                stationArea: "production_line",
+                amountChoices: [],
+                amountColumn: "Amount",
+                usageUnit: "lb",
+                perPizza: 0.5,
+                totalRequired: 5,
+                recipeId: null,
+                recipeSource: null,
+                directIngredient: true,
+                batchColumn: null,
+                batchUnit: null,
+                batchYield: null,
+                batchesExact: null,
+                wholeBatches: null,
+                remainder: null,
+                ingredients: [],
+                instructions: [],
+                issues: [],
+              },
             ],
             batchPreparation: [],
           },
@@ -913,14 +938,23 @@ test("operators confirm source-based usage once and managers append linked corre
     const proposal = await proposedResponse.json() as {
       canConfirm: boolean;
       blockedCount: number;
-      items: Array<{ id: string; unit: string; proposedQuantity: number | null; blockedReason: string | null }>;
+      items: Array<{
+        id: string;
+        unit: string;
+        proposedQuantity: number | null;
+        inventoryOnHand: number | null;
+        inventoryRevision: number | null;
+        blockedReason: string | null;
+      }>;
     };
     assert.equal(proposal.canConfirm, true);
     assert.equal(proposal.blockedCount, 1);
-    const cheese = proposal.items.find((item) => item.unit === "lb");
-    assert.ok(cheese);
-    assert.equal(cheese.proposedQuantity, 5);
-    assert.equal(cheese.blockedReason, null);
+    const cheeses = proposal.items.filter((item) => item.unit === "lb");
+    assert.equal(cheeses.length, 2);
+    assert.equal(cheeses[0].proposedQuantity, 5);
+    assert.equal(cheeses[0].blockedReason, null);
+    assert.equal(cheeses[0].inventoryRevision, 1);
+    assert.equal(cheeses[1].inventoryRevision, 1);
     assert.ok(proposal.items.some((item) => item.blockedReason !== null));
 
     const deniedStockChange = await request(operatorSession, "/v2/inventory", "POST", {
@@ -935,21 +969,73 @@ test("operators confirm source-based usage once and managers append linked corre
 
     const confirmation = {
       commandId: randomUUID(),
-      items: [{ id: cheese.id, actualUsed: 3.5 }],
+      items: cheeses.map((item) => ({
+        id: item.id,
+        actualUsed: 3.25,
+        expectedInventoryRevision: item.inventoryRevision,
+      })),
     };
-    const confirmedResponse = await request(operatorSession, path, "POST", confirmation);
+    currentActorId = ownerId;
+    currentClerkSessionId = ownerClerkSessionId;
+    const changedStock = await request(ownerSession, "/v2/inventory", "POST", {
+      commandId: randomUUID(),
+      ingredientName: "Cheese",
+      unit: "lb",
+      delta: 1,
+      note: "Stock changed after usage review",
+      correctsEntryId: null,
+    });
+    assert.equal(changedStock.status, 201);
+
+    currentActorId = operatorId;
+    currentClerkSessionId = operatorClerkSessionId;
+    const staleConfirmation = await request(operatorSession, path, "POST", confirmation);
+    assert.equal(staleConfirmation.status, 409, "a stale stock review must not be applied");
+    const legacyOverdraw = await request(operatorSession, path, "POST", {
+      commandId: randomUUID(),
+      items: cheeses.map((item) => ({ id: item.id, actualUsed: 3.25 })),
+    });
+    assert.equal(legacyOverdraw.status, 409, "older clients cannot overdraw stock from a stale balance");
+    const unchangedUsage = await request(operatorSession, path);
+    const unchangedUsageBody = await unchangedUsage.json() as {
+      reconciliation: unknown;
+    };
+    assert.equal(unchangedUsageBody.reconciliation, null);
+    const refreshedProposalResponse = await request(operatorSession, path);
+    assert.equal(refreshedProposalResponse.status, 200);
+    const refreshedProposal = await refreshedProposalResponse.json() as {
+      items: Array<{ id: string; unit: string; inventoryOnHand: number | null; inventoryRevision: number | null }>;
+    };
+    const refreshedCheeses = refreshedProposal.items.filter((item) => item.unit === "lb");
+    assert.equal(refreshedCheeses.length, 2);
+    assert.equal(refreshedCheeses[0].inventoryOnHand, 6);
+    assert.notEqual(refreshedCheeses[0].inventoryRevision, cheeses[0].inventoryRevision);
+
+    const acceptedConfirmation = {
+      commandId: randomUUID(),
+      items: refreshedCheeses.map((item) => ({
+        id: item.id,
+        actualUsed: 3.25,
+        expectedInventoryRevision: item.inventoryRevision,
+      })),
+    };
+    const confirmedResponse = await request(operatorSession, path, "POST", acceptedConfirmation);
     assert.equal(confirmedResponse.status, 200);
     const confirmed = await confirmedResponse.json() as {
       reconciliation: { entries: Array<{ actualUsed: number | null }> } | null;
-      items: Array<{ inventoryOnHand: number | null }>;
+      items: Array<{ inventoryOnHand: number | null; inventoryRevision: number | null }>;
     };
-    assert.equal(confirmed.reconciliation?.entries[0]?.actualUsed, 3.5);
-    assert.equal(confirmed.items.find((item) => item.inventoryOnHand !== null)?.inventoryOnHand, 1.5);
+    assert.equal(
+      confirmed.reconciliation?.entries.reduce((total, item) => total + (item.actualUsed ?? 0), 0),
+      6.5,
+    );
+    assert.equal(confirmed.items.find((item) => item.inventoryOnHand !== null)?.inventoryOnHand, -0.5);
+    assert.equal(confirmed.items.find((item) => item.inventoryOnHand !== null)?.inventoryRevision, 3);
 
-    const replay = await request(operatorSession, path, "POST", confirmation);
+    const replay = await request(operatorSession, path, "POST", acceptedConfirmation);
     assert.equal(replay.status, 200, "same confirmation key and values are safe to retry");
     const duplicate = await request(operatorSession, path, "POST", {
-      ...confirmation,
+      ...acceptedConfirmation,
       commandId: randomUUID(),
     });
     assert.equal(duplicate.status, 409, "a run cannot deduct confirmed usage twice");
@@ -972,7 +1058,7 @@ test("operators confirm source-based usage once and managers append linked corre
     });
     assert.equal(correction.status, 201);
     const inventory = await getFacilityInventory(facility.id);
-    assert.equal(inventory.items.find((item) => item.ingredientName === "Cheese")?.onHand, 2);
+    assert.equal(inventory.items.find((item) => item.ingredientName === "Cheese")?.onHand, 0);
     assert.ok(inventory.entries.some((entry) => entry.correctsEntryId === usageEntry.id));
   } finally {
     await new Promise<void>((resolve, reject) =>

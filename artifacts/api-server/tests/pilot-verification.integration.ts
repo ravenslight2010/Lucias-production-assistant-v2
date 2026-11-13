@@ -10,6 +10,8 @@ import {
   facilitiesTable,
   facilityMembersTable,
   facilityStationLayoutsTable,
+  productionRunsTable,
+  runStationProgressTable,
   pool,
 } from "@workspace/db";
 import { issueV2Session } from "../src/lib/v2-session";
@@ -128,7 +130,7 @@ async function sendCommand(
   });
 }
 
-test("development pilot check verifies auth, line timer, station counts, and restart persistence", {
+test("development pilot check verifies auth, line timer, station counts, inventory freshness, and restart persistence", {
   timeout: 90_000,
 }, async () => {
   const [facility] = await db
@@ -309,4 +311,142 @@ test("development pilot check verifies auth, line timer, station counts, and res
     1,
     "the run should appear exactly once after its idempotent retry",
   );
+
+  const [inventoryRun] = await db
+    .insert(productionRunsTable)
+    .values({
+      facilityId,
+      name: "Automatic inventory verification run",
+      targetCases: 2,
+      status: "completed",
+      revision: 1,
+      productSnapshot: {
+        runRequirements: {
+          targetCases: 2,
+          items: [
+            {
+              id: "pilot-ingredient",
+              name: "Pilot ingredient",
+              originalName: "Pilot ingredient",
+              source: "Synthetic pilot fixture",
+              station: "Pilot line",
+              stationArea: "production_line",
+              amountChoices: [],
+              amountColumn: "Use",
+              usageUnit: "lb",
+              perPizza: 1,
+              totalRequired: 2,
+              recipeId: null,
+              recipeSource: null,
+              directIngredient: true,
+              batchColumn: null,
+              batchUnit: null,
+              batchYield: null,
+              batchesExact: null,
+              wholeBatches: null,
+              remainder: null,
+              ingredients: [],
+              instructions: [],
+              issues: [],
+            },
+          ],
+          batchPreparation: [],
+        },
+      },
+      createdBy: actorId,
+    })
+    .returning({ id: productionRunsTable.id });
+  const countedAt = new Date();
+  await db.insert(runStationProgressTable).values({
+    runId: inventoryRun.id,
+    stationId: "pilot-line",
+    stationName: "Pilot line",
+    stationArea: "production_line",
+    stationOrder: 1,
+    status: "completed",
+    completedCases: 2,
+    producedCount: 2,
+    preparationStatus: "ready",
+    revision: 0,
+    countUpdatedAt: countedAt,
+    updatedAt: countedAt,
+    updatedBy: actorId,
+  });
+
+  const openingStockResponse = await request("/v2/inventory", {
+    method: "POST",
+    body: JSON.stringify({
+      commandId: randomUUID(),
+      ingredientName: "Pilot ingredient",
+      unit: "lb",
+      delta: 3,
+      note: "Synthetic pilot opening stock",
+      correctsEntryId: null,
+    }),
+  });
+  assert.equal(openingStockResponse.status, 201);
+
+  const usagePath = `/v2/runs/${inventoryRun.id}/inventory-usage`;
+  const reviewedUsageResponse = await request(usagePath);
+  assert.equal(reviewedUsageResponse.status, 200);
+  const reviewedUsage = await reviewedUsageResponse.json() as {
+    canConfirm: boolean;
+    items: Array<{ id: string; inventoryOnHand: number | null; inventoryRevision: number | null }>;
+  };
+  assert.equal(reviewedUsage.canConfirm, true);
+  const reviewedIngredient = reviewedUsage.items.find((item) => item.inventoryOnHand !== null);
+  assert.ok(reviewedIngredient);
+  assert.equal(reviewedIngredient.inventoryOnHand, 3);
+
+  const stockChangedResponse = await request("/v2/inventory", {
+    method: "POST",
+    body: JSON.stringify({
+      commandId: randomUUID(),
+      ingredientName: "Pilot ingredient",
+      unit: "lb",
+      delta: 1,
+      note: "Change stock after review",
+      correctsEntryId: null,
+    }),
+  });
+  assert.equal(stockChangedResponse.status, 201);
+
+  const staleUsageResponse = await request(usagePath, {
+    method: "POST",
+    body: JSON.stringify({
+      commandId: randomUUID(),
+      items: [{
+        id: reviewedIngredient.id,
+        actualUsed: 5,
+        expectedInventoryRevision: reviewedIngredient.inventoryRevision,
+      }],
+    }),
+  });
+  assert.equal(staleUsageResponse.status, 409);
+  const freshUsageResponse = await request(usagePath);
+  const freshUsage = await freshUsageResponse.json() as {
+    items: Array<{ id: string; inventoryOnHand: number | null; inventoryRevision: number | null }>;
+    reconciliation: unknown;
+  };
+  const freshIngredient = freshUsage.items.find((item) => item.inventoryOnHand !== null);
+  assert.ok(freshIngredient);
+  assert.equal(freshIngredient.inventoryOnHand, 4);
+  assert.equal(freshUsage.reconciliation, null, "stale confirmation must not deduct stock");
+
+  const confirmedUsageResponse = await request(usagePath, {
+    method: "POST",
+    body: JSON.stringify({
+      commandId: randomUUID(),
+      items: [{
+        id: freshIngredient.id,
+        actualUsed: 5,
+        expectedInventoryRevision: freshIngredient.inventoryRevision,
+      }],
+    }),
+  });
+  assert.equal(confirmedUsageResponse.status, 200);
+  const confirmedUsage = await confirmedUsageResponse.json() as {
+    items: Array<{ inventoryOnHand: number | null; actualUsed: number | null }>;
+  };
+  assert.equal(confirmedUsage.items.find((item) => item.actualUsed !== null)?.inventoryOnHand, -1);
 });

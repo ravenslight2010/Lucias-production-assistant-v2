@@ -166,7 +166,7 @@ async function usageForRun(
   const stockByKey = new Map(
     allStock.map((item) => [
       `${item.ingredientKey}\u0000${item.unit}`,
-      item.onHand,
+      { onHand: item.onHand, revision: item.revision },
     ]),
   );
   const historyByProposal = new Map(
@@ -177,6 +177,9 @@ async function usageForRun(
   const proposalRows = progress?.items.flatMap((item) => item.proposedUsage) ?? [];
   const items = proposalRows.map((proposal) => {
     const recorded = historyByProposal.get(proposal.id);
+    const stock = INVENTORY_UNITS.has(proposal.unit)
+      ? stockByKey.get(`${ingredientKey(proposal.ingredientName)}\u0000${proposal.unit}`)
+      : undefined;
     return {
       id: proposal.id,
       requirementId: proposal.requirementId,
@@ -190,9 +193,8 @@ async function usageForRun(
       batchColumn: proposal.batchColumn,
       proposedQuantity: proposal.proposedQuantity,
       actualUsed: recorded?.actualUsed ?? null,
-      inventoryOnHand: INVENTORY_UNITS.has(proposal.unit)
-        ? stockByKey.get(`${ingredientKey(proposal.ingredientName)}\u0000${proposal.unit}`) ?? null
-        : null,
+      inventoryOnHand: stock?.onHand ?? null,
+      inventoryRevision: stock?.revision ?? null,
       blockedReason: proposal.blockedReason,
     };
   });
@@ -230,7 +232,13 @@ export async function confirmRunInventoryUsage(input: {
 }): Promise<RunInventoryUsage> {
   const { facilityId, actorUserId, runId, update } = input;
   const normalizedItems = [...update.items]
-    .map((item) => ({ id: item.id, actualUsed: round(item.actualUsed) }))
+    .map((item) => ({
+      id: item.id,
+      actualUsed: round(item.actualUsed),
+      ...(item.expectedInventoryRevision === undefined
+        ? {}
+        : { expectedInventoryRevision: item.expectedInventoryRevision }),
+    }))
     .sort((a, b) => a.id.localeCompare(b.id));
   const hash = requestHash({ facilityId, actorUserId, runId, items: normalizedItems });
 
@@ -298,6 +306,7 @@ export async function confirmRunInventoryUsage(input: {
       throw new HttpError(409, "No ingredient quantities have both a resolved source unit and a saved station count.");
     }
     const submitted = new Map<string, number>();
+    const submittedItems = new Map(update.items.map((item) => [item.id, item]));
     for (const item of normalizedItems) {
       if (submitted.has(item.id) || !Number.isFinite(item.actualUsed) || item.actualUsed < 0) {
         throw new HttpError(400, "Enter one nonnegative actual quantity for each resolved usage row.");
@@ -321,28 +330,57 @@ export async function confirmRunInventoryUsage(input: {
         actorUserId,
       })
       .returning();
-    const entries = eligible
-      .map((proposal) => ({ proposal, actualUsed: submitted.get(proposal.id)! }))
-      .sort((a, b) => {
-        const keyA = `${ingredientKey(a.proposal.ingredientName)}\u0000${a.proposal.unit}`;
-        const keyB = `${ingredientKey(b.proposal.ingredientName)}\u0000${b.proposal.unit}`;
-        return keyA.localeCompare(keyB);
-      });
-
-    for (const { proposal, actualUsed } of entries) {
+    const stockGroups = new Map<string, {
+      ingredientName: string;
+      unit: string;
+      expectedInventoryRevision: number | null | undefined;
+      actualUsed: number;
+      proposals: typeof eligible;
+    }>();
+    for (const proposal of eligible) {
       if (!INVENTORY_UNITS.has(proposal.unit)) {
         throw new HttpError(400, "An unresolved or unsupported unit cannot be applied to inventory.");
       }
       const key = ingredientKey(proposal.ingredientName);
-      await tx
+      const stockKey = `${key}\u0000${proposal.unit}`;
+      const inputItem = submittedItems.get(proposal.id);
+      if (!inputItem) throw new HttpError(400, "Confirm every resolved ingredient row.");
+      const existingGroup = stockGroups.get(stockKey);
+      if (
+        existingGroup &&
+        existingGroup.expectedInventoryRevision !== inputItem.expectedInventoryRevision
+      ) {
+        throw new HttpError(400, "Repeated ingredient rows must use the same reviewed stock revision.");
+      }
+      if (existingGroup) {
+        existingGroup.actualUsed = round(existingGroup.actualUsed + submitted.get(proposal.id)!);
+        existingGroup.proposals.push(proposal);
+      } else {
+        stockGroups.set(stockKey, {
+          ingredientName: proposal.ingredientName,
+          unit: proposal.unit,
+          expectedInventoryRevision: inputItem.expectedInventoryRevision,
+          actualUsed: submitted.get(proposal.id)!,
+          proposals: [proposal],
+        });
+      }
+    }
+
+    const orderedStockGroups = [...stockGroups.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([, group]) => group);
+    for (const group of orderedStockGroups) {
+      const key = ingredientKey(group.ingredientName);
+      const [inserted] = await tx
         .insert(facilityInventoryTable)
         .values({
           facilityId,
           ingredientKey: key,
-          ingredientName: proposal.ingredientName,
-          unit: proposal.unit,
+          ingredientName: group.ingredientName,
+          unit: group.unit,
         })
-        .onConflictDoNothing();
+        .onConflictDoNothing()
+        .returning({ id: facilityInventoryTable.id });
       const [inventory] = await tx
         .select()
         .from(facilityInventoryTable)
@@ -350,44 +388,63 @@ export async function confirmRunInventoryUsage(input: {
           and(
             eq(facilityInventoryTable.facilityId, facilityId),
             eq(facilityInventoryTable.ingredientKey, key),
-            eq(facilityInventoryTable.unit, proposal.unit),
+            eq(facilityInventoryTable.unit, group.unit),
           ),
         )
         .for("update")
         .limit(1);
       if (!inventory) throw new Error("Inventory balance could not be locked.");
+
+      if (group.expectedInventoryRevision !== undefined) {
+        const expectedAbsent = group.expectedInventoryRevision === null;
+        const stockChanged = expectedAbsent
+          ? !inserted
+          : Boolean(inserted) || inventory.revision !== group.expectedInventoryRevision;
+        if (stockChanged) {
+          throw new HttpError(409, "Inventory changed after you reviewed it. Refresh the run, check the updated warning, and confirm again.");
+        }
+      } else if (group.actualUsed > inventory.onHand) {
+        // Older clients do not send a revision. Fail closed only when their
+        // stale view could cause a confirmed use to push stock below zero.
+        throw new HttpError(409, "Inventory may have changed. Refresh the run and review the current stock before confirming.");
+      }
+
       const [updated] = await tx
         .update(facilityInventoryTable)
         .set({
-          onHand: round(inventory.onHand - actualUsed),
+          onHand: round(inventory.onHand - group.actualUsed),
           revision: inventory.revision + 1,
           updatedAt: new Date(),
         })
         .where(eq(facilityInventoryTable.id, inventory.id))
         .returning({ id: facilityInventoryTable.id });
       if (!updated) throw new Error("Inventory balance could not be updated.");
-      await tx.insert(inventoryTransactionsTable).values({
-        facilityId,
-        inventoryId: inventory.id,
-        reconciliationId: savedReconciliation.id,
-        runId,
-        kind: "run_usage",
-        delta: round(-actualUsed),
-        note: "Operator-confirmed actual ingredient use.",
-        ingredientName: proposal.ingredientName,
-        unit: proposal.unit,
-        source: proposal.source,
-        proposalId: proposal.id,
-        requirementId: proposal.requirementId,
-        requirementName: proposal.requirementName,
-        sourceAmount: proposal.sourceAmount,
-        quantityBasis: proposal.quantityBasis,
-        amountColumn: proposal.amountColumn,
-        batchColumn: proposal.batchColumn,
-        proposedQuantity: proposal.proposedQuantity,
-        actualUsed,
-        actorUserId,
-      });
+
+      for (const proposal of group.proposals) {
+        const actualUsed = submitted.get(proposal.id)!;
+        await tx.insert(inventoryTransactionsTable).values({
+          facilityId,
+          inventoryId: inventory.id,
+          reconciliationId: savedReconciliation.id,
+          runId,
+          kind: "run_usage",
+          delta: round(-actualUsed),
+          note: "Operator-confirmed actual ingredient use.",
+          ingredientName: proposal.ingredientName,
+          unit: proposal.unit,
+          source: proposal.source,
+          proposalId: proposal.id,
+          requirementId: proposal.requirementId,
+          requirementName: proposal.requirementName,
+          sourceAmount: proposal.sourceAmount,
+          quantityBasis: proposal.quantityBasis,
+          amountColumn: proposal.amountColumn,
+          batchColumn: proposal.batchColumn,
+          proposedQuantity: proposal.proposedQuantity,
+          actualUsed,
+          actorUserId,
+        });
+      }
     }
   });
 

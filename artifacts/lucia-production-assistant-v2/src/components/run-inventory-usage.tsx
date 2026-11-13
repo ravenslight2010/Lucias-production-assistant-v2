@@ -75,11 +75,26 @@ export function RunInventoryUsagePanel({
     }
     setFormError('');
     confirm.mutate(
-      { runId, data: { commandId: crypto.randomUUID(), items: rows } },
+      {
+        runId,
+        data: {
+          commandId: crypto.randomUUID(),
+          items: rows.map((row) => {
+            const item = eligible.find((entry) => entry.id === row.id)!;
+            return {
+              ...row,
+              expectedInventoryRevision: item.inventoryRevision,
+            };
+          }),
+        },
+      },
       {
         onSuccess: (result) => {
           client.setQueryData(getGetRunInventoryUsageQueryKey(runId), result);
           void client.invalidateQueries({ queryKey: getGetFacilityInventoryQueryKey() });
+        },
+        onError: () => {
+          void usageQuery.refetch();
         },
       },
     );

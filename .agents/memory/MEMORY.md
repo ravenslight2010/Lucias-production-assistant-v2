@@ -12,4 +12,4 @@
 - [Profile edit concurrency](profile-edit-concurrency.md) — Background list refreshes must not advance an open draft's reviewed revision and silently overwrite newer edits.
 - [Authenticated browser notebooks](authenticated-browser-notebooks.md) — Bundle reusable scenarios when the authenticated notebook cannot import ESM; normalize upload buffers at the harness boundary.
 - [Deferred visual verification](deferred-visual-verification.md) — Group visual checks blocked by missing browser access and run them together when it returns.
-- [Product quality tolerances](product-quality-tolerances.md) — Apply the stated ±0.1 general and ±0.05 sauce/pep limits only after the measurement and units are confirmed.
+- [Product quality tolerances](product-quality-tolerances.md) — Use ±0.1 oz generally and ±0.05 oz for sauce/“pep” only after the measurement basis is confirmed.

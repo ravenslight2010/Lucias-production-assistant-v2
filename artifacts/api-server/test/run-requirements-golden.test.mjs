@@ -83,7 +83,8 @@ test("golden run math keeps dough, sauce, cheese, tray, batch, and live counts d
   assert.equal(plan.finishedWeightSpec?.range, "18.25 - 18.75");
 
   const progress = calculateRunRequirementsProgress(plan, [
-    { area: "dough_sauce_prep", completedCases: 4, recorded: true },
+    { area: "dough_prep", completedCases: 4, recorded: true },
+    { area: "sauce_prep", completedCases: 4, recorded: true },
     { area: "production_line", completedCases: 7, recorded: true },
   ]);
   const trayProgress = progress.items.find((item) => item.id === plan.items[3].id);

@@ -426,9 +426,12 @@ type DashboardAreaProgress = DashboardSummary['activeRunProgress'][number]['area
 type DashboardRunProgress = DashboardSummary['activeRunProgress'][number];
 
 const stationAreaLabels: Record<DashboardAreaProgress['area'], string> = {
+  dough_prep: 'Dough prep',
+  sauce_prep: 'Sauce prep',
   dough_sauce_prep: 'Dough & sauce prep',
   production_line: 'Production line',
-  freezing_packaging: 'Freezing & packaging',
+  freeze_tunnel: 'Freeze tunnel',
+  freezing_packaging: 'Wrapper & packing',
   warehouse: 'Warehouse',
 };
 

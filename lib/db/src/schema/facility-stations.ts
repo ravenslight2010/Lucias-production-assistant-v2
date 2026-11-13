@@ -5,8 +5,11 @@ import { z } from "zod/v4";
 import { facilitiesTable } from "./production.ts";
 
 export type FacilityStationArea =
+  | "dough_prep"
+  | "sauce_prep"
   | "dough_sauce_prep"
   | "production_line"
+  | "freeze_tunnel"
   | "freezing_packaging"
   | "warehouse";
 

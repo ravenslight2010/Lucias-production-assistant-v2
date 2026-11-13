@@ -176,10 +176,15 @@ export function calculateRunRequirementsProgress(
   }>,
 ): RunRequirementsProgress {
   const areaOrder: FacilityStationArea[] = [
-    "dough_sauce_prep",
+    "dough_prep",
+    "sauce_prep",
     "production_line",
+    "freeze_tunnel",
     "freezing_packaging",
     "warehouse",
+    ...(stationCounts.some((station) => station.area === "dough_sauce_prep")
+      ? ["dough_sauce_prep" as const]
+      : []),
   ];
   const areas = areaOrder.map((area) => {
     const counts = stationCounts

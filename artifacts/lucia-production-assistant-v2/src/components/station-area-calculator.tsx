@@ -11,9 +11,12 @@ import {
 import './run-station-progress.css';
 
 const areaLabels: Record<FacilityStationArea, string> = {
+  dough_prep: 'Dough prep',
+  sauce_prep: 'Sauce prep',
   dough_sauce_prep: 'Dough & sauce prep',
   production_line: 'Production line',
-  freezing_packaging: 'Freezing & packaging',
+  freeze_tunnel: 'Freeze tunnel',
+  freezing_packaging: 'Wrapper & packing',
   warehouse: 'Warehouse',
 };
 

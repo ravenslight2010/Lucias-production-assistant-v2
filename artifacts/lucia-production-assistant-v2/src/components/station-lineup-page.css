@@ -51,6 +51,9 @@
 .station-area-2 { --station-tint: 163 38% 83%; }
 .station-area-3 { --station-tint: 194 43% 84%; }
 .station-area-4 { --station-tint: 25 61% 88%; }
+.station-area-5 { --station-tint: 211 37% 89%; }
+.station-area-6 { --station-tint: 41 70% 87%; }
+.station-area-7 { --station-tint: 163 38% 83%; }
 .station-area-mark { flex: 0 0 auto; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; color: hsl(var(--primary)); background: hsl(var(--card) / .8); }
 .station-area-title { min-width: 0; }
 .station-area-title h2 { margin: 0 0 4px; font-size: 15px; letter-spacing: -.025em; }
@@ -59,6 +62,12 @@
 .station-area-count small { color: hsl(var(--muted-foreground)); font: 9px var(--app-font-mono); letter-spacing: .08em; }
 .station-list { list-style: none; padding: 0; margin: 0; }
 .station-row { display: flex; align-items: center; gap: 12px; min-height: 61px; padding: 9px 13px 9px 16px; border-bottom: 1px solid hsl(var(--border) / .72); transition: background .16s; }
+.station-row-legacy { display: grid; grid-template-columns: 28px minmax(0,1fr) auto; }
+.station-row-legacy .station-order { grid-column: 1; grid-row: 1 / span 2; }
+.station-row-legacy .station-row-main { grid-column: 2 / 4; grid-row: 1; }
+.station-legacy-area-picker { grid-column: 2; grid-row: 2; min-width: 0; }
+.station-row-legacy .station-row-controls, .station-row-legacy .station-readonly { grid-column: 3; grid-row: 2; justify-self: end; }
+.station-legacy-area-picker select { width: min(100%, 280px); min-height: 38px; padding: 0 9px; border: 1px solid hsl(var(--input)); border-radius: 7px; background: hsl(var(--card)); color: hsl(var(--foreground)); font-size: 12px; }
 .station-row:last-child { border-bottom: 0; }
 .station-row:hover { background: hsl(var(--muted) / .44); }
 .station-row-archived { background: hsl(var(--muted) / .46); }
@@ -129,6 +138,7 @@
   .station-summary-divider { display: none; }
   .station-revision { margin-left: auto; }
   .station-row { gap: 6px; padding: 8px 9px; }
+  .station-row-legacy { grid-template-columns: 22px minmax(0,1fr) auto; }
   .station-order { flex-basis: 22px; }
   .station-row-main { flex-wrap: wrap; gap: 2px 7px; }
   .station-name-input { flex-basis: 100%; padding-bottom: 0; }

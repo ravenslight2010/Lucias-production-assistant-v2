@@ -140,6 +140,7 @@ import { toContractRun } from "../lib/run-contract";
 import {
   DEFAULT_FACILITY_STATIONS,
   FacilityStationLayoutError,
+  migrateLegacyFacilityStations,
   normalizeFacilityStations,
 } from "../lib/facility-stations";
 import {
@@ -231,15 +232,31 @@ async function ensureFacilityStationLayout(facilityId: string) {
     })
     .onConflictDoNothing();
 
-  const [layout] = await db
-    .select()
-    .from(facilityStationLayoutsTable)
-    .where(eq(facilityStationLayoutsTable.facilityId, facilityId))
-    .limit(1);
-  if (!layout) {
-    throw new Error("Facility station layout could not be initialized.");
-  }
-  return layout;
+  return db.transaction(async (tx) => {
+    const [layout] = await tx
+      .select()
+      .from(facilityStationLayoutsTable)
+      .where(eq(facilityStationLayoutsTable.facilityId, facilityId))
+      .for("update")
+      .limit(1);
+    if (!layout) {
+      throw new Error("Facility station layout could not be initialized.");
+    }
+
+    const stations = migrateLegacyFacilityStations(layout.stations);
+    if (stations === layout.stations) return layout;
+
+    const [migrated] = await tx
+      .update(facilityStationLayoutsTable)
+      .set({
+        stations,
+        revision: layout.revision + 1,
+        updatedAt: new Date(),
+      })
+      .where(eq(facilityStationLayoutsTable.facilityId, facilityId))
+      .returning();
+    return migrated ?? layout;
+  });
 }
 
 function hasPostgresCode(error: unknown, code: string) {

@@ -8,6 +8,7 @@ import {
   runInventoryReconciliationsTable,
   runStationProgressTable,
 } from "@workspace/db";
+import type { FacilityStationArea } from "@workspace/db";
 import type {
   FacilityInventoryList,
   InventoryAdjustmentInput,
@@ -127,11 +128,7 @@ async function usageForRun(
     ? calculateRunRequirementsProgress(
         plan,
         stationRows.map((station) => ({
-          area: station.stationArea as
-            | "dough_sauce_prep"
-            | "production_line"
-            | "freezing_packaging"
-            | "warehouse",
+          area: station.stationArea as FacilityStationArea,
           completedCases: station.completedCases,
           recorded: station.countUpdatedAt !== null,
         })),
@@ -289,11 +286,7 @@ export async function confirmRunInventoryUsage(input: {
     const progress = calculateRunRequirementsProgress(
       plan,
       stationRows.map((station) => ({
-        area: station.stationArea as
-          | "dough_sauce_prep"
-          | "production_line"
-          | "freezing_packaging"
-          | "warehouse",
+        area: station.stationArea as FacilityStationArea,
         completedCases: station.completedCases,
         recorded: station.countUpdatedAt !== null,
       })),

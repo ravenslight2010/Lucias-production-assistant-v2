@@ -150,7 +150,7 @@ export const PreviewRunRequirementsResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -191,7 +191,7 @@ export const PreviewRunRequirementsResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -424,7 +424,7 @@ export const GetFacilityStationsResponse = zod.object({
   "stations": zod.array(zod.object({
   "id": zod.string().min(1).max(getFacilityStationsResponseStationsItemIdMax),
   "name": zod.string().min(1).max(getFacilityStationsResponseStationsItemNameMax),
-  "area": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']),
+  "area": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']),
   "isActive": zod.boolean()
 })).max(getFacilityStationsResponseStationsMax)
 })
@@ -454,7 +454,7 @@ export const UpdateFacilityStationsBody = zod.object({
   "stations": zod.array(zod.object({
   "id": zod.string().min(1).max(updateFacilityStationsBodyStationsItemIdMax).optional(),
   "name": zod.string().min(1).max(updateFacilityStationsBodyStationsItemNameMax),
-  "area": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']),
+  "area": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']),
   "isActive": zod.boolean()
 })).min(1).max(updateFacilityStationsBodyStationsMax)
 })
@@ -475,7 +475,7 @@ export const UpdateFacilityStationsResponse = zod.object({
   "stations": zod.array(zod.object({
   "id": zod.string().min(1).max(updateFacilityStationsResponseStationsItemIdMax),
   "name": zod.string().min(1).max(updateFacilityStationsResponseStationsItemNameMax),
-  "area": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']),
+  "area": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']),
   "isActive": zod.boolean()
 })).max(updateFacilityStationsResponseStationsMax)
 })
@@ -698,7 +698,7 @@ export const ListRunsResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -739,7 +739,7 @@ export const ListRunsResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -1056,7 +1056,7 @@ export const CreateRunResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -1097,7 +1097,7 @@ export const CreateRunResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -1535,7 +1535,7 @@ export const ListProductProfilesResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -1576,7 +1576,7 @@ export const ListProductProfilesResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -1803,7 +1803,7 @@ export const ImportProductProfileResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -1844,7 +1844,7 @@ export const ImportProductProfileResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -2076,7 +2076,7 @@ export const RenameProductProfileResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -2117,7 +2117,7 @@ export const RenameProductProfileResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -2320,7 +2320,7 @@ export const MergeProductProfileResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -2361,7 +2361,7 @@ export const MergeProductProfileResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -2710,7 +2710,7 @@ export const UpdateProductProfileManagerDataResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -2751,7 +2751,7 @@ export const UpdateProductProfileManagerDataResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -3014,7 +3014,7 @@ export const GetRunResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -3055,7 +3055,7 @@ export const GetRunResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -3343,7 +3343,7 @@ export const ApplyRunCommandResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -3384,7 +3384,7 @@ export const ApplyRunCommandResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -3496,14 +3496,14 @@ export const GetRunStationProgressResponse = zod.object({
   "currentRequirements": zod.union([zod.object({
   "targetCases": zod.number().int().min(1).max(getRunStationProgressResponseCurrentRequirementsOneTargetCasesMax),
   "areas": zod.array(zod.object({
-  "area": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']),
+  "area": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']),
   "stationCount": zod.number().int().min(getRunStationProgressResponseCurrentRequirementsOneAreasItemStationCountMin).max(getRunStationProgressResponseCurrentRequirementsOneAreasItemStationCountMax),
   "completedCases": zod.number().int().min(getRunStationProgressResponseCurrentRequirementsOneAreasItemCompletedCasesMin).max(getRunStationProgressResponseCurrentRequirementsOneAreasItemCompletedCasesMax).nullable(),
   "remainingCases": zod.number().int().min(getRunStationProgressResponseCurrentRequirementsOneAreasItemRemainingCasesMin).max(getRunStationProgressResponseCurrentRequirementsOneAreasItemRemainingCasesMax).nullable()
 })).max(getRunStationProgressResponseCurrentRequirementsOneAreasMax),
   "items": zod.array(zod.object({
   "id": zod.string(),
-  "area": zod.union([zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']),zod.null()]),
+  "area": zod.union([zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']),zod.null()]),
   "completedCases": zod.number().int().min(getRunStationProgressResponseCurrentRequirementsOneItemsItemCompletedCasesMin).max(getRunStationProgressResponseCurrentRequirementsOneItemsItemCompletedCasesMax).nullable(),
   "remainingCases": zod.number().int().min(getRunStationProgressResponseCurrentRequirementsOneItemsItemRemainingCasesMin).max(getRunStationProgressResponseCurrentRequirementsOneItemsItemRemainingCasesMax).nullable(),
   "remainingRequired": zod.number().nullable(),
@@ -3536,7 +3536,7 @@ export const GetRunStationProgressResponse = zod.object({
   "stations": zod.array(zod.object({
   "stationId": zod.string().min(1).max(getRunStationProgressResponseStationsItemStationIdMax),
   "stationName": zod.string().min(1).max(getRunStationProgressResponseStationsItemStationNameMax),
-  "area": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']),
+  "area": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']),
   "order": zod.number().int().min(getRunStationProgressResponseStationsItemOrderMin).max(getRunStationProgressResponseStationsItemOrderMax),
   "status": zod.enum(['not_started', 'in_progress', 'paused', 'completed']),
   "producedCount": zod.number().int().min(getRunStationProgressResponseStationsItemProducedCountMin).max(getRunStationProgressResponseStationsItemProducedCountMax),
@@ -4136,7 +4136,7 @@ export const UpdateRunStationProgressResponse = zod.object({
   "station": zod.object({
   "stationId": zod.string().min(1).max(updateRunStationProgressResponseStationStationIdMax),
   "stationName": zod.string().min(1).max(updateRunStationProgressResponseStationStationNameMax),
-  "area": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']),
+  "area": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']),
   "order": zod.number().int().min(updateRunStationProgressResponseStationOrderMin).max(updateRunStationProgressResponseStationOrderMax),
   "status": zod.enum(['not_started', 'in_progress', 'paused', 'completed']),
   "producedCount": zod.number().int().min(updateRunStationProgressResponseStationProducedCountMin).max(updateRunStationProgressResponseStationProducedCountMax),
@@ -4227,14 +4227,14 @@ export const UpdateRunStationCountResponse = zod.object({
   "currentRequirements": zod.union([zod.object({
   "targetCases": zod.number().int().min(1).max(updateRunStationCountResponseCurrentRequirementsOneTargetCasesMax),
   "areas": zod.array(zod.object({
-  "area": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']),
+  "area": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']),
   "stationCount": zod.number().int().min(updateRunStationCountResponseCurrentRequirementsOneAreasItemStationCountMin).max(updateRunStationCountResponseCurrentRequirementsOneAreasItemStationCountMax),
   "completedCases": zod.number().int().min(updateRunStationCountResponseCurrentRequirementsOneAreasItemCompletedCasesMin).max(updateRunStationCountResponseCurrentRequirementsOneAreasItemCompletedCasesMax).nullable(),
   "remainingCases": zod.number().int().min(updateRunStationCountResponseCurrentRequirementsOneAreasItemRemainingCasesMin).max(updateRunStationCountResponseCurrentRequirementsOneAreasItemRemainingCasesMax).nullable()
 })).max(updateRunStationCountResponseCurrentRequirementsOneAreasMax),
   "items": zod.array(zod.object({
   "id": zod.string(),
-  "area": zod.union([zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']),zod.null()]),
+  "area": zod.union([zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']),zod.null()]),
   "completedCases": zod.number().int().min(updateRunStationCountResponseCurrentRequirementsOneItemsItemCompletedCasesMin).max(updateRunStationCountResponseCurrentRequirementsOneItemsItemCompletedCasesMax).nullable(),
   "remainingCases": zod.number().int().min(updateRunStationCountResponseCurrentRequirementsOneItemsItemRemainingCasesMin).max(updateRunStationCountResponseCurrentRequirementsOneItemsItemRemainingCasesMax).nullable(),
   "remainingRequired": zod.number().nullable(),
@@ -4267,7 +4267,7 @@ export const UpdateRunStationCountResponse = zod.object({
   "stations": zod.array(zod.object({
   "stationId": zod.string().min(1).max(updateRunStationCountResponseStationsItemStationIdMax),
   "stationName": zod.string().min(1).max(updateRunStationCountResponseStationsItemStationNameMax),
-  "area": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']),
+  "area": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']),
   "order": zod.number().int().min(updateRunStationCountResponseStationsItemOrderMin).max(updateRunStationCountResponseStationsItemOrderMax),
   "status": zod.enum(['not_started', 'in_progress', 'paused', 'completed']),
   "producedCount": zod.number().int().min(updateRunStationCountResponseStationsItemProducedCountMin).max(updateRunStationCountResponseStationsItemProducedCountMax),
@@ -4693,7 +4693,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -4734,7 +4734,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -4907,7 +4907,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -4948,7 +4948,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -5001,7 +5001,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "activeRunProgress": zod.array(zod.object({
   "runId": zod.string().uuid(),
   "areas": zod.array(zod.object({
-  "area": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']),
+  "area": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']),
   "stationCount": zod.number().int().min(getDashboardSummaryResponseActiveRunProgressItemAreasItemStationCountMin).max(getDashboardSummaryResponseActiveRunProgressItemAreasItemStationCountMax),
   "countedStations": zod.number().int().min(getDashboardSummaryResponseActiveRunProgressItemAreasItemCountedStationsMin).max(getDashboardSummaryResponseActiveRunProgressItemAreasItemCountedStationsMax),
   "lowestReportedCases": zod.number().int().min(getDashboardSummaryResponseActiveRunProgressItemAreasItemLowestReportedCasesMin).max(getDashboardSummaryResponseActiveRunProgressItemAreasItemLowestReportedCasesMax).nullable()
@@ -5143,7 +5143,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()
@@ -5184,7 +5184,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "nameColumn": zod.string().nullable()
 }),
   "station": zod.string(),
-  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
   "column": zod.string(),
   "value": zod.string()

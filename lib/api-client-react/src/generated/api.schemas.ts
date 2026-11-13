@@ -52,8 +52,11 @@ export type FacilityStationArea = typeof FacilityStationArea[keyof typeof Facili
 
 
 export const FacilityStationArea = {
+  dough_prep: 'dough_prep',
+  sauce_prep: 'sauce_prep',
   dough_sauce_prep: 'dough_sauce_prep',
   production_line: 'production_line',
+  freeze_tunnel: 'freeze_tunnel',
   freezing_packaging: 'freezing_packaging',
   warehouse: 'warehouse',
 } as const;

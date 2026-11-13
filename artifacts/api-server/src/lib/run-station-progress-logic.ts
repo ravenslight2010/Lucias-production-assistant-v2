@@ -1,8 +1,11 @@
 import type { RunRequirementsProgress } from "./run-requirements";
 
 export type FacilityStationArea =
+  | "dough_prep"
+  | "sauce_prep"
   | "dough_sauce_prep"
   | "production_line"
+  | "freeze_tunnel"
   | "freezing_packaging"
   | "warehouse";
 

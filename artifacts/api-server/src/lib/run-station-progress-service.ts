@@ -50,8 +50,11 @@ export type RunStationProgressUpdateResult = {
 };
 
 const stationAreas = new Set<FacilityStationArea>([
+  "dough_prep",
+  "sauce_prep",
   "dough_sauce_prep",
   "production_line",
+  "freeze_tunnel",
   "freezing_packaging",
   "warehouse",
 ]);

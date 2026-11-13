@@ -69,6 +69,24 @@ test("remaining requirements use the lowest reported case count in their matchin
   assert.deepEqual(plan, before, "the captured source plan remains unchanged");
 });
 
+test("dough and sauce requirements scale from their separate station areas", () => {
+  const separatePlan = {
+    targetCases: 100,
+    items: [
+      { id: "dough", station: "Dough preparation", stationArea: "dough_prep", totalRequired: 100, batchesExact: 5, batchYield: 20, ingredients: [] },
+      { id: "sauce", station: "Sauce preparation", stationArea: "sauce_prep", totalRequired: 200, batchesExact: 10, batchYield: 20, ingredients: [] },
+    ],
+    batchPreparation: [],
+  };
+  const result = calculateRunRequirementsProgress(separatePlan, [
+    { area: "dough_prep", completedCases: 40, recorded: true },
+    { area: "sauce_prep", completedCases: 25, recorded: true },
+  ]);
+
+  assert.equal(result.items.find((item) => item.id === "dough").remainingRequired, 60);
+  assert.equal(result.items.find((item) => item.id === "sauce").remainingRequired, 150);
+});
+
 test("zero remaining cases produces zero requirements without inventing unresolved values", () => {
   const result = calculateRunRequirementsProgress(plan, [
     { area: "production_line", completedCases: 100, recorded: true },

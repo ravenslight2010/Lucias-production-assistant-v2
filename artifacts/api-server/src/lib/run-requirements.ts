@@ -353,7 +353,11 @@ export function buildRunRequirements(profile: Profile, targetCases: number, opti
         nameColumn: text(record(raw.sourceCoordinates) ? raw.sourceCoordinates.nameColumn : null) || null,
       },
       station: recipe?.choice.kind === "dough_guide" || recipe?.choice.kind === "sauce_guide" ? "Dough & sauce preparation" : "Production line",
-      stationArea: recipe?.choice.kind === "dough_guide" || recipe?.choice.kind === "sauce_guide" ? "dough_sauce_prep" : "production_line",
+      stationArea: recipe?.choice.kind === "dough_guide"
+        ? "dough_prep"
+        : recipe?.choice.kind === "sauce_guide"
+          ? "sauce_prep"
+          : "production_line",
       amountChoices: amounts, amountColumn: amount?.column ?? null, usageUnit, perPizza, totalRequired,
       recipeId: recipe?.choice.id ?? null, recipeSource: recipe?.choice.source ?? null,
       directIngredient: link?.directIngredient === true,

@@ -7,6 +7,11 @@ import { StationAreaCalculator } from '@/components/station-area-calculator';
 import type { StationRequirementsSource } from '@/station-area-calculations';
 
 function batchRecipe(id: string, name: string, stationArea: FacilityStationArea): RunRequirementItem {
+  const station = stationArea === 'dough_prep'
+    ? 'Dough preparation'
+    : stationArea === 'sauce_prep'
+      ? 'Sauce preparation'
+      : 'Production line';
   return {
     id,
     name,
@@ -14,7 +19,7 @@ function batchRecipe(id: string, name: string, stationArea: FacilityStationArea)
     source: 'Cheese Mix Recipe Specs · Lucia tab · row 12',
     ingredientRole: 'ingredient',
     sourceCoordinates: { sheet: 'Lucia', row: 12, nameColumn: 'A' },
-    station: stationArea === 'dough_sauce_prep' ? 'Dough & sauce preparation' : 'Production line',
+    station,
     stationArea,
     amountChoices: [],
     amountColumn: 'Standard',
@@ -43,6 +48,11 @@ function batchRecipe(id: string, name: string, stationArea: FacilityStationArea)
 }
 
 function directIngredient(id: string, name: string, stationArea: FacilityStationArea): RunRequirementItem {
+  const station = stationArea === 'dough_prep'
+    ? 'Dough preparation'
+    : stationArea === 'sauce_prep'
+      ? 'Sauce preparation'
+      : 'Production line';
   return {
     id,
     name,
@@ -50,7 +60,7 @@ function directIngredient(id: string, name: string, stationArea: FacilityStation
     source: 'Pizza Recipe Specs · Brand tab · row 8',
     ingredientRole: 'ingredient',
     sourceCoordinates: { sheet: 'Brand', row: 8, nameColumn: 'A' },
-    station: stationArea === 'dough_sauce_prep' ? 'Dough & sauce preparation' : 'Production line',
+    station,
     stationArea,
     amountChoices: [],
     amountColumn: 'Per pizza',
@@ -72,7 +82,7 @@ function directIngredient(id: string, name: string, stationArea: FacilityStation
   };
 }
 
-const sauceBatch = batchRecipe('batch:sauce:standard', 'Lucia tomato sauce', 'dough_sauce_prep');
+const sauceBatch = batchRecipe('batch:sauce:standard', 'Lucia tomato sauce', 'sauce_prep');
 const cheeseBatch = batchRecipe('batch:cheese:standard', 'Lucia cheese blend', 'production_line');
 const mozzarella = directIngredient('direct:mozzarella', 'Mozzarella topping', 'production_line');
 const unresolved: RunRequirementItem = {
@@ -95,22 +105,24 @@ const plan: StationRequirementsSource = {
 const progress: RunRequirementsProgress = {
   targetCases: 100,
   areas: [
-    { area: 'dough_sauce_prep', stationCount: 2, completedCases: 42, remainingCases: 58 },
+    { area: 'dough_prep', stationCount: 2, completedCases: 42, remainingCases: 58 },
+    { area: 'sauce_prep', stationCount: 1, completedCases: 38, remainingCases: 62 },
     { area: 'production_line', stationCount: 3, completedCases: 60, remainingCases: 40 },
+    { area: 'freeze_tunnel', stationCount: 1, completedCases: null, remainingCases: null },
     { area: 'freezing_packaging', stationCount: 1, completedCases: null, remainingCases: null },
     { area: 'warehouse', stationCount: 1, completedCases: null, remainingCases: null },
   ],
   items: [
     {
       id: sauceBatch.id,
-      area: 'dough_sauce_prep',
-      completedCases: 42,
-      remainingCases: 58,
-      remainingRequired: 10.44,
-      remainingBatchesExact: 1.16,
+      area: 'sauce_prep',
+      completedCases: 38,
+      remainingCases: 62,
+      remainingRequired: 11.16,
+      remainingBatchesExact: 1.24,
       remainingWholeBatches: 2,
-      remainingRemainder: 7.56,
-      remainingIngredients: [{ name: 'Tomato base', unit: 'kg', perBatch: 9, exactRequired: 10.44, wholeBatchRequired: 18 }],
+      remainingRemainder: 6.84,
+      remainingIngredients: [{ name: 'Tomato base', unit: 'kg', perBatch: 9, exactRequired: 11.16, wholeBatchRequired: 18 }],
       proposedUsage: [],
     },
     {
@@ -152,7 +164,7 @@ const progress: RunRequirementsProgress = {
   ],
 };
 
-const previewAreas: FacilityStationArea[] = ['dough_sauce_prep', 'production_line', 'freezing_packaging'];
+const previewAreas: FacilityStationArea[] = ['dough_prep', 'sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging'];
 
 export default function StationCalculatorVisualPreviewPage() {
   return (

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   ArrowDown, ArrowUp, Check, CircleAlert, ClipboardList, Factory, LoaderCircle,
-  LockKeyhole, Plus, RefreshCw, Save, Snowflake, Warehouse, Wheat, X,
+  CookingPot, LockKeyhole, Package, Plus, RefreshCw, Save, Snowflake, Warehouse, Wheat, X,
 } from 'lucide-react';
 import {
   getGetFacilityContextQueryKey,
@@ -15,11 +15,21 @@ import type { FacilityStation, FacilityStationArea, FacilityStationInput } from 
 import './station-lineup-page.css';
 
 const AREAS: { id: FacilityStationArea; label: string; short: string; icon: typeof Wheat; note: string }[] = [
-  { id: 'dough_sauce_prep', label: 'Dough & sauce prep', short: 'Prep', icon: Wheat, note: 'Mixing, portioning and sauce work' },
-  { id: 'production_line', label: 'Production line', short: 'Line', icon: Factory, note: 'Make, assemble and move product' },
-  { id: 'freezing_packaging', label: 'Freezing & packaging', short: 'Pack', icon: Snowflake, note: 'Freeze, finish and case product' },
+  { id: 'dough_prep', label: 'Dough prep', short: 'Dough', icon: Wheat, note: 'Mixing, portioning and dough staging' },
+  { id: 'sauce_prep', label: 'Sauce prep', short: 'Sauce', icon: CookingPot, note: 'Sauce preparation and staging' },
+  { id: 'production_line', label: 'Production line', short: 'Line', icon: Factory, note: 'Press, oven and Pep/applicator stations' },
+  { id: 'freeze_tunnel', label: 'Freeze tunnel', short: 'Freeze', icon: Snowflake, note: 'Tunnel freezing' },
+  { id: 'freezing_packaging', label: 'Wrapper & packing', short: 'Packing', icon: Package, note: 'Wrapping and packaging' },
   { id: 'warehouse', label: 'Warehouse', short: 'Store', icon: Warehouse, note: 'Receiving, storage and dispatch' },
 ];
+
+const LEGACY_AREA: { id: FacilityStationArea; label: string; short: string; icon: typeof Wheat; note: string } = {
+  id: 'dough_sauce_prep',
+  label: 'Older prep area — assign stations',
+  short: 'Review',
+  icon: Wheat,
+  note: 'Choose Dough prep, Sauce prep, or another work area for each older station.',
+};
 
 type DraftStation = { id?: string; name: string; area: FacilityStationArea; isActive: boolean; draftKey: string };
 const asDraft = (stations: FacilityStation[]): DraftStation[] => stations.map((station) => ({ ...station, draftKey: `saved-${station.id}` }));
@@ -112,6 +122,12 @@ export default function StationLineupPage() {
     setSuccess('');
   };
 
+  const changeArea = (draftKey: string, area: FacilityStationArea) => {
+    setDraft((current) => current.map((station) => station.draftKey === draftKey ? { ...station, area } : station));
+    setValidation('');
+    setSuccess('');
+  };
+
   const addStation = () => {
     const name = newName.trim();
     if (!name || name.length > 80) { setValidation('Enter a station name between 1 and 80 characters.'); return; }
@@ -125,6 +141,10 @@ export default function StationLineupPage() {
 
   const save = () => {
     if (!canEdit || revision === null || updateLineup.isPending) return;
+    if (draft.some((station) => station.area === 'dough_sauce_prep')) {
+      setValidation('Assign each station in the older prep area before saving the lineup.');
+      return;
+    }
     const duplicate = draft.some((station, index) => draft.slice(0, index).some((other) => other.area === station.area && other.name.trim().toLocaleLowerCase() === station.name.trim().toLocaleLowerCase()));
     if (draft.some((station) => !station.name.trim() || station.name.trim().length > 80)) { setValidation('Each station needs a name between 1 and 80 characters.'); return; }
     if (duplicate) { setValidation('Station names must be unique within each area.'); return; }
@@ -198,7 +218,7 @@ export default function StationLineupPage() {
         </section>}
 
         {stationCount === 0 ? <section className="station-empty" data-testid="empty-stations"><div className="station-empty-mark"><Factory size={22} /></div><h2>No stations on the map yet</h2><p>Add the first work point so every shift starts from the same floor plan.</p>{canEdit && <button className="button button-primary" type="button" onClick={() => setAdding(true)} data-testid="button-add-first-station"><Plus size={16} /> Add first station</button>}</section> : <div className="station-areas">
-          {AREAS.map((area, areaIndex) => {
+          {[...AREAS.slice(0, 2), ...(draft.some((station) => station.area === LEGACY_AREA.id) ? [LEGACY_AREA] : []), ...AREAS.slice(2)].map((area, areaIndex) => {
             const stations = draft.filter((station) => station.area === area.id);
             const AreaIcon = area.icon;
             return <section className={`station-area station-area-${areaIndex + 1}`} key={area.id} aria-labelledby={`station-area-${area.id}`} data-testid={`section-station-area-${area.id}`}>
@@ -206,9 +226,10 @@ export default function StationLineupPage() {
               {stations.length ? <ol className="station-list" aria-label={`${area.label} stations`}>
                 {stations.map((station) => {
                   const withinArea = stations.findIndex((item) => item.draftKey === station.draftKey);
-                  return <li className={`station-row ${station.isActive ? '' : 'station-row-archived'}`} key={station.draftKey} data-testid={`row-station-${station.id || station.draftKey}`}>
+                  return <li className={`station-row ${station.isActive ? '' : 'station-row-archived'} ${station.area === LEGACY_AREA.id ? 'station-row-legacy' : ''}`} key={station.draftKey} data-testid={`row-station-${station.id || station.draftKey}`}>
                     <span className="station-order" aria-label={`Station ${withinArea + 1}`}>{String(withinArea + 1).padStart(2, '0')}</span>
                     <div className="station-row-main"><label className="sr-only" htmlFor={`station-name-${station.draftKey}`}>{`Station name in ${area.label}`}</label><input id={`station-name-${station.draftKey}`} className="station-name-input" value={station.name} maxLength={80} disabled={!canEdit} onChange={(event) => rename(station.draftKey, event.target.value)} aria-label={`${station.name || 'Unnamed station'} name`} aria-invalid={validation ? true : undefined} aria-describedby={validation ? 'station-validation-message' : undefined} data-testid={`input-station-name-${station.id || station.draftKey}`} /><span className={`station-status ${station.isActive ? 'station-status-active' : 'station-status-archived'}`} data-testid={`status-station-${station.id || station.draftKey}`}>{station.isActive ? 'Active' : 'Archived'}</span></div>
+                    {canEdit && station.area === LEGACY_AREA.id && <div className="station-legacy-area-picker"><label className="sr-only" htmlFor={`station-area-${station.draftKey}`}>Assign {station.name} to a work area</label><select id={`station-area-${station.draftKey}`} value={station.area} onChange={(event) => changeArea(station.draftKey, event.target.value as FacilityStationArea)} data-testid={`select-station-area-${station.id || station.draftKey}`}><option value={LEGACY_AREA.id} disabled>Choose a work area…</option>{AREAS.map((choice) => <option value={choice.id} key={choice.id}>{choice.label}</option>)}</select></div>}
                     {canEdit && <div className="station-row-controls" aria-label={`Controls for ${station.name}`}>
                       <button className="station-icon-button" type="button" onClick={() => moveStation(station, -1)} disabled={updateLineup.isPending || withinArea === 0} aria-label={`Move ${station.name} up`} title="Move up" data-testid={`button-move-station-up-${station.id || station.draftKey}`}><ArrowUp size={16} /></button>
                       <button className="station-icon-button" type="button" onClick={() => moveStation(station, 1)} disabled={updateLineup.isPending || withinArea === stations.length - 1} aria-label={`Move ${station.name} down`} title="Move down" data-testid={`button-move-station-down-${station.id || station.draftKey}`}><ArrowDown size={16} /></button>

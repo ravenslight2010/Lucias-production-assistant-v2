@@ -5,8 +5,9 @@
 - Frozen install passed with `corepack pnpm@9.15.9`.
 - Workspace typecheck and build passed; build used the CI values
   `PORT=4173 BASE_PATH=/`.
-- V2 web tests: 77 passed.
-- API tests: 96 passed, including disposable-PostgreSQL integration tests.
+- V2 web tests: 83 passed.
+- API tests: 97 passed, including disposable-PostgreSQL integration tests and
+  the source-independent run-math golden case.
 - Development pilot verification: passed against a fresh disposable local
   PostgreSQL database. It checks opening inventory counts, planned-run
   non-deduction, count-based usage refresh, quality attention, and restart

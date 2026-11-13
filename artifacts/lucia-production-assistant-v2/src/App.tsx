@@ -37,6 +37,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import { elapsedMilliseconds, formatElapsed } from '@/run-timer';
+import { dashboardPrimaryAction } from '@/dashboard-primary-action';
 
 const SignInPage = lazy(() => import('@/pages/sign-in'));
 const SignUpPage = lazy(() => import('@/pages/sign-up'));
@@ -277,7 +278,7 @@ function Dashboard() {
     return <FacilitySetup online={online} />;
   }
   if (!facilityContext?.facility) return <LoadingPage title="Preparing your workspace" />;
-  return <FacilityDashboard facilityName={facilityContext.facility.name} />;
+  return <FacilityDashboard facilityName={facilityContext.facility.name} role={facilityContext.role} />;
 }
 
 function FacilitySetup({ online }: { online: boolean }) {
@@ -326,7 +327,13 @@ function FacilitySetup({ online }: { online: boolean }) {
   );
 }
 
-function FacilityDashboard({ facilityName }: { facilityName: string }) {
+function FacilityDashboard({
+  facilityName,
+  role,
+}: {
+  facilityName: string;
+  role: 'owner' | 'manager' | 'operator' | null;
+}) {
   const online = useConnection();
   const summary = useGetDashboardSummary({
     query: { queryKey: getGetDashboardSummaryQueryKey(), refetchInterval: online ? 5000 : false },
@@ -337,6 +344,7 @@ function FacilityDashboard({ facilityName }: { facilityName: string }) {
   const activeRuns = data?.activeRuns ?? [];
   const plannedRuns = data?.plannedRuns ?? [];
   const activeRunProgress = new Map((data?.activeRunProgress ?? []).map((item) => [item.runId, item]));
+  const primaryAction = dashboardPrimaryAction(role, activeRuns, plannedRuns, Boolean(data));
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (activeRuns.length === 0) return;
@@ -349,7 +357,12 @@ function FacilityDashboard({ facilityName }: { facilityName: string }) {
         <OfflineNotice hasCache={Boolean(data)} />
         <div className="page-head">
           <div><div className="eyebrow">Shift dashboard</div><h1>Good to have you back.</h1><p className="page-subtitle">{data?.facility.name || facilityName} · Current production at a glance.</p></div>
-          <Link href="/runs" className="button button-primary"><Plus size={16} /> New production run</Link>
+          {primaryAction.kind === 'link'
+            ? <Link href={primaryAction.href} className="button button-primary" data-testid="dashboard-primary-action">
+                {primaryAction.label === 'New production run' && <Plus size={16} />}
+                {primaryAction.label}
+              </Link>
+            : <p className="field-help" role="status" data-testid="dashboard-primary-action">{primaryAction.text}</p>}
         </div>
         {summary.isLoading && !data ? <><div className="skeleton" /><div className="skeleton" /></> : null}
         {summary.isError && !data && <DataError message={getErrorMessage(summary.error, 'Dashboard data could not be loaded.')} onRetry={() => void summary.refetch()} />}

@@ -24,6 +24,13 @@
 - The importer, station calculator, and quality-check previews were also checked
   at 390×844. They render with synthetic data, make no API requests, and show no
   browser errors.
+- The dashboard’s primary action is role-aware: owners and managers can create
+  runs; operators are directed to an active run, then a planned run, or a clear
+  manager handoff if no work is queued. Unit tests also fail closed for an
+  unknown role.
+- Dashboard previews were rechecked at phone and desktop widths after this
+  change. Those previews use synthetic data and do not establish the
+  signed-in dashboard’s role-specific rendering.
 - Workspace typecheck, build, API/web tests, and disposable pilot verification
   passed after this change.
 

@@ -13,10 +13,10 @@ be ignored.
 | WP0 — Repo hygiene and status docs | **Complete** | Product status is corrected below. PNPM 9.15.9 frozen install, typecheck, build, and web/API tests pass locally. See [WP0 notes](evidence/purpose-completion/WP0-notes.md). |
 | WP1 — Day-plan import | **Partial** | Product and process importers, name cleanup/merge, schedule-to-planned-run flow, and reviewed requirement snapshots exist. Synthetic signed-in browser regressions cover product snapshots and schedule imports, but they have not been run in this turn; see [WP1 notes](evidence/purpose-completion/WP1-notes.md). |
 | WP2 — Station execution | **Partial** | Shared line timer, station status, revision-checked counts, station-level prep readiness, and separately saved early-pull checklist items exist. Source rows remain unassigned to stations unless the source maps them; the disposable API pilot checks status changes, retries, and stale revisions. Signed-in two-session floor verification remains. |
-| WP3 — Live production math | **Partial** | Run detail uses captured requirements and station progress for remaining demand. Unit coverage checks missing counts and calculation boundaries; the disposable API pilot now verifies saved case-count changes update estimated ingredient use. Source-family golden fixtures and signed-in live-page refresh remain. |
+| WP3 — Live production math | **Partial** | Run detail uses captured requirements and station progress for remaining demand. A tracked synthetic golden case covers dough, sauce, cheese, tray, batch rounding, and count-driven usage; the disposable API pilot confirms saved counts recalculate use. Signed-in live-page refresh remains. |
 | WP4 — Inventory from production | **Partial** | Facility inventory, adjustments, and run-level actual-use confirmation exist. The disposable pilot verifies opening counts and blocks planned-run deductions; integration coverage also checks stale-stock protection, confirmed deductions, retries, double-deduction prevention, and correction links. Signed-in confirmation remains unverified. |
 | WP5 — Run-tied quality checks | **Partial** | Run-level ounce measurements, customer tolerances, finished-weight ranges, unresolved-applicator blocking, and dashboard summaries for failed/unresolved checks exist. The disposable API pilot verifies the failed-check summary; the signed-in recording path remains unverified. |
-| WP6 — Dashboard coherence | **Partial** | Dashboard shows run totals, active timers, station-area counts, station preparation status, planned runs, recent activity, and quality-attention counts. Importer, station-calculator, quality, dashboard, and early-pull previews were checked at phone width; review-required imports and signed-in phone behavior remain unverified. |
+| WP6 — Dashboard coherence | **Partial** | Dashboard shows run totals, active timers, station-area counts, station preparation status, planned runs, recent activity, and quality-attention counts. The primary action is role-aware: operators open active/planned work; owners/managers can create runs. Signed-in state rendering and phone behavior remain unverified. |
 | WP7 — Hardening and CI | **Partial** | Local typecheck, build, and web/API test suites pass. GitHub Actions on the resulting changes has not been run; preserve the PNPM 9 lockfile format and require CI before pushing or publishing. |
 
 ## WP0 — Repo hygiene and truth in docs
@@ -51,7 +51,7 @@ be ignored.
 - [x] Run detail separates saved run requirements from progress derived from station counts.
 - [x] The disposable API pilot verifies that saved station-case changes update estimated run ingredient use.
 - [x] Missing station counts remain unresolved in unit tests rather than being treated as completed production.
-- [ ] Add/confirm golden cases for dough, sauce, cheese, tray, and batch calculations represented by the supported fixtures.
+- [x] Add a tracked synthetic golden case for dough, sauce, cheese, tray, batch calculations, and count-driven ingredient use.
 - [ ] Verify the signed-in run page refreshes its live calculations after another browser context changes a station count.
 
 ## WP4 — Inventory from confirmed production (P1)
@@ -76,7 +76,9 @@ be ignored.
 - [x] Dashboard summarizes failed and unresolved quality checks; the disposable pilot asserts a failed-check count.
 - [x] Added an interactive development-only early-pull checklist preview using synthetic source rows.
 - [x] Development-only importer, station-calculator, and quality-check previews visually checked at 390×844; they use synthetic data and no API writes.
-- [ ] Verify operator versus manager next actions and truthful active/blocked/done state.
+- [x] Dashboard primary action routes operators to active or planned work and shows run creation only to owners/managers.
+- [x] Unit tests cover role-specific dashboard actions and the no-planned-run handoff.
+- [ ] Verify signed-in dashboard state and active/blocked/done presentation across roles.
 - [ ] Surface any persisted import-review queue.
 - [ ] Visually verify the signed-in dashboard and new early-pull checklist at phone width.
 

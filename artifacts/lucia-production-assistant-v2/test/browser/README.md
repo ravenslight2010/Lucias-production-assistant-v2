@@ -9,6 +9,13 @@ contains no facility data, and disables file selection and every save action.
 Use it for screenshot and responsive-layout checks; it does not replace the
 authenticated browser regressions below.
 
+## Dev-only station calculator preview
+
+Open `/__visual-preview/station-calculator` to render the real station-area
+calculator with synthetic direct-ingredient, shared-batch, and unresolved
+examples. It runs outside sign-in, is available only in Vite development mode,
+and cannot save or change run data.
+
 ## Profile snapshot regression
 
 `profile_snapshots.py` runs the real UI against the real development API, with

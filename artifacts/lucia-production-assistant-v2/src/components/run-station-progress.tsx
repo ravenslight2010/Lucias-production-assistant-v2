@@ -11,9 +11,11 @@ import type {
   RunStationPreparationStatus,
   RunStationProgressList,
   RunStationProgressStatus,
+  RunRequirementsPlan,
 } from '@workspace/api-client-react';
 import { Check, CircleAlert, LoaderCircle, MapPinned, Save } from 'lucide-react';
 import { elapsedMilliseconds, formatElapsed, type LineTimerRun } from '@/run-timer';
+import { StationAreaCalculator } from './station-area-calculator';
 import './run-station-progress.css';
 
 const areaLabels: Record<FacilityStationArea, string> = {
@@ -95,11 +97,13 @@ export default function RunStationProgress({
   run,
   online,
   targetCases,
+  requirementsPlan,
 }: {
   runId: string;
   run: LineTimerRun;
   online: boolean;
   targetCases: number;
+  requirementsPlan?: RunRequirementsPlan | null;
 }) {
   const client = useQueryClient();
   const queryKey = getGetRunStationProgressQueryKey(runId);
@@ -147,6 +151,7 @@ export default function RunStationProgress({
   });
   const [now, setNow] = useState(() => Date.now());
   const stations = progressQuery.data?.stations ?? [];
+  const currentRequirements = progressQuery.data?.currentRequirements ?? null;
   const elapsed = formatElapsed(elapsedMilliseconds(run, now));
   const totalProduced = stations.reduce((total, station) => total + station.producedCount, 0);
   const preparedCount = stations.filter(
@@ -448,6 +453,13 @@ export default function RunStationProgress({
                 return (
                   <section className="run-station-area" key={area} aria-labelledby={`run-station-area-${area}`}>
                     <h3 id={`run-station-area-${area}`}>{areaLabels[area]}</h3>
+                    {requirementsPlan && currentRequirements && (
+                      <StationAreaCalculator
+                        area={area}
+                        plan={requirementsPlan}
+                        progress={currentRequirements}
+                      />
+                    )}
                     <ol>
                       {areaStations.map((station) => {
                         const draft = drafts[station.stationId] ?? {

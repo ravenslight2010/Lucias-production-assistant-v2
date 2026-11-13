@@ -46,6 +46,7 @@ const FacilityMembersPage = lazy(() => import('@/components/facility-members-pag
 const StationLineupPage = lazy(() => import('@/components/station-lineup-page'));
 const InventoryPage = lazy(() => import('@/components/inventory-page'));
 const RunStationProgressSection = lazy(() => import('@/components/run-station-progress'));
+const StationCalculatorVisualPreviewPage = lazy(() => import('@/pages/station-calculator-visual-preview'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -712,6 +713,7 @@ function RunDetailPage() {
             run={run}
             online={online}
             targetCases={run.setupSnapshot.targetCases}
+            requirementsPlan={run.productSnapshot?.runRequirements ?? null}
           />
           {command.isPending && <div className="notice" role="status"><LoaderCircle size={15} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />Sending the revision-checked command. Wait for confirmation before leaving this page.</div>}
         </>}
@@ -983,14 +985,20 @@ function RouterContent() {
 }
 
 function App() {
-  const isVisualPreview = import.meta.env.DEV && stripBase(window.location.pathname) === '/__visual-preview/imports';
-  if (!clerkPubKey && !isVisualPreview) throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY in .env file');
+  const visualPath = stripBase(window.location.pathname);
+  const isVisualPreview = import.meta.env.DEV && visualPath === '/__visual-preview/imports';
+  const isStationCalculatorPreview = import.meta.env.DEV && visualPath === '/__visual-preview/station-calculator';
+  if (!clerkPubKey && !isVisualPreview && !isStationCalculatorPreview) {
+    throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY in .env file');
+  }
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         {isVisualPreview
           ? <Suspense fallback={<LoadingPage title="Loading importer preview" />}><ImportsVisualPreviewPage /></Suspense>
-          : <WouterRouter base={basePath}><RouterContent /></WouterRouter>}
+          : isStationCalculatorPreview
+            ? <Suspense fallback={<LoadingPage title="Loading station calculator preview" />}><StationCalculatorVisualPreviewPage /></Suspense>
+            : <WouterRouter base={basePath}><RouterContent /></WouterRouter>}
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>

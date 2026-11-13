@@ -2,6 +2,7 @@ import path from 'path';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 
 import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
 
@@ -27,11 +28,39 @@ if (!basePath) {
   );
 }
 
+const normalizedBasePath = basePath.endsWith('/') ? basePath : `${basePath}/`;
+
 export default defineConfig({
-  base: basePath,
+  base: normalizedBasePath,
   plugins: [
     react(),
     tailwindcss(),
+    VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
+      registerType: 'prompt',
+      injectRegister: false,
+      includeAssets: ['favicon.svg', 'logo.svg', 'pwa-192x192.png', 'pwa-512x512.png'],
+      manifest: {
+        name: 'Lucia Production Assistant',
+        short_name: 'Lucia',
+        description: 'Keep production runs, stations, and inventory aligned.',
+        start_url: normalizedBasePath,
+        scope: normalizedBasePath,
+        display: 'standalone',
+        orientation: 'any',
+        background_color: '#f8f6f0',
+        theme_color: '#203d3a',
+        icons: [
+          { src: `${normalizedBasePath}pwa-192x192.png`, sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: `${normalizedBasePath}pwa-512x512.png`, sizes: '512x512', type: 'image/png', purpose: 'any' },
+        ],
+      },
+      injectManifest: {
+        globPatterns: ['**/*.{html,js,css,ico,png,svg,webmanifest,woff2}'],
+      },
+    }),
     runtimeErrorOverlay(),
     ...(process.env.NODE_ENV !== 'production' &&
     process.env.REPL_ID !== undefined

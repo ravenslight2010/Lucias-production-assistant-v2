@@ -3,6 +3,29 @@
 For agent guidance on choosing and extending these scenarios, see
 `.agents/skills/v2-browser-regression/SKILL.md`.
 
+## Install and update regression
+
+`pwa-install-updates.mjs` exports `verifyPwaInstallAndUpdate(page, baseURL,
+deployNextVersion)`. Run it against the production web build on a secure
+origin, with a real browser context and a deployment fixture that switches the
+served files to a second production build at the same base path. It checks the
+manifest and icon URLs, platform install guidance, the browser install prompt,
+service-worker control, absence of cached API URLs, update detection without
+navigation, and the user-confirmed refresh into the new worker.
+
+The install/update helper has no sign-in requirement and makes only a read-only
+facility-context request. The signed-in run helper confirms real authenticated
+run responses are not placed in app caches. The build and base-path checks also
+run locally with `pnpm --filter
+@workspace/lucia-production-assistant-v2 run test:pwa`.
+
+`verifyOfflineRunReadOnly(page, runURL)` is a separate signed-in check for a
+disposable active run with station controls. After the authenticated run loads,
+it confirms no API response was cached, switches the browser offline, confirms
+the last saved view remains visibly read-only, and asserts every visible
+lifecycle, station-preparation, and case-count mutation control is disabled.
+It does not submit any changes.
+
 ## Visual sandbox without Clerk
 
 Open `/__visual-preview` in the development preview for links to the synthetic

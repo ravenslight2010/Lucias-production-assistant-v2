@@ -478,3 +478,38 @@ h3 { font: 700 16px/1.25 var(--app-font-display); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+.pwa-controls {
+  position: fixed;
+  z-index: 100;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  display: grid;
+  gap: 10px;
+  width: min(430px, calc(100vw - 32px));
+}
+.pwa-controls-section,
+.pwa-update {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  background: hsl(var(--card));
+  box-shadow: 0 12px 36px rgba(26, 39, 36, .18);
+}
+.pwa-controls-section { justify-content: flex-start; }
+.pwa-install-button { min-height: 40px; }
+.pwa-install-help { color: hsl(var(--foreground)); font-size: 13px; }
+.pwa-install-help summary { min-height: 40px; display: flex; align-items: center; font-weight: 700; cursor: pointer; }
+.pwa-install-help p,
+.pwa-update p { margin: 3px 0 0; color: hsl(var(--muted-foreground)); font-size: 12px; line-height: 1.5; }
+.pwa-update strong { display: block; font-size: 13px; }
+.pwa-update .button { flex: 0 0 auto; min-height: 42px; }
+@media (max-width: 520px) {
+  .pwa-controls { right: 10px; bottom: max(10px, env(safe-area-inset-bottom)); width: calc(100vw - 20px); }
+  .pwa-update { align-items: stretch; flex-direction: column; gap: 10px; }
+  .pwa-update .button { width: 100%; }
+}

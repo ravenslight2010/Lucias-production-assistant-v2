@@ -164,7 +164,23 @@ const progress: RunRequirementsProgress = {
   ],
 };
 
-const previewAreas: FacilityStationArea[] = ['dough_prep', 'sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging'];
+const previewAreaLabels: Record<FacilityStationArea, string> = {
+  dough_prep: 'Dough prep',
+  sauce_prep: 'Sauce prep',
+  dough_sauce_prep: 'Dough & sauce prep',
+  production_line: 'Production line',
+  freeze_tunnel: 'Freeze tunnel',
+  freezing_packaging: 'Wrapper & packing',
+  warehouse: 'Warehouse',
+};
+const previewAreas: FacilityStationArea[] = [
+  'dough_prep',
+  'sauce_prep',
+  'production_line',
+  'freeze_tunnel',
+  'freezing_packaging',
+  'warehouse',
+];
 
 export default function StationCalculatorVisualPreviewPage() {
   return (
@@ -179,7 +195,7 @@ export default function StationCalculatorVisualPreviewPage() {
       <section className="panel run-station-progress" aria-label="Station production calculation examples">
         {previewAreas.map((area) => (
           <section className="run-station-area" key={area}>
-            <h3>{area.replaceAll('_', ' ')}</h3>
+            <h3>{previewAreaLabels[area]}</h3>
             <StationAreaCalculator
               area={area}
               plan={plan}

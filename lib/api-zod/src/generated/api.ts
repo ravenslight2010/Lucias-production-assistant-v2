@@ -126,6 +126,12 @@ export const PreviewRunRequirementsResponse = zod.object({
   "name": zod.string(),
   "originalName": zod.string(),
   "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
   "station": zod.string(),
   "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
@@ -160,6 +166,12 @@ export const PreviewRunRequirementsResponse = zod.object({
   "name": zod.string(),
   "originalName": zod.string(),
   "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
   "station": zod.string(),
   "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
@@ -635,6 +647,12 @@ export const ListRunsResponse = zod.object({
   "name": zod.string(),
   "originalName": zod.string(),
   "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
   "station": zod.string(),
   "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
@@ -669,6 +687,12 @@ export const ListRunsResponse = zod.object({
   "name": zod.string(),
   "originalName": zod.string(),
   "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
   "station": zod.string(),
   "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
@@ -954,6 +978,12 @@ export const CreateRunResponse = zod.object({
   "name": zod.string(),
   "originalName": zod.string(),
   "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
   "station": zod.string(),
   "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
@@ -988,6 +1018,12 @@ export const CreateRunResponse = zod.object({
   "name": zod.string(),
   "originalName": zod.string(),
   "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
   "station": zod.string(),
   "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
@@ -1394,6 +1430,12 @@ export const ListProductProfilesResponse = zod.object({
   "name": zod.string(),
   "originalName": zod.string(),
   "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
   "station": zod.string(),
   "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
@@ -1428,6 +1470,12 @@ export const ListProductProfilesResponse = zod.object({
   "name": zod.string(),
   "originalName": zod.string(),
   "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
   "station": zod.string(),
   "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
@@ -1623,6 +1671,12 @@ export const ImportProductProfileResponse = zod.object({
   "name": zod.string(),
   "originalName": zod.string(),
   "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
   "station": zod.string(),
   "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
@@ -1657,6 +1711,12 @@ export const ImportProductProfileResponse = zod.object({
   "name": zod.string(),
   "originalName": zod.string(),
   "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
   "station": zod.string(),
   "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
@@ -1857,6 +1917,12 @@ export const RenameProductProfileResponse = zod.object({
   "name": zod.string(),
   "originalName": zod.string(),
   "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
   "station": zod.string(),
   "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
@@ -1891,6 +1957,12 @@ export const RenameProductProfileResponse = zod.object({
   "name": zod.string(),
   "originalName": zod.string(),
   "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
   "station": zod.string(),
   "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
@@ -2062,6 +2134,12 @@ export const MergeProductProfileResponse = zod.object({
   "name": zod.string(),
   "originalName": zod.string(),
   "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
   "station": zod.string(),
   "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
@@ -2096,6 +2174,12 @@ export const MergeProductProfileResponse = zod.object({
   "name": zod.string(),
   "originalName": zod.string(),
   "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
   "station": zod.string(),
   "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
@@ -2328,6 +2412,12 @@ export const GetRunResponse = zod.object({
   "name": zod.string(),
   "originalName": zod.string(),
   "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
   "station": zod.string(),
   "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
@@ -2362,6 +2452,12 @@ export const GetRunResponse = zod.object({
   "name": zod.string(),
   "originalName": zod.string(),
   "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
   "station": zod.string(),
   "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
@@ -2618,6 +2714,12 @@ export const ApplyRunCommandResponse = zod.object({
   "name": zod.string(),
   "originalName": zod.string(),
   "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
   "station": zod.string(),
   "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
@@ -2652,6 +2754,12 @@ export const ApplyRunCommandResponse = zod.object({
   "name": zod.string(),
   "originalName": zod.string(),
   "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
   "station": zod.string(),
   "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
@@ -3762,6 +3870,12 @@ export const GetDashboardSummaryResponse = zod.object({
   "name": zod.string(),
   "originalName": zod.string(),
   "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
   "station": zod.string(),
   "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
@@ -3796,6 +3910,12 @@ export const GetDashboardSummaryResponse = zod.object({
   "name": zod.string(),
   "originalName": zod.string(),
   "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
   "station": zod.string(),
   "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
@@ -3953,6 +4073,12 @@ export const GetDashboardSummaryResponse = zod.object({
   "name": zod.string(),
   "originalName": zod.string(),
   "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
   "station": zod.string(),
   "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
@@ -3987,6 +4113,12 @@ export const GetDashboardSummaryResponse = zod.object({
   "name": zod.string(),
   "originalName": zod.string(),
   "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
   "station": zod.string(),
   "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
@@ -4153,6 +4285,12 @@ export const GetDashboardSummaryResponse = zod.object({
   "name": zod.string(),
   "originalName": zod.string(),
   "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
   "station": zod.string(),
   "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({
@@ -4187,6 +4325,12 @@ export const GetDashboardSummaryResponse = zod.object({
   "name": zod.string(),
   "originalName": zod.string(),
   "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
   "station": zod.string(),
   "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
   "amountChoices": zod.array(zod.object({

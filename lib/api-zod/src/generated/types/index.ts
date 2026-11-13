@@ -109,6 +109,8 @@ export * from './runRecipeLink.ts';
 export * from './runRecipeLinkUsageUnit.ts';
 export * from './runRequirementItem.ts';
 export * from './runRequirementItemAmountChoicesItem.ts';
+export * from './runRequirementItemIngredientRole.ts';
+export * from './runRequirementItemSourceCoordinates.ts';
 export * from './runRequirementProgressArea.ts';
 export * from './runRequirementProgressItem.ts';
 export * from './runRequirementsInput.ts';

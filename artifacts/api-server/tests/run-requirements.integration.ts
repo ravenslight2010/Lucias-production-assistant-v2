@@ -12,7 +12,9 @@ function fixture(amount = "2", brand = "Lucia") {
   return { brand, flavor: "Cheese", revision: 0, productData: { sources: [
     { brand, sourceName: "spec.xlsx", content: { format: "lucia.product-spec.v1", sections: [
       { sheet: "Cheese", headerRow: 1, unit: "oz", notes: [], warnings: [], ingredients: [
-        { name: "Sauce", sourceRow: 2, amounts: [{ column: "B", value: amount }] },
+        { name: "Sauce", sourceRow: 2, ingredientRole: "sauce",
+          sourceCoordinates: { sheet: "Cheese", row: 2, nameColumn: "A" },
+          amounts: [{ column: "B", value: amount }] },
       ] },
     ] } },
     { brand, sourceName: "sauce.xlsx", content: {
@@ -40,6 +42,9 @@ test("case counts, per-pizza usage, exact batches, whole batches and overage rem
   assert.equal(plan.status, "ready");
   assert.equal(plan.totalPizzas, 120);
   const row = plan.items[0];
+  assert.equal(row.ingredientRole, "sauce");
+  assert.deepEqual(row.sourceCoordinates, { sheet: "Cheese", row: 2, nameColumn: "A" });
+  PreviewRunRequirementsResponse.parse(plan);
   assert.equal(row.perPizza, 2);
   assert.equal(row.totalRequired, 240);
   assert.equal(row.batchYield, 50);

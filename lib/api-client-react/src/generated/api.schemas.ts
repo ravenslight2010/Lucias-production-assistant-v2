@@ -716,6 +716,24 @@ export interface FacilityInventoryList {
   entries: InventoryTransaction[];
 }
 
+export type RunRequirementItemIngredientRole = typeof RunRequirementItemIngredientRole[keyof typeof RunRequirementItemIngredientRole];
+
+
+export const RunRequirementItemIngredientRole = {
+  sauce: 'sauce',
+  pep_applicator: 'pep_applicator',
+  cheese_applicator: 'cheese_applicator',
+  ingredient: 'ingredient',
+} as const;
+
+export type RunRequirementItemSourceCoordinates = {
+  sheet: string;
+  /** @nullable */
+  row: number | null;
+  /** @nullable */
+  nameColumn: string | null;
+};
+
 export type RunRequirementItemAmountChoicesItem = {
   column: string;
   value: string;
@@ -726,6 +744,8 @@ export interface RunRequirementItem {
   name: string;
   originalName: string;
   source: string;
+  ingredientRole: RunRequirementItemIngredientRole;
+  sourceCoordinates: RunRequirementItemSourceCoordinates;
   station: string;
   stationArea?: FacilityStationArea;
   amountChoices: RunRequirementItemAmountChoicesItem[];

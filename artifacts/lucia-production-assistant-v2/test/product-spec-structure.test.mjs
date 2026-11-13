@@ -73,6 +73,36 @@ test("does not let an incomplete product section borrow the next section's targe
   assert.equal(data.sections[0].weightSpecRange, "2.5 - 3.5");
 });
 
+test("preserves row roles and worksheet coordinates for applicators across brands", () => {
+  for (const brand of ["Lucia", "Aldo's"]) {
+    const source = workbook([
+      [brand, "Special"],
+      ["Sauce", 2],
+      ["PEP Applicator", 1.25],
+      ["Cheese Applicator", 3],
+      ["Pepperoni", 0.5],
+      ["Mozzarella", 4],
+      ["TARGET WEIGHT", 11],
+      ["WEIGHT SPEC RANGE", "10.75 - 11.25"],
+    ]);
+    const profile = parseProductSpecProfiles(source).find((item) => item.brand === brand);
+    assert.ok(profile);
+    const ingredients = parseProductSpecData(source, profile).sections[0].ingredients;
+    assert.deepEqual(ingredients.map((item) => item.ingredientRole), [
+      "sauce",
+      "pep_applicator",
+      "cheese_applicator",
+      "ingredient",
+      "ingredient",
+    ]);
+    assert.deepEqual(ingredients[1].sourceCoordinates, {
+      sheet: "OZ",
+      row: 3,
+      nameColumn: "A",
+    });
+  }
+});
+
 test("keeps adjacent packaging tables out of ingredient amounts and product boundaries", () => {
   const source = workbook([
     ["Sample Pizzas", "MR12CH14", null, "Shipping notes", "CODE12"],

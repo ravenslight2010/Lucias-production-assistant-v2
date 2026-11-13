@@ -8,12 +8,16 @@
 import type { FacilityStationArea } from './facilityStationArea.ts';
 import type { RunIngredientRequirement } from './runIngredientRequirement.ts';
 import type { RunRequirementItemAmountChoicesItem } from './runRequirementItemAmountChoicesItem.ts';
+import type { RunRequirementItemIngredientRole } from './runRequirementItemIngredientRole.ts';
+import type { RunRequirementItemSourceCoordinates } from './runRequirementItemSourceCoordinates.ts';
 
 export interface RunRequirementItem {
   id: string;
   name: string;
   originalName: string;
   source: string;
+  ingredientRole: RunRequirementItemIngredientRole;
+  sourceCoordinates: RunRequirementItemSourceCoordinates;
   station: string;
   stationArea?: FacilityStationArea;
   amountChoices: RunRequirementItemAmountChoicesItem[];

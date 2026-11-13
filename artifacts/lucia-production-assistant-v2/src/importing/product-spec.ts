@@ -13,6 +13,12 @@ export type ProductSpecAmount = {
 
 export type ProductSpecIngredient = {
   sourceRow: number;
+  sourceCoordinates: {
+    sheet: string;
+    row: number;
+    nameColumn: string;
+  };
+  ingredientRole: "sauce" | "pep_applicator" | "cheese_applicator" | "ingredient";
   name: string;
   amounts: ProductSpecAmount[];
 };
@@ -51,6 +57,14 @@ function excelColumnLabel(index: number) {
     column = Math.floor((column - 1) / 26);
   }
   return label;
+}
+
+function ingredientRole(name: string): ProductSpecIngredient["ingredientRole"] {
+  const label = name.normalize("NFKC").trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  if (/^(?:pizza )?sauce(?: applicator)?$/.test(label)) return "sauce";
+  if (/^(?:pep|pepperoni) applicator$/.test(label)) return "pep_applicator";
+  if (/^cheese applicator$/.test(label)) return "cheese_applicator";
+  return "ingredient";
 }
 
 function sectionColumns(section: ProductSpecSection, sheetColumnCount: number) {
@@ -128,7 +142,17 @@ function parseSection(
       if (!text) break;
       amounts.push({ column: excelColumnLabel(column), value: text });
     }
-    ingredients.push({ sourceRow: rowIndex + 1, name, amounts });
+    ingredients.push({
+      sourceRow: rowIndex + 1,
+      sourceCoordinates: {
+        sheet: section.sheet,
+        row: rowIndex + 1,
+        nameColumn: excelColumnLabel(labelColumn),
+      },
+      ingredientRole: ingredientRole(name),
+      name,
+      amounts,
+    });
   }
 
   if (!targetWeight) warnings.push("Target weight was not detected in this section.");

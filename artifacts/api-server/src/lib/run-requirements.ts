@@ -223,6 +223,13 @@ export function buildRunRequirements(profile: Profile, targetCases: number, opti
     return {
       id: itemId, name: recipe?.choice.name ?? displayName, originalName,
       source: `${selected.source} · ${text(selected.raw.sheet)} row ${raw.sourceRow ?? "?"}`,
+      ingredientRole: raw.ingredientRole === "sauce" || raw.ingredientRole === "pep_applicator" ||
+        raw.ingredientRole === "cheese_applicator" ? raw.ingredientRole : "ingredient",
+      sourceCoordinates: {
+        sheet: text(record(raw.sourceCoordinates) ? raw.sourceCoordinates.sheet : null) || text(selected.raw.sheet),
+        row: numeric(record(raw.sourceCoordinates) ? raw.sourceCoordinates.row : raw.sourceRow),
+        nameColumn: text(record(raw.sourceCoordinates) ? raw.sourceCoordinates.nameColumn : null) || null,
+      },
       station: recipe?.choice.kind === "dough_guide" || recipe?.choice.kind === "sauce_guide" ? "Dough & sauce preparation" : "Production line",
       stationArea: recipe?.choice.kind === "dough_guide" || recipe?.choice.kind === "sauce_guide" ? "dough_sauce_prep" : "production_line",
       amountChoices: amounts, amountColumn: amount?.column ?? null, usageUnit, perPizza, totalRequired,

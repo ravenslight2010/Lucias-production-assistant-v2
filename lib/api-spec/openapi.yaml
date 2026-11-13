@@ -1687,6 +1687,16 @@ components:
         name: {type: string}
         originalName: {type: string}
         source: {type: string}
+        ingredientRole:
+          type: string
+          enum: [sauce, pep_applicator, cheese_applicator, ingredient]
+        sourceCoordinates:
+          type: object
+          properties:
+            sheet: {type: string}
+            row: {type: [integer, "null"]}
+            nameColumn: {type: [string, "null"]}
+          required: [sheet, row, nameColumn]
         station: {type: string}
         stationArea:
           $ref: "#/components/schemas/FacilityStationArea"
@@ -1714,7 +1724,7 @@ components:
         ingredients: {type: array, items: {$ref: "#/components/schemas/RunIngredientRequirement"}}
         instructions: {type: array, items: {type: string}}
         issues: {type: array, items: {type: string}}
-      required: [id, name, originalName, source, station, amountChoices, amountColumn, usageUnit, perPizza, totalRequired, recipeId, recipeSource, directIngredient, batchColumn, batchUnit, batchYield, batchesExact, wholeBatches, remainder, ingredients, instructions, issues]
+      required: [id, name, originalName, source, ingredientRole, sourceCoordinates, station, amountChoices, amountColumn, usageUnit, perPizza, totalRequired, recipeId, recipeSource, directIngredient, batchColumn, batchUnit, batchYield, batchesExact, wholeBatches, remainder, ingredients, instructions, issues]
     RunRequirementsPlan:
       type: object
       properties:

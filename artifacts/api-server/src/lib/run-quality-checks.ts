@@ -30,19 +30,8 @@ function unresolvedTarget(
   };
 }
 
-function sourceText(item: RecordValue) {
-  return [item.originalName, item.name, item.station]
-    .map(text)
-    .filter(Boolean)
-    .join(" ");
-}
-
-function ingredientTolerance(name: string) {
-  if (/\bsauce\b/i.test(name)) return 0.05;
-  if (/\bpep(?:peroni)?\b/i.test(name) || /\bpep(?:peroni)?[\s_-]*applicator\b/i.test(name)) {
-    return 0.05;
-  }
-  return 0.1;
+function ingredientTolerance(role: unknown) {
+  return role === "sauce" || role === "pep_applicator" ? 0.05 : 0.1;
 }
 
 function measurementRange(value: string): [number, number] | null {
@@ -89,7 +78,6 @@ export function buildRunQualityTargets(productSnapshot: unknown): {
     const unit = text(rawItem.usageUnit).toLowerCase();
     const factor = weightToOz[unit];
     const perPizza = finiteNumber(rawItem.perPizza);
-    const ingredientName = sourceText(rawItem);
 
     if (perPizza === null || perPizza < 0) {
       checks.push(unresolvedTarget(check, "Confirm one per-pizza target from the captured source row."));
@@ -106,7 +94,7 @@ export function buildRunQualityTargets(productSnapshot: unknown): {
       continue;
     }
     const targetOz = round(convertedTarget);
-    const toleranceOz = ingredientTolerance(ingredientName);
+    const toleranceOz = ingredientTolerance(rawItem.ingredientRole);
     checks.push({
       ...check,
       status: "ready",

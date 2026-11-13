@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { PreviewRunRequirementsResponse } from "../../../lib/api-zod/src/generated/api.ts";
+import { buildRunRequirements } from "../src/lib/run-requirements.ts";
 import { buildRunQualityTargets } from "../src/lib/run-quality-checks.ts";
 
 const snapshot = () => ({
@@ -10,6 +12,8 @@ const snapshot = () => ({
         name: "Aldo's Sauce",
         originalName: "Aldo's Sauce (made in house)",
         source: "Aldo's Pizza Specs.xlsx · OZ row 4",
+        ingredientRole: "sauce",
+        sourceCoordinates: { sheet: "OZ", row: 4, nameColumn: "A" },
         station: "Production line",
         usageUnit: "oz",
         perPizza: 4,
@@ -19,6 +23,8 @@ const snapshot = () => ({
         name: "Pepperoni Stick",
         originalName: "Pepperoni Stick (Cured)",
         source: "Aldo's Pizza Specs.xlsx · OZ row 16",
+        ingredientRole: "pep_applicator",
+        sourceCoordinates: { sheet: "OZ", row: 16, nameColumn: "A" },
         station: "Production line",
         usageUnit: "oz",
         perPizza: 1.1,
@@ -28,6 +34,8 @@ const snapshot = () => ({
         name: "Cheese mix",
         originalName: "Applicator - Aldo's Cheese Mix",
         source: "Aldo's Pizza Specs.xlsx · OZ row 5",
+        ingredientRole: "cheese_applicator",
+        sourceCoordinates: { sheet: "OZ", row: 5, nameColumn: "A" },
         station: "Production line",
         usageUnit: "oz",
         perPizza: 3.5,
@@ -37,6 +45,8 @@ const snapshot = () => ({
         name: "Flour",
         originalName: "Flour",
         source: "Test spec.xlsx · row 20",
+        ingredientRole: "ingredient",
+        sourceCoordinates: { sheet: "OZ", row: 20, nameColumn: "A" },
         station: "Production line",
         usageUnit: "lb",
         perPizza: 0.25,
@@ -46,6 +56,8 @@ const snapshot = () => ({
         name: "Whole olives",
         originalName: "Whole olives",
         source: "Test spec.xlsx · row 21",
+        ingredientRole: "ingredient",
+        sourceCoordinates: { sheet: "OZ", row: 21, nameColumn: "A" },
         station: "Production line",
         usageUnit: "each",
         perPizza: 2,
@@ -55,6 +67,8 @@ const snapshot = () => ({
         name: "Annotated pepperoni amount",
         originalName: "Pepperoni Stick",
         source: "Test spec.xlsx · row 22",
+        ingredientRole: "ingredient",
+        sourceCoordinates: { sheet: "OZ", row: 22, nameColumn: "A" },
         station: "Production line",
         usageUnit: "oz",
         perPizza: null,
@@ -86,6 +100,7 @@ test("derives ingredient tolerances and finished weight bounds from the saved ru
     [1.1, 0.05, 1.05, 1.15],
   );
   assert.equal(byId.get("ingredient:cheese-row").toleranceOz, 0.1);
+  assert.equal(byId.get("ingredient:pound-row").toleranceOz, 0.1);
   assert.equal(byId.get("ingredient:pound-row").targetOz, 4);
   assert.equal(byId.get("ingredient:count-row").status, "unresolved");
   assert.equal(byId.get("ingredient:unresolved-row").status, "unresolved");
@@ -94,6 +109,73 @@ test("derives ingredient tolerances and finished weight bounds from the saved ru
     [17.55, 18.05],
   );
   assert.deepEqual(before, expected, "target generation does not mutate the captured run snapshot");
+});
+
+test("uses captured row role rather than ingredient names when assigning tolerances", () => {
+  const captured = {
+    runRequirements: {
+      items: [
+        { id: "named-sauce", name: "Sauce", originalName: "Sauce", ingredientRole: "ingredient", usageUnit: "oz", perPizza: 2 },
+        { id: "named-pep", name: "Pepperoni", originalName: "Pepperoni", ingredientRole: "ingredient", usageUnit: "oz", perPizza: 1 },
+        { id: "legacy-pep", name: "Pepperoni", originalName: "Pepperoni", usageUnit: "oz", perPizza: 1 },
+        { id: "sauce-row", name: "Tomato blend", ingredientRole: "sauce", usageUnit: "oz", perPizza: 2 },
+        { id: "pep-row", name: "Topping blend", ingredientRole: "pep_applicator", usageUnit: "oz", perPizza: 1 },
+        { id: "cheese-row", name: "Cheese Applicator", ingredientRole: "cheese_applicator", usageUnit: "oz", perPizza: 3 },
+      ],
+      finishedWeightSpec: { range: "10 - 12", unit: "oz", source: "Specs" },
+    },
+  };
+  const byId = new Map(buildRunQualityTargets(captured).checks.map((check) => [check.id, check]));
+  assert.equal(byId.get("ingredient:named-sauce").toleranceOz, 0.1);
+  assert.equal(byId.get("ingredient:named-pep").toleranceOz, 0.1);
+  assert.equal(byId.get("ingredient:legacy-pep").toleranceOz, 0.1);
+  assert.equal(byId.get("ingredient:sauce-row").toleranceOz, 0.05);
+  assert.equal(byId.get("ingredient:pep-row").toleranceOz, 0.05);
+  assert.equal(byId.get("ingredient:cheese-row").toleranceOz, 0.1);
+});
+
+test("copies imported row role and coordinates into the saved requirements plan", () => {
+  const profile = {
+    brand: "Lucia",
+    flavor: "Cheese",
+    revision: 0,
+    productData: {
+      sources: [{
+        brand: "Lucia",
+        sourceName: "spec.xlsx",
+        content: {
+          format: "lucia.product-spec.v1",
+          sections: [{
+            sheet: "OZ",
+            headerRow: 1,
+            unit: "oz",
+            notes: [],
+            warnings: [],
+            ingredients: [{
+              sourceRow: 5,
+              sourceCoordinates: { sheet: "OZ", row: 5, nameColumn: "A" },
+              ingredientRole: "pep_applicator",
+              name: "Pizza Topping",
+              amounts: [{ column: "B", value: "1.25" }],
+            }],
+          }],
+        },
+      }],
+    },
+  };
+  const plan = buildRunRequirements(profile, 1, { unitsPerCase: 12, links: [] });
+  const item = plan.items[0];
+  const resolvedPlan = buildRunRequirements(profile, 1, {
+    unitsPerCase: 12,
+    sectionId: plan.sectionId,
+    links: [{ itemId: item.id, directIngredient: true }],
+  });
+
+  assert.deepEqual(
+    [resolvedPlan.items[0].ingredientRole, resolvedPlan.items[0].sourceCoordinates],
+    ["pep_applicator", { sheet: "OZ", row: 5, nameColumn: "A" }],
+  );
+  assert.doesNotThrow(() => PreviewRunRequirementsResponse.parse(resolvedPlan));
 });
 
 test("does not invent a finished-weight target for an unclear or unlabelled source range", () => {

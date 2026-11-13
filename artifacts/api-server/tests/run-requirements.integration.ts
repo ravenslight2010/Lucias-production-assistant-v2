@@ -9,7 +9,7 @@ import { createPlannedRun } from "../src/lib/run-create-service";
 
 after(() => pool.end());
 function fixture(amount = "2", brand = "Lucia") {
-  return { brand, flavor: "Cheese", revision: 0, productData: { sources: [
+  return { id: "profile-test", brand, flavor: "Cheese", revision: 0, productData: { sources: [
     { brand, sourceName: "spec.xlsx", content: { format: "lucia.product-spec.v1", sections: [
       { sheet: "Cheese", headerRow: 1, unit: "oz", notes: [], warnings: [], ingredients: [
         { name: "Sauce", sourceRow: 2, ingredientRole: "sauce",
@@ -55,6 +55,60 @@ test("case counts, per-pizza usage, exact batches, whole batches and overage rem
   assert.equal(row.ingredients[0].wholeBatchRequired, 40);
   assert.equal(JSON.stringify(profile), before);
   assert.equal(buildRunRequirements(fixture("3"), 10, options).items[0].batchesExact, 0.45);
+});
+
+test("manager recipe edits and reviewed setup defaults feed future run previews", () => {
+  const profile = fixture();
+  const sourceKey = JSON.stringify(["profile-test", "sauce.xlsx", "sauce_guide", "Sauce", 1, "Sauce"]);
+  const managerSource = {
+    profileId: "profile-test",
+    brand: "Lucia",
+    flavor: "Cheese",
+    importKind: "manager_profile",
+    sourceName: "Manager profile setup",
+    content: {
+      format: "lucia.manager-profile.v1",
+      recipeOverrides: {
+        [sourceKey]: {
+          batchVariants: [{ column: 2, label: "Batch lbs", unit: "lb", yield: 100 }],
+          ingredients: [
+            { id: "tomatoes", name: "Tomatoes", amounts: [{ column: 2, amount: 80, unit: "lb" }] },
+            { id: "water", name: "Water", amounts: [{ column: 2, amount: 20, unit: "lb" }] },
+          ],
+          steps: ["Manager-reviewed formula."],
+          notes: [],
+        },
+      },
+      manualRecipes: [],
+      setupDefaults: { unitsPerCase: 24 },
+    },
+  };
+  profile.productData.sources.push(managerSource as unknown as (typeof profile.productData.sources)[number]);
+  const preview = buildRunRequirements(profile, 10);
+  assert.equal(preview.totalPizzas, 240);
+  assert.equal(preview.items[0].batchYield, 100);
+  assert.equal(preview.items[0].ingredients[0].wholeBatchRequired, 80);
+  assert.equal(preview.status, "ready");
+});
+
+test("stale saved manager choices fall back to a reviewable preview", () => {
+  const profile = fixture();
+  const managerSource = {
+    profileId: "profile-test",
+    brand: "Lucia",
+    flavor: "Cheese",
+    importKind: "manager_profile",
+    sourceName: "Manager profile setup",
+    content: {
+      format: "lucia.manager-profile.v1",
+      recipeOverrides: {},
+      manualRecipes: [],
+      setupDefaults: { unitsPerCase: 12, sectionId: "removed-spec-section" },
+    },
+  };
+  profile.productData.sources.push(managerSource as unknown as (typeof profile.productData.sources)[number]);
+  const preview = buildRunRequirements(profile, 10);
+  assert.equal(preview.status, "needs_review");
 });
 
 test("missing and conflicting case packs never receive an invented default", () => {

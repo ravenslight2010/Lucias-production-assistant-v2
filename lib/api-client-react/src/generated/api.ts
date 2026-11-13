@@ -48,6 +48,7 @@ import type {
   ProductProfileImportInput,
   ProductProfileImportResult,
   ProductProfileList,
+  ProductProfileManagerDataUpdate,
   ProductProfileMergeInput,
   ProductProfileMergeResult,
   ProductProfileRenameInput,
@@ -1960,6 +1961,93 @@ export const useMergeProductProfile = <TError = ErrorType<BadRequestResponse | U
         TContext
       > => {
       return useMutation(getMergeProductProfileMutationOptions(options));
+    }
+
+export const getUpdateProductProfileManagerDataUrl = (profileId: string,) => {
+
+
+
+
+  return `/api/v2/product-profiles/${profileId}/manager-data`
+}
+
+/**
+ * @summary Save manager recipe edits and default run setup for a product profile
+ */
+export const updateProductProfileManagerData = async (profileId: string,
+    productProfileManagerDataUpdate: ProductProfileManagerDataUpdate, options?: Parameters<typeof customFetch>[1]): Promise<ProductProfileEnvelope> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ProductProfileEnvelope>(getUpdateProductProfileManagerDataUrl(profileId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(productProfileManagerDataUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateProductProfileManagerDataMutationKey = () => ['updateProductProfileManagerData'] as const;
+
+export const getUpdateProductProfileManagerDataMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProductProfileManagerData>>, TError,UpdateProductProfileManagerDataMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateProductProfileManagerData>>, TError,UpdateProductProfileManagerDataMutationVariables, TContext> => {
+
+const mutationKey = getUpdateProductProfileManagerDataMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateProductProfileManagerData>>, UpdateProductProfileManagerDataMutationVariables> = (props) => {
+          const {profileId,data} = props ?? {};
+
+          return  updateProductProfileManagerData(profileId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateProductProfileManagerDataMutationResult = NonNullable<Awaited<ReturnType<typeof updateProductProfileManagerData>>>
+    export type UpdateProductProfileManagerDataMutationBody = BodyType<ProductProfileManagerDataUpdate>
+    export type UpdateProductProfileManagerDataMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | void>
+    export type UpdateProductProfileManagerDataMutationVariables = {profileId: string;data: BodyType<ProductProfileManagerDataUpdate>}
+
+    /** @summary Save manager recipe edits and default run setup for a product profile */
+export const useUpdateProductProfileManagerData = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProductProfileManagerData>>, TError,UpdateProductProfileManagerDataMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateProductProfileManagerData>>,
+        TError,
+        UpdateProductProfileManagerDataMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateProductProfileManagerDataMutationOptions(options));
     }
 
 export const getGetRunUrl = (runId: string,) => {

@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import type {
+  ManagerManualRecipe,
+  ManagerRecipeDefinition,
   FacilityStationArea,
   RunRequirementsPlan,
   RunPlanningOptions,
@@ -10,10 +12,17 @@ import type {
 import type { NameRule } from "@workspace/db/schema";
 import { resolveName, nameKey } from "./name-resolution";
 import { HttpError } from "./http-error";
+import {
+  applyManagerRecipeDefinition,
+  categoryImportKind,
+  managerProfileData,
+  managerRecipeSourceKey,
+  manualRecipeRaw,
+} from "./manager-profile-data";
 
 type RecordValue = Record<string, unknown>;
-type Profile = { brand: string; flavor: string; revision: number; productData: unknown; nameResolution?: { revision: number; rules: NameRule[] } };
-type Document = { data: RecordValue; brand: string; file: string; id: string };
+type Profile = { id?: string; brand: string; flavor: string; revision: number; productData: unknown; nameResolution?: { revision: number; rules: NameRule[] } };
+type Document = { data: RecordValue; brand: string; file: string; id: string; profileId: string; importKind: string };
 type Recipe = { choice: RunRecipeChoice; raw: RecordValue; brand: string };
 const record = (v: unknown): v is RecordValue => Boolean(v && typeof v === "object" && !Array.isArray(v));
 const text = (v: unknown) => typeof v === "string" ? v : "";
@@ -60,21 +69,25 @@ function documents(profile: Profile): Document[] {
   const result: Document[] = [];
   const seen = new Set<object>();
   let visited = 0;
-  const visit = (value: unknown, brand: string, file: string, path: string, depth: number) => {
+  const visit = (value: unknown, brand: string, file: string, path: string, depth: number, profileId: string, importKind: string) => {
     if (!value || typeof value !== "object" || seen.has(value)) return;
     if (++visited > 4000 || depth > 18) throw new HttpError(413, "The product has too many nested source records for one plan.");
     seen.add(value);
-    if (Array.isArray(value)) { value.forEach((entry, index) => visit(entry, brand, file, `${path}.${index}`, depth + 1)); return; }
+    if (Array.isArray(value)) { value.forEach((entry, index) => visit(entry, brand, file, `${path}.${index}`, depth + 1, profileId, importKind)); return; }
     if (!record(value)) return;
     const scope = text(value.brand) || brand;
     const source = text(value.sourceName) || file;
+    const sourceProfileId = text(value.profileId) || profileId;
+    const sourceKind = text(value.importKind) || importKind;
     if (value.format === "lucia.product-spec.v1" || value.format === "lucia.operational-workbook.v1") {
-      result.push({ data: value, brand, file: source || "Imported source", id: path });
+      result.push({ data: value, brand, file: source || "Imported source", id: path, profileId: sourceProfileId, importKind: sourceKind });
       return;
     }
-    for (const key of ["sources", "content", "structured", "data"]) if (key in value) visit(value[key], scope, source, `${path}.${key}`, depth + 1);
+    for (const key of ["sources", "content", "structured", "data"]) if (key in value) {
+      visit(value[key], scope, source, `${path}.${key}`, depth + 1, sourceProfileId, sourceKind);
+    }
   };
-  visit(profile.productData, profile.brand, "", "source", 0);
+  visit(profile.productData, profile.brand, "", "source", 0, profile.id ?? "", "");
   return result;
 }
 function issueMessages(value: unknown): string[] {
@@ -98,8 +111,11 @@ function columns(recipe: RecordValue): RunBatchColumn[] {
 }
 
 /** Pure, source-based calculations: reference acknowledgements never authorize a conflicting formula. */
-export function buildRunRequirements(profile: Profile, targetCases: number, options: RunPlanningOptions = {}): RunRequirementsPlan {
+export function buildRunRequirements(profile: Profile, targetCases: number, optionsInput?: RunPlanningOptions): RunRequirementsPlan {
   if (!Number.isSafeInteger(targetCases) || targetCases < 1 || targetCases > 1e6) throw new HttpError(400, "Planning supports between 1 and 1,000,000 target cases.");
+  const manager = managerProfileData(profile.productData);
+  const savedDefaults = optionsInput === undefined ? manager.setupDefaults : undefined;
+  let options = optionsInput ?? savedDefaults ?? {};
   const rules = profile.nameResolution?.rules ?? [];
   const resolvedNames = new Map<string, ReturnType<typeof resolveName>>();
   const canonical = (kind: "recipe" | "ingredient", brand: string, name: string) => {
@@ -135,7 +151,19 @@ export function buildRunRequirements(profile: Profile, targetCases: number, opti
         if (detail && detail.key === selection.key) shipping.push({ count: numeric(detail.pizzasPerCase), pallet: numeric(detail.casesPerPallet),
           source: `${doc.file} · ${text(sheet.name)} row ${r.sourceRow ?? "?"} · ${text(r.brand)}` });
       }
-      for (const raw of rows(sheet.recipes)) {
+      for (const [recipeIndex, sourceRaw] of rows(sheet.recipes).entries()) {
+        const source = record(sourceRaw.source) ? sourceRaw.source : {};
+        const sourceRow = numeric(source.startRow) ?? numeric(source.row) ?? numeric(sourceRaw.sourceRow) ?? recipeIndex + 1;
+        const sourceKey = managerRecipeSourceKey({
+          profileId: doc.profileId || profile.id || "",
+          sourceName: doc.file,
+          importKind: doc.importKind || text(doc.data.importKind),
+          sheet: text(sheet.name),
+          row: sourceRow,
+          name: text(sourceRaw.name),
+        });
+        const override = manager.recipeOverrides[sourceKey] as ManagerRecipeDefinition | undefined;
+        const raw = override ? applyManagerRecipeDefinition(sourceRaw, override) : sourceRaw;
         const premix = record(raw.premix) ? raw.premix : null;
         for (const pull of premix ? rows(premix.pullInstructions) : []) {
           const pullText = text(pull.text).trim();
@@ -184,16 +212,57 @@ export function buildRunRequirements(profile: Profile, targetCases: number, opti
         const key = `r_${id([doc.data.importKind, resolved.brand, resolved.name, raw])}`;
         if (recipes.has(key)) continue;
         const issues = [raw.dough, raw.cheese, raw.sauce, raw.premix].flatMap(issueMessages);
-        const source = record(raw.source) ? raw.source : {};
+        const sourceMeta = record(raw.source) ? raw.source : {};
         recipes.set(key, { raw, brand: doc.brand, choice: {
-          id: key, name: resolved.name, brand: resolved.brand, kind: text(doc.data.importKind),
-          source: `${doc.file} · ${text(source.sheet) || text(sheet.name)} row ${source.startRow ?? "?"}`,
+          id: key, name: resolved.name, brand: resolved.brand, kind: text(doc.data.importKind) || doc.importKind,
+          source: `${doc.file} · ${text(sourceMeta.sheet) || text(sheet.name)} row ${sourceMeta.startRow ?? "?"}`,
           columns: columns(raw), issues,
         } });
       }
     }
   }
+  for (const manual of manager.manualRecipes as ManagerManualRecipe[]) {
+    const manualBrand = canonical("recipe", manual.brand, manual.name).brand;
+    const profileBrand = canonical("recipe", profile.brand, manual.name).brand;
+    if (manualBrand !== profileBrand) continue;
+    const raw = manualRecipeRaw(manual);
+    const kind = categoryImportKind(manual.category);
+    const resolved = canonical("recipe", manual.brand, manual.name);
+    const key = `manager_${id([manual.id, manual.category, resolved.brand, resolved.name])}`;
+    recipes.set(key, {
+      raw,
+      brand: resolved.brand,
+      choice: {
+        id: key,
+        name: resolved.name,
+        brand: resolved.brand,
+        kind,
+        source: `Manager recipe library · ${manual.brand} / ${manual.flavor}`,
+        columns: columns(raw),
+        issues: [],
+      },
+    });
+  }
   if (sections.length > 200 || recipes.size > 200 || preparation.length > 500) throw new HttpError(413, "Too many source alternatives for one run. Review this product's attached sources first.");
+  if (savedDefaults) {
+    const savedSection = options.sectionId
+      ? sections.find((section) => section.id === options.sectionId)
+      : sections.length === 1 ? sections[0] : undefined;
+    const ingredientRows = savedSection ? rows(savedSection.raw.ingredients) : [];
+    const availableItems = new Set(ingredientRows.map((_, index) => `${savedSection?.id}:${index}`));
+    const staleLink = (options.links ?? []).some((link) => {
+      if (!availableItems.has(link.itemId)) return true;
+      if (link.recipeId && !recipes.has(link.recipeId)) return true;
+      if (!link.amountColumn) return false;
+      const index = Number(link.itemId.slice(link.itemId.lastIndexOf(":") + 1));
+      const row = ingredientRows[index];
+      return !record(row) || !rows(row.amounts).some((amount) => String(amount.column) === link.amountColumn);
+    });
+    if ((options.sectionId && !savedSection) || staleLink) {
+      options = {};
+      globalIssues.push("The saved profile setup no longer matches its imported sources. Review and save the setup again.");
+    }
+  }
   const selected = options.sectionId ? sections.find(s => s.id === options.sectionId) : sections.length === 1 ? sections[0] : undefined;
   if (options.sectionId && !selected) throw new HttpError(409, "The selected specification section is no longer available. Refresh and review the product.");
   if (!selected) globalIssues.push(sections.length ? "Choose the specification section for this run. Different source versions or merged flavors must not have their per-pizza amounts combined." : "No structured product specifications are attached. Import the product's spec sheet first.");

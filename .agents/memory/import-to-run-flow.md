@@ -78,3 +78,9 @@ For run calculations, keep each per-pizza source line visible, but total it once
 **Why:** Per-pizza quantities vary by product, while some products use the same batch formula more than once. Rounding every use separately can overstate batches; merging by a matching short name can combine different formulas.
 
 **How to apply:** Preview calculations against the selected product and remembered-name revisions. Preserve the original source lines and values, verify units and formula totals, and capture the reviewed calculation with a new run rather than changing historical run snapshots. A source-reference acknowledgment is not approval to correct or accept a conflicting formula.
+
+Manager recipe edits are profile-owned overrides, not edits to imported workbook sources. Apply them only to future run planning; existing run snapshots stay unchanged.
+
+**Why:** The user chose editable manager libraries while relying on imported workbooks as traceable source records.
+
+**How to apply:** Keep workbook source entries immutable, save manager changes with profile-revision checks, and use the reviewed override only when previewing or creating future runs.

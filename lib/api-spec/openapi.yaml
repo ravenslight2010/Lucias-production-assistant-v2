@@ -619,6 +619,46 @@ paths:
           $ref: "#/components/responses/Conflict"
         "413":
           description: Combined source data exceeds the profile size limit; neither profile was changed.
+  /v2/product-profiles/{profileId}/manager-data:
+    patch:
+      operationId: updateProductProfileManagerData
+      tags: [product-profiles]
+      summary: Save manager recipe edits and default run setup for a product profile
+      security:
+        - v2Session: []
+      parameters:
+        - in: path
+          name: profileId
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductProfileManagerDataUpdate"
+      responses:
+        "200":
+          description: Manager data saved to the current profile revision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductProfileEnvelope"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "413":
+          description: Manager data exceeds the facility profile limit; no changes applied
   /v2/runs/{runId}:
     get:
       operationId: getRun
@@ -2051,6 +2091,89 @@ components:
           type: string
           pattern: "^[a-f0-9]{64}$"
       required: [operation, source, target, expectedVersion]
+    ManagerRecipeIngredientAmount:
+      type: object
+      additionalProperties: false
+      properties:
+        column: {type: integer, minimum: 1, maximum: 10000}
+        amount: {type: [number, "null"], minimum: 0, maximum: 1000000000}
+        unit: {type: [string, "null"], maxLength: 20}
+      required: [column, amount, unit]
+    ManagerRecipeIngredient:
+      type: object
+      additionalProperties: false
+      properties:
+        id: {type: string, minLength: 1, maxLength: 80}
+        name: {type: string, minLength: 1, maxLength: 200}
+        amounts:
+          type: array
+          maxItems: 20
+          items: {$ref: "#/components/schemas/ManagerRecipeIngredientAmount"}
+      required: [id, name, amounts]
+    ManagerRecipeBatchVariant:
+      type: object
+      additionalProperties: false
+      properties:
+        column: {type: integer, minimum: 1, maximum: 10000}
+        label: {type: string, maxLength: 120}
+        unit: {type: [string, "null"], maxLength: 20}
+        yield: {type: [number, "null"], minimum: 0, maximum: 1000000000}
+      required: [column, label, unit, yield]
+    ManagerRecipeDefinition:
+      type: object
+      additionalProperties: false
+      properties:
+        batchVariants:
+          type: array
+          maxItems: 20
+          items: {$ref: "#/components/schemas/ManagerRecipeBatchVariant"}
+        ingredients:
+          type: array
+          maxItems: 300
+          items: {$ref: "#/components/schemas/ManagerRecipeIngredient"}
+        steps:
+          type: array
+          maxItems: 200
+          items: {type: string, maxLength: 1000}
+        notes:
+          type: array
+          maxItems: 200
+          items: {type: string, maxLength: 1000}
+      required: [batchVariants, ingredients, steps, notes]
+    ManagerManualRecipe:
+      type: object
+      additionalProperties: false
+      properties:
+        id: {type: string, format: uuid}
+        category: {type: string, enum: [cheese, mix, dough, sauce]}
+        brand: {type: string, minLength: 1, maxLength: 120}
+        flavor: {type: string, minLength: 1, maxLength: 120}
+        name: {type: string, minLength: 1, maxLength: 200}
+        recipeData: {$ref: "#/components/schemas/ManagerRecipeDefinition"}
+      required: [id, category, brand, flavor, name, recipeData]
+    ProductProfileManagerData:
+      type: object
+      additionalProperties: false
+      properties:
+        recipeOverrides:
+          type: object
+          maxProperties: 500
+          additionalProperties:
+            $ref: "#/components/schemas/ManagerRecipeDefinition"
+        manualRecipes:
+          type: array
+          maxItems: 200
+          items: {$ref: "#/components/schemas/ManagerManualRecipe"}
+        setupDefaults:
+          $ref: "#/components/schemas/RunPlanningOptions"
+      required: [recipeOverrides, manualRecipes]
+    ProductProfileManagerDataUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        expectedRevision: {type: integer, minimum: 0}
+        managerData: {$ref: "#/components/schemas/ProductProfileManagerData"}
+      required: [expectedRevision, managerData]
     ProductProfile:
       type: object
       additionalProperties: false

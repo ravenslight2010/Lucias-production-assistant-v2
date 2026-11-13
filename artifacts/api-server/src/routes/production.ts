@@ -72,6 +72,9 @@ import {
   RenameProductProfileBody,
   RenameProductProfileParams,
   RenameProductProfileResponse,
+  UpdateProductProfileManagerDataBody,
+  UpdateProductProfileManagerDataParams,
+  UpdateProductProfileManagerDataResponse,
   UpdateRunStationCountBody,
   UpdateRunStationCountParams,
   UpdateRunStationCountResponse,
@@ -131,6 +134,7 @@ import {
 } from "../lib/profile-names";
 import { changeLibraryName, getNameLibrary } from "../lib/name-library";
 import { loadNameResolution, resolvedProduct } from "../lib/name-resolution";
+import { managerDataSource } from "../lib/manager-profile-data";
 import { shippingDataMatchesBrand, shippingSelectionIdentity } from "../lib/shipping-import-validation";
 import { toContractRun } from "../lib/run-contract";
 import {
@@ -1349,6 +1353,74 @@ router.post(
     });
     res.json(MergeProductProfileResponse.parse(result));
     req.log.info({ profileId: result.mergedProfileId, targetProfileId: result.profile.id }, "Product profiles merged");
+  },
+);
+
+router.patch(
+  "/v2/product-profiles/:profileId/manager-data",
+  requireV2Session,
+  requireV2Csrf,
+  mutationRateLimit,
+  async (req, res): Promise<void> => {
+    const params = UpdateProductProfileManagerDataParams.safeParse(req.params);
+    const body = UpdateProductProfileManagerDataBody.safeParse(req.body);
+    if (!params.success || !body.success) {
+      res.status(400).json({ error: "Review the recipe edits and saved run setup before continuing." });
+      return;
+    }
+    const access = await membershipOrRespond(req, res);
+    if (!access) return;
+    if (access.membership.role !== "owner" && access.membership.role !== "manager") {
+      res.status(403).json({ error: "Only owners and managers can edit recipe libraries and profile setup." });
+      return;
+    }
+
+    const profile = await db.transaction(async (tx) => {
+      const [current] = await tx.select().from(facilityProductProfilesTable).where(and(
+        eq(facilityProductProfilesTable.facilityId, access.membership.facilityId),
+        eq(facilityProductProfilesTable.id, params.data.profileId),
+        isNull(facilityProductProfilesTable.mergedIntoId),
+      )).limit(1);
+      if (!current) throw new HttpError(404, "The selected product profile is no longer available.");
+      if (current.revision !== body.data.expectedRevision) {
+        throw new HttpError(409, "This product profile changed on another device. Refresh it and review your edits again.");
+      }
+      const sources = profileSourceEntries(current).filter((entry) => {
+        if (!entry || typeof entry !== "object" || Array.isArray(entry)) return true;
+        const content = (entry as Record<string, unknown>).content;
+        return !content || typeof content !== "object" || Array.isArray(content) ||
+          (content as Record<string, unknown>).format !== "lucia.manager-profile.v1";
+      });
+      sources.push(managerDataSource({
+        profileId: current.id,
+        brand: current.brand,
+        flavor: current.flavor,
+        managerData: body.data.managerData,
+      }));
+      const productData = { sources };
+      if (!safeJsonPayload(productData)) {
+        throw new HttpError(413, "The saved manager setup exceeds the facility profile limit. No changes were applied.");
+      }
+      const [updated] = await tx.update(facilityProductProfilesTable).set({
+        productData,
+        revision: sql`${facilityProductProfilesTable.revision} + 1`,
+        updatedAt: new Date(),
+      }).where(and(
+        eq(facilityProductProfilesTable.facilityId, access.membership.facilityId),
+        eq(facilityProductProfilesTable.id, current.id),
+        eq(facilityProductProfilesTable.revision, body.data.expectedRevision),
+        isNull(facilityProductProfilesTable.mergedIntoId),
+      )).returning();
+      if (!updated) throw new HttpError(409, "This product profile changed on another device. Refresh and review your edits again.");
+      return updated;
+    });
+    req.log.info({
+      facilityId: access.membership.facilityId,
+      profileId: profile.id,
+      revision: profile.revision,
+      editedRecipeCount: Object.keys(body.data.managerData.recipeOverrides).length + body.data.managerData.manualRecipes.length,
+    }, "Manager product setup saved");
+    res.json(UpdateProductProfileManagerDataResponse.parse({ profile }));
   },
 );
 

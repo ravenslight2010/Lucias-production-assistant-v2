@@ -1141,6 +1141,124 @@ export interface LibraryNameChange {
   expectedVersion: string;
 }
 
+export interface ManagerRecipeIngredientAmount {
+  /**
+     * @minimum 1
+     * @maximum 10000
+     */
+  column: number;
+  /**
+     * @minimum 0
+     * @maximum 1000000000
+     * @nullable
+     */
+  amount: number | null;
+  /**
+     * @maxLength 20
+     * @nullable
+     */
+  unit: string | null;
+}
+
+export interface ManagerRecipeIngredient {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name: string;
+  /** @maxItems 20 */
+  amounts: ManagerRecipeIngredientAmount[];
+}
+
+export interface ManagerRecipeBatchVariant {
+  /**
+     * @minimum 1
+     * @maximum 10000
+     */
+  column: number;
+  /** @maxLength 120 */
+  label: string;
+  /**
+     * @maxLength 20
+     * @nullable
+     */
+  unit: string | null;
+  /**
+     * @minimum 0
+     * @maximum 1000000000
+     * @nullable
+     */
+  yield: number | null;
+}
+
+export interface ManagerRecipeDefinition {
+  /** @maxItems 20 */
+  batchVariants: ManagerRecipeBatchVariant[];
+  /** @maxItems 300 */
+  ingredients: ManagerRecipeIngredient[];
+  /**
+     * @maxItems 200
+     * @items.maxLength 1000
+     */
+  steps: string[];
+  /**
+     * @maxItems 200
+     * @items.maxLength 1000
+     */
+  notes: string[];
+}
+
+export type ManagerManualRecipeCategory = typeof ManagerManualRecipeCategory[keyof typeof ManagerManualRecipeCategory];
+
+
+export const ManagerManualRecipeCategory = {
+  cheese: 'cheese',
+  mix: 'mix',
+  dough: 'dough',
+  sauce: 'sauce',
+} as const;
+
+export interface ManagerManualRecipe {
+  id: string;
+  category: ManagerManualRecipeCategory;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  brand: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  flavor: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name: string;
+  recipeData: ManagerRecipeDefinition;
+}
+
+export type ProductProfileManagerDataRecipeOverrides = {[key: string]: ManagerRecipeDefinition};
+
+export interface ProductProfileManagerData {
+  recipeOverrides: ProductProfileManagerDataRecipeOverrides;
+  /** @maxItems 200 */
+  manualRecipes: ManagerManualRecipe[];
+  setupDefaults?: RunPlanningOptions;
+}
+
+export interface ProductProfileManagerDataUpdate {
+  /** @minimum 0 */
+  expectedRevision: number;
+  managerData: ProductProfileManagerData;
+}
+
 export type ProductProfileProductData = { [key: string]: unknown };
 
 export interface ProductProfile {

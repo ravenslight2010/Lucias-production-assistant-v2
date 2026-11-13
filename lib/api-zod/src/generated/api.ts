@@ -2411,6 +2411,395 @@ export const MergeProductProfileResponse = zod.object({
 
 
 /**
+ * @summary Save manager recipe edits and default run setup for a product profile
+ */
+export const updateProductProfileManagerDataPathProfileIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
+export const UpdateProductProfileManagerDataParams = zod.object({
+  "profileId": zod.coerce.string().regex(updateProductProfileManagerDataPathProfileIdRegExp)
+})
+
+export const UpdateProductProfileManagerDataHeader = zod.object({
+  "X-CSRF-Token": zod.string()
+})
+
+export const updateProductProfileManagerDataBodyExpectedRevisionMin = 0;
+
+export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesBatchVariantsItemColumnMax = 10000;
+
+export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesBatchVariantsItemLabelMax = 120;
+
+export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesBatchVariantsItemUnitMax = 20;
+
+export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesBatchVariantsItemYieldMin = 0;
+export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesBatchVariantsItemYieldMax = 1000000000;
+
+export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesBatchVariantsMax = 20;
+
+export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesIngredientsItemIdMax = 80;
+
+export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesIngredientsItemNameMax = 200;
+
+export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesIngredientsItemAmountsItemColumnMax = 10000;
+
+export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesIngredientsItemAmountsItemAmountMin = 0;
+export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesIngredientsItemAmountsItemAmountMax = 1000000000;
+
+export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesIngredientsItemAmountsItemUnitMax = 20;
+
+export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesIngredientsItemAmountsMax = 20;
+
+export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesIngredientsMax = 300;
+
+export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesStepsItemMax = 1000;
+
+export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesStepsMax = 200;
+
+export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesNotesItemMax = 1000;
+
+export const updateProductProfileManagerDataBodyManagerDataRecipeOverridesNotesMax = 200;
+
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemBrandMax = 120;
+
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemFlavorMax = 120;
+
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemNameMax = 200;
+
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataBatchVariantsItemColumnMax = 10000;
+
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataBatchVariantsItemLabelMax = 120;
+
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataBatchVariantsItemUnitMax = 20;
+
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataBatchVariantsItemYieldMin = 0;
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataBatchVariantsItemYieldMax = 1000000000;
+
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataBatchVariantsMax = 20;
+
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataIngredientsItemIdMax = 80;
+
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataIngredientsItemNameMax = 200;
+
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataIngredientsItemAmountsItemColumnMax = 10000;
+
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataIngredientsItemAmountsItemAmountMin = 0;
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataIngredientsItemAmountsItemAmountMax = 1000000000;
+
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataIngredientsItemAmountsItemUnitMax = 20;
+
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataIngredientsItemAmountsMax = 20;
+
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataIngredientsMax = 300;
+
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataStepsItemMax = 1000;
+
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataStepsMax = 200;
+
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataNotesItemMax = 1000;
+
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataNotesMax = 200;
+
+export const updateProductProfileManagerDataBodyManagerDataManualRecipesMax = 200;
+
+export const updateProductProfileManagerDataBodyManagerDataSetupDefaultsUnitsPerCaseMax = 1000;
+
+export const updateProductProfileManagerDataBodyManagerDataSetupDefaultsSectionIdMax = 200;
+
+export const updateProductProfileManagerDataBodyManagerDataSetupDefaultsLinksItemItemIdMax = 200;
+
+export const updateProductProfileManagerDataBodyManagerDataSetupDefaultsLinksItemRecipeIdMax = 200;
+
+export const updateProductProfileManagerDataBodyManagerDataSetupDefaultsLinksItemAmountColumnMax = 100;
+
+export const updateProductProfileManagerDataBodyManagerDataSetupDefaultsLinksItemBatchColumnMax = 10000;
+
+export const updateProductProfileManagerDataBodyManagerDataSetupDefaultsLinksMax = 200;
+
+
+
+export const UpdateProductProfileManagerDataBody = zod.object({
+  "expectedRevision": zod.number().int().min(updateProductProfileManagerDataBodyExpectedRevisionMin),
+  "managerData": zod.object({
+  "recipeOverrides": zod.record(zod.string(), zod.object({
+  "batchVariants": zod.array(zod.object({
+  "column": zod.number().int().min(1).max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesBatchVariantsItemColumnMax),
+  "label": zod.string().max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesBatchVariantsItemLabelMax),
+  "unit": zod.string().max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesBatchVariantsItemUnitMax).nullable(),
+  "yield": zod.number().min(updateProductProfileManagerDataBodyManagerDataRecipeOverridesBatchVariantsItemYieldMin).max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesBatchVariantsItemYieldMax).nullable()
+})).max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesBatchVariantsMax),
+  "ingredients": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesIngredientsItemIdMax),
+  "name": zod.string().min(1).max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesIngredientsItemNameMax),
+  "amounts": zod.array(zod.object({
+  "column": zod.number().int().min(1).max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesIngredientsItemAmountsItemColumnMax),
+  "amount": zod.number().min(updateProductProfileManagerDataBodyManagerDataRecipeOverridesIngredientsItemAmountsItemAmountMin).max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesIngredientsItemAmountsItemAmountMax).nullable(),
+  "unit": zod.string().max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesIngredientsItemAmountsItemUnitMax).nullable()
+})).max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesIngredientsItemAmountsMax)
+})).max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesIngredientsMax),
+  "steps": zod.array(zod.string().max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesStepsItemMax)).max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesStepsMax),
+  "notes": zod.array(zod.string().max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesNotesItemMax)).max(updateProductProfileManagerDataBodyManagerDataRecipeOverridesNotesMax)
+})),
+  "manualRecipes": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "category": zod.enum(['cheese', 'mix', 'dough', 'sauce']),
+  "brand": zod.string().min(1).max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemBrandMax),
+  "flavor": zod.string().min(1).max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemFlavorMax),
+  "name": zod.string().min(1).max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemNameMax),
+  "recipeData": zod.object({
+  "batchVariants": zod.array(zod.object({
+  "column": zod.number().int().min(1).max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataBatchVariantsItemColumnMax),
+  "label": zod.string().max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataBatchVariantsItemLabelMax),
+  "unit": zod.string().max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataBatchVariantsItemUnitMax).nullable(),
+  "yield": zod.number().min(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataBatchVariantsItemYieldMin).max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataBatchVariantsItemYieldMax).nullable()
+})).max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataBatchVariantsMax),
+  "ingredients": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataIngredientsItemIdMax),
+  "name": zod.string().min(1).max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataIngredientsItemNameMax),
+  "amounts": zod.array(zod.object({
+  "column": zod.number().int().min(1).max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataIngredientsItemAmountsItemColumnMax),
+  "amount": zod.number().min(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataIngredientsItemAmountsItemAmountMin).max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataIngredientsItemAmountsItemAmountMax).nullable(),
+  "unit": zod.string().max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataIngredientsItemAmountsItemUnitMax).nullable()
+})).max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataIngredientsItemAmountsMax)
+})).max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataIngredientsMax),
+  "steps": zod.array(zod.string().max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataStepsItemMax)).max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataStepsMax),
+  "notes": zod.array(zod.string().max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataNotesItemMax)).max(updateProductProfileManagerDataBodyManagerDataManualRecipesItemRecipeDataNotesMax)
+})
+})).max(updateProductProfileManagerDataBodyManagerDataManualRecipesMax),
+  "setupDefaults": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(updateProductProfileManagerDataBodyManagerDataSetupDefaultsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(updateProductProfileManagerDataBodyManagerDataSetupDefaultsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(updateProductProfileManagerDataBodyManagerDataSetupDefaultsLinksItemItemIdMax),
+  "recipeId": zod.string().max(updateProductProfileManagerDataBodyManagerDataSetupDefaultsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(updateProductProfileManagerDataBodyManagerDataSetupDefaultsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(updateProductProfileManagerDataBodyManagerDataSetupDefaultsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(updateProductProfileManagerDataBodyManagerDataSetupDefaultsLinksMax).optional()
+}).optional()
+})
+})
+
+export const updateProductProfileManagerDataResponseProfileNameResolutionRulesItemSourceBrandMax = 120;
+
+export const updateProductProfileManagerDataResponseProfileNameResolutionRulesItemSourceNameMax = 300;
+
+export const updateProductProfileManagerDataResponseProfileNameResolutionRulesItemTargetBrandMax = 120;
+
+export const updateProductProfileManagerDataResponseProfileNameResolutionRulesItemTargetNameMax = 300;
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsOptionsUnitsPerCaseMax = 1000;
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsOptionsSectionIdMax = 200;
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsOptionsLinksItemItemIdMax = 200;
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsOptionsLinksItemRecipeIdMax = 200;
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsOptionsLinksItemAmountColumnMax = 100;
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsOptionsLinksItemBatchColumnMax = 10000;
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsOptionsLinksMax = 200;
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsFinishedWeightSpecOneRangeMax = 120;
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsFinishedWeightSpecOneUnitMax = 20;
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsFinishedWeightSpecOneSourceMax = 500;
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsPreparationItemsItemIdMax = 300;
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsPreparationItemsItemNameMax = 200;
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsPreparationItemsItemInstructionMax = 1000;
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsPreparationItemsItemSourceMax = 500;
+
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsPreparationItemsItemSourceColumnMax = 32;
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMin = 0;
+export const updateProductProfileManagerDataResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMax = 3650;
+
+export const updateProductProfileManagerDataResponseProfileRunRequirementsPreparationItemsMax = 500;
+
+
+
+export const UpdateProductProfileManagerDataResponse = zod.object({
+  "profile": zod.object({
+  "id": zod.string().uuid(),
+  "brand": zod.string(),
+  "flavor": zod.string(),
+  "revision": zod.number().int(),
+  "productData": zod.record(zod.string(), zod.unknown()),
+  "nameResolution": zod.object({
+  "revision": zod.number().int(),
+  "rules": zod.array(zod.object({
+  "source": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(updateProductProfileManagerDataResponseProfileNameResolutionRulesItemSourceBrandMax),
+  "name": zod.string().min(1).max(updateProductProfileManagerDataResponseProfileNameResolutionRulesItemSourceNameMax)
+}),
+  "target": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(updateProductProfileManagerDataResponseProfileNameResolutionRulesItemTargetBrandMax),
+  "name": zod.string().min(1).max(updateProductProfileManagerDataResponseProfileNameResolutionRulesItemTargetNameMax)
+})
+}))
+}).optional(),
+  "runRequirements": zod.object({
+  "version": zod.literal(1),
+  "productLabel": zod.string(),
+  "profileRevision": zod.number().int(),
+  "nameRevision": zod.number().int(),
+  "targetCases": zod.number().int(),
+  "unitsPerCase": zod.number().int().nullable(),
+  "casePackSource": zod.string(),
+  "totalPizzas": zod.number().int().nullable(),
+  "status": zod.enum(['ready', 'needs_review']),
+  "options": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(updateProductProfileManagerDataResponseProfileRunRequirementsOptionsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(updateProductProfileManagerDataResponseProfileRunRequirementsOptionsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(updateProductProfileManagerDataResponseProfileRunRequirementsOptionsLinksItemItemIdMax),
+  "recipeId": zod.string().max(updateProductProfileManagerDataResponseProfileRunRequirementsOptionsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(updateProductProfileManagerDataResponseProfileRunRequirementsOptionsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(updateProductProfileManagerDataResponseProfileRunRequirementsOptionsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(updateProductProfileManagerDataResponseProfileRunRequirementsOptionsLinksMax).optional()
+}),
+  "sections": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "source": zod.string(),
+  "notes": zod.array(zod.string())
+})),
+  "sectionId": zod.string().nullable(),
+  "finishedWeightSpec": zod.union([zod.object({
+  "range": zod.string().max(updateProductProfileManagerDataResponseProfileRunRequirementsFinishedWeightSpecOneRangeMax).nullable(),
+  "unit": zod.string().max(updateProductProfileManagerDataResponseProfileRunRequirementsFinishedWeightSpecOneUnitMax).nullable(),
+  "source": zod.string().max(updateProductProfileManagerDataResponseProfileRunRequirementsFinishedWeightSpecOneSourceMax)
+}),zod.null()]).optional(),
+  "recipes": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "brand": zod.string(),
+  "kind": zod.string(),
+  "source": zod.string(),
+  "columns": zod.array(zod.object({
+  "column": zod.number().int(),
+  "label": zod.string(),
+  "unit": zod.string().nullable(),
+  "yield": zod.number().nullable()
+})),
+  "issues": zod.array(zod.string())
+})),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
+  "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "batchPreparation": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
+  "station": zod.string(),
+  "stationArea": zod.enum(['dough_sauce_prep', 'production_line', 'freezing_packaging', 'warehouse']).optional(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "preparation": zod.array(zod.string()),
+  "preparationItems": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateProductProfileManagerDataResponseProfileRunRequirementsPreparationItemsItemIdMax),
+  "name": zod.string().min(1).max(updateProductProfileManagerDataResponseProfileRunRequirementsPreparationItemsItemNameMax),
+  "instruction": zod.string().min(1).max(updateProductProfileManagerDataResponseProfileRunRequirementsPreparationItemsItemInstructionMax),
+  "source": zod.string().min(1).max(updateProductProfileManagerDataResponseProfileRunRequirementsPreparationItemsItemSourceMax),
+  "sourceRow": zod.number().int().min(1).nullable(),
+  "sourceColumn": zod.string().max(updateProductProfileManagerDataResponseProfileRunRequirementsPreparationItemsItemSourceColumnMax).nullable(),
+  "daysEarly": zod.number().int().min(updateProductProfileManagerDataResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMin).max(updateProductProfileManagerDataResponseProfileRunRequirementsPreparationItemsItemDaysEarlyMax).nullable()
+})).max(updateProductProfileManagerDataResponseProfileRunRequirementsPreparationItemsMax).optional(),
+  "packaging": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+}).optional(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "mergedIntoId": zod.string().uuid().nullable()
+})
+})
+
+
+/**
  * @summary Get a run from the authenticated facility
  */
 export const getRunPathRunIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');

@@ -4,7 +4,7 @@ import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import {
-  Activity, ArrowLeft, ArrowRight, Check, ChevronRight, CircleAlert, Package,
+  Activity, ArrowLeft, ArrowRight, BookOpen, Check, ChevronRight, CircleAlert, Package,
   ClipboardList, Factory, Gauge, LoaderCircle, LogOut, Pause, Play,
   MapPinned, Plus, RefreshCw, ShieldCheck, Square, Users, WifiOff,
 } from 'lucide-react';
@@ -44,6 +44,7 @@ const SignUpPage = lazy(() => import('@/pages/sign-up'));
 const ImportsPage = lazy(() => import('@/pages/imports'));
 const ImportsVisualPreviewPage = lazy(() => import('@/pages/imports').then((module) => ({ default: module.ImportsVisualPreviewPage })));
 const FacilityMembersPage = lazy(() => import('@/components/facility-members-page'));
+const ManagerPage = lazy(() => import('@/pages/manager'));
 const StationLineupPage = lazy(() => import('@/components/station-lineup-page'));
 const InventoryPage = lazy(() => import('@/components/inventory-page'));
 const RunStationProgressSection = lazy(() => import('@/components/run-station-progress'));
@@ -136,6 +137,9 @@ function SiteShell({ children, facilityName }: { children: ReactNode; facilityNa
     { href: '/stations', label: 'Stations', icon: MapPinned },
     { href: '/inventory', label: 'Inventory', icon: Package },
   ];
+  if (facilityContext.data?.role === 'owner' || facilityContext.data?.role === 'manager') {
+    links.push({ href: '/manager', label: 'Manager workspace', icon: BookOpen });
+  }
   if (facilityContext.data?.role === 'owner') {
     links.push({ href: '/team', label: 'Team members', icon: Users });
   }
@@ -1081,6 +1085,7 @@ function RouterContent() {
             <Route path="/stations" component={() => <Protected><SiteShell><StationLineupPage /></SiteShell></Protected>} />
             <Route path="/inventory" component={() => <Protected><SiteShell><InventoryPage /></SiteShell></Protected>} />
             <Route path="/team" component={() => <Protected><FacilityTeamRoute /></Protected>} />
+            <Route path="/manager" component={() => <Protected><SiteShell><ManagerPage /></SiteShell></Protected>} />
             <Route component={NotFound} />
           </Switch>
         </Suspense>

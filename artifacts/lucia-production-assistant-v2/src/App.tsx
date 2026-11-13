@@ -51,6 +51,7 @@ const RunStationProgressSection = lazy(() => import('@/components/run-station-pr
 const StationCalculatorVisualPreviewPage = lazy(() => import('@/pages/station-calculator-visual-preview'));
 const RunQualityChecksVisualPreviewPage = lazy(() => import('@/pages/run-quality-checks-visual-preview'));
 const RunPreparationVisualPreviewPage = lazy(() => import('@/pages/run-preparation-visual-preview'));
+const VisualSandboxPage = lazy(() => import('@/pages/visual-sandbox'));
 const RunQualityChecksSection = lazy(() => import('@/components/run-quality-checks').then((module) => ({ default: module.RunQualityChecksSection })));
 
 const queryClient = new QueryClient({
@@ -1099,18 +1100,24 @@ function RouterContent() {
 
 function App() {
   const visualPath = stripBase(window.location.pathname);
+  const isVisualSandbox = import.meta.env.DEV && visualPath === '/__visual-preview';
   const isVisualPreview = import.meta.env.DEV && visualPath === '/__visual-preview/imports';
+  const isStationLineupPreview = import.meta.env.DEV && visualPath === '/__visual-preview/stations';
   const isStationCalculatorPreview = import.meta.env.DEV && visualPath === '/__visual-preview/station-calculator';
   const isRunQualityChecksPreview = import.meta.env.DEV && visualPath === '/__visual-preview/quality-checks';
   const isRunPreparationPreview = import.meta.env.DEV && visualPath === '/__visual-preview/preparation';
   const isDashboardVisualPreview = import.meta.env.DEV && visualPath === '/__visual-preview/dashboard';
-  if (!clerkPubKey && !isVisualPreview && !isStationCalculatorPreview && !isRunQualityChecksPreview && !isRunPreparationPreview && !isDashboardVisualPreview) {
+  if (!clerkPubKey && !isVisualSandbox && !isVisualPreview && !isStationLineupPreview && !isStationCalculatorPreview && !isRunQualityChecksPreview && !isRunPreparationPreview && !isDashboardVisualPreview) {
     throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY in .env file');
   }
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        {isDashboardVisualPreview
+        {isVisualSandbox
+          ? <Suspense fallback={<LoadingPage title="Loading visual sandbox" />}><VisualSandboxPage basePath={basePath} /></Suspense>
+          : isStationLineupPreview
+            ? <Suspense fallback={<LoadingPage title="Loading station lineup sandbox" />}><StationLineupPage previewMode /></Suspense>
+          : isDashboardVisualPreview
           ? <WouterRouter base={basePath}><DashboardVisualPreviewPage /></WouterRouter>
           : isVisualPreview
           ? <Suspense fallback={<LoadingPage title="Loading importer preview" />}><ImportsVisualPreviewPage /></Suspense>

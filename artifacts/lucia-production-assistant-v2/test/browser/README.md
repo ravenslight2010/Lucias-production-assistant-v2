@@ -3,6 +3,15 @@
 For agent guidance on choosing and extending these scenarios, see
 `.agents/skills/v2-browser-regression/SKILL.md`.
 
+## Visual sandbox without Clerk
+
+Open `/__visual-preview` in the development preview for links to the synthetic
+screen previews. `/__visual-preview/stations` uses the real station lineup
+component with local-only edits and a simulated role selector. Preview routes
+are development-only, do not initialize Clerk, and do not make API or database
+writes. They verify presentation and local interaction only, not authentication,
+server-enforced roles, or persistence.
+
 ## Dev-only visual importer preview
 
 Open `/__visual-preview/imports` in the development preview to render the real

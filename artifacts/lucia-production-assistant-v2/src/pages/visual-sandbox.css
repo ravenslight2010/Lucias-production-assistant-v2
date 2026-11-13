@@ -1,0 +1,28 @@
+.visual-sandbox { max-width: 1120px; padding-block: clamp(20px, 4vw, 42px); }
+.visual-sandbox-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 28px; }
+.visual-sandbox-heading h1 { margin: 8px 0; }
+.visual-sandbox-heading .page-subtitle { max-width: 62ch; }
+.visual-sandbox-badge { flex: 0 0 auto; padding: 8px 10px; border: 1px solid hsl(var(--accent) / .35); border-radius: 999px; color: hsl(var(--primary)); background: hsl(var(--primary) / .06); font: 600 9px var(--app-font-mono); letter-spacing: .08em; }
+.visual-sandbox-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.visual-sandbox-card { position: relative; min-height: 164px; padding: 20px; border: 1px solid hsl(var(--border)); border-radius: 13px; background: hsl(var(--card)); box-shadow: var(--shadow-soft); color: hsl(var(--foreground)); text-decoration: none; transition: border-color .16s, transform .16s, box-shadow .16s; }
+.visual-sandbox-card:hover { transform: translateY(-2px); border-color: hsl(var(--primary) / .38); box-shadow: var(--shadow-card); }
+.visual-sandbox-card:focus-visible { outline: 3px solid hsl(var(--accent)); outline-offset: 3px; }
+.visual-sandbox-card-mark { position: absolute; top: 17px; right: 19px; display: grid; place-items: center; width: 29px; height: 29px; border-radius: 8px; background: hsl(var(--primary) / .09); color: hsl(var(--primary)); font-size: 16px; }
+.visual-sandbox-card h2 { margin: 0 35px 8px 0; font-size: 17px; }
+.visual-sandbox-card p { max-width: 38ch; margin: 0 0 17px; color: hsl(var(--muted-foreground)); font-size: 12px; line-height: 1.55; }
+.visual-sandbox-card-action { color: hsl(var(--primary)); font-size: 11px; font-weight: 700; }
+.visual-sandbox-note { margin-top: 22px; padding: 16px 18px; border: 1px solid hsl(var(--border)); border-radius: 11px; background: hsl(var(--muted) / .55); }
+.visual-sandbox-note strong { font-size: 12px; }
+.visual-sandbox-note p { margin: 6px 0 0; color: hsl(var(--muted-foreground)); font-size: 12px; line-height: 1.55; }
+@media (max-width: 800px) {
+  .visual-sandbox-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .visual-sandbox-heading { flex-direction: column; gap: 9px; }
+  .visual-sandbox-grid { grid-template-columns: 1fr; }
+  .visual-sandbox-card { min-height: 140px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .visual-sandbox-card { transition: none; }
+  .visual-sandbox-card:hover { transform: none; }
+}

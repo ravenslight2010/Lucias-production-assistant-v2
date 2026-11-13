@@ -30,6 +30,14 @@ import {
   GetRunResponse,
   GetRunStationProgressParams,
   GetRunStationProgressResponse,
+  GetRunInventoryUsageParams,
+  GetRunInventoryUsageResponse,
+  ConfirmRunInventoryUsageParams,
+  ConfirmRunInventoryUsageBody,
+  ConfirmRunInventoryUsageResponse,
+  GetFacilityInventoryResponse,
+  AdjustFacilityInventoryBody,
+  AdjustFacilityInventoryResponse,
   UpdateRunStationProgressParams,
   UpdateRunStationProgressBody,
   UpdateRunStationProgressResponse,
@@ -87,6 +95,12 @@ import {
   updateRunStationProgress,
   updateRunStationCount,
 } from "../lib/run-station-progress-service";
+import {
+  adjustFacilityInventory,
+  confirmRunInventoryUsage,
+  getFacilityInventory,
+  getRunInventoryUsage,
+} from "../lib/run-inventory-service";
 import { createPlannedRun } from "../lib/run-create-service";
 import { buildRunRequirements } from "../lib/run-requirements";
 import { importSchedule } from "../lib/schedule-import-service";
@@ -1408,6 +1422,84 @@ router.get(
       runId: params.data.runId,
     });
     res.json(GetRunStationProgressResponse.parse(progress));
+  },
+);
+
+router.get(
+  "/v2/runs/:runId/inventory-usage",
+  requireV2Session,
+  async (req, res): Promise<void> => {
+    const params = GetRunInventoryUsageParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: "Invalid run identifier." });
+      return;
+    }
+    const access = await membershipOrRespond(req, res);
+    if (!access) return;
+    const usage = await getRunInventoryUsage({
+      facilityId: access.membership.facilityId,
+      runId: params.data.runId,
+    });
+    res.json(GetRunInventoryUsageResponse.parse(usage));
+  },
+);
+
+router.post(
+  "/v2/runs/:runId/inventory-usage",
+  requireV2Session,
+  requireV2Csrf,
+  mutationRateLimit,
+  async (req, res): Promise<void> => {
+    const params = ConfirmRunInventoryUsageParams.safeParse(req.params);
+    const body = ConfirmRunInventoryUsageBody.safeParse(req.body);
+    if (!params.success || !body.success) {
+      res.status(400).json({ error: "Enter actual use for every resolved ingredient line." });
+      return;
+    }
+    const access = await membershipOrRespond(req, res);
+    if (!access) return;
+    assertRunPermission(access.membership.role, "confirm_inventory_usage");
+    const usage = await confirmRunInventoryUsage({
+      facilityId: access.membership.facilityId,
+      actorUserId: access.actorId,
+      runId: params.data.runId,
+      update: body.data,
+    });
+    res.json(ConfirmRunInventoryUsageResponse.parse(usage));
+  },
+);
+
+router.get(
+  "/v2/inventory",
+  requireV2Session,
+  async (req, res): Promise<void> => {
+    const access = await membershipOrRespond(req, res);
+    if (!access) return;
+    const inventory = await getFacilityInventory(access.membership.facilityId);
+    res.json(GetFacilityInventoryResponse.parse(inventory));
+  },
+);
+
+router.post(
+  "/v2/inventory",
+  requireV2Session,
+  requireV2Csrf,
+  mutationRateLimit,
+  async (req, res): Promise<void> => {
+    const body = AdjustFacilityInventoryBody.safeParse(req.body);
+    if (!body.success) {
+      res.status(400).json({ error: "Enter a supported unit, a nonzero quantity change, and a review note." });
+      return;
+    }
+    const access = await membershipOrRespond(req, res);
+    if (!access) return;
+    assertRunPermission(access.membership.role, "adjust_inventory");
+    const inventory = await adjustFacilityInventory({
+      facilityId: access.membership.facilityId,
+      actorUserId: access.actorId,
+      update: body.data,
+    });
+    res.status(201).json(AdjustFacilityInventoryResponse.parse(inventory));
   },
 );
 

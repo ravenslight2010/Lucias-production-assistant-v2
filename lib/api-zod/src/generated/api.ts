@@ -126,6 +126,7 @@ export const PreviewRunRequirementsResponse = zod.object({
   "perPizza": zod.number().nullable(),
   "totalRequired": zod.number().nullable(),
   "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
   "directIngredient": zod.boolean(),
   "batchColumn": zod.number().int().nullable(),
   "batchUnit": zod.string().nullable(),
@@ -159,6 +160,7 @@ export const PreviewRunRequirementsResponse = zod.object({
   "perPizza": zod.number().nullable(),
   "totalRequired": zod.number().nullable(),
   "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
   "directIngredient": zod.boolean(),
   "batchColumn": zod.number().int().nullable(),
   "batchUnit": zod.string().nullable(),
@@ -622,6 +624,7 @@ export const ListRunsResponse = zod.object({
   "perPizza": zod.number().nullable(),
   "totalRequired": zod.number().nullable(),
   "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
   "directIngredient": zod.boolean(),
   "batchColumn": zod.number().int().nullable(),
   "batchUnit": zod.string().nullable(),
@@ -655,6 +658,7 @@ export const ListRunsResponse = zod.object({
   "perPizza": zod.number().nullable(),
   "totalRequired": zod.number().nullable(),
   "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
   "directIngredient": zod.boolean(),
   "batchColumn": zod.number().int().nullable(),
   "batchUnit": zod.string().nullable(),
@@ -928,6 +932,7 @@ export const CreateRunResponse = zod.object({
   "perPizza": zod.number().nullable(),
   "totalRequired": zod.number().nullable(),
   "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
   "directIngredient": zod.boolean(),
   "batchColumn": zod.number().int().nullable(),
   "batchUnit": zod.string().nullable(),
@@ -961,6 +966,7 @@ export const CreateRunResponse = zod.object({
   "perPizza": zod.number().nullable(),
   "totalRequired": zod.number().nullable(),
   "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
   "directIngredient": zod.boolean(),
   "batchColumn": zod.number().int().nullable(),
   "batchUnit": zod.string().nullable(),
@@ -1355,6 +1361,7 @@ export const ListProductProfilesResponse = zod.object({
   "perPizza": zod.number().nullable(),
   "totalRequired": zod.number().nullable(),
   "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
   "directIngredient": zod.boolean(),
   "batchColumn": zod.number().int().nullable(),
   "batchUnit": zod.string().nullable(),
@@ -1388,6 +1395,7 @@ export const ListProductProfilesResponse = zod.object({
   "perPizza": zod.number().nullable(),
   "totalRequired": zod.number().nullable(),
   "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
   "directIngredient": zod.boolean(),
   "batchColumn": zod.number().int().nullable(),
   "batchUnit": zod.string().nullable(),
@@ -1571,6 +1579,7 @@ export const ImportProductProfileResponse = zod.object({
   "perPizza": zod.number().nullable(),
   "totalRequired": zod.number().nullable(),
   "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
   "directIngredient": zod.boolean(),
   "batchColumn": zod.number().int().nullable(),
   "batchUnit": zod.string().nullable(),
@@ -1604,6 +1613,7 @@ export const ImportProductProfileResponse = zod.object({
   "perPizza": zod.number().nullable(),
   "totalRequired": zod.number().nullable(),
   "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
   "directIngredient": zod.boolean(),
   "batchColumn": zod.number().int().nullable(),
   "batchUnit": zod.string().nullable(),
@@ -1792,6 +1802,7 @@ export const RenameProductProfileResponse = zod.object({
   "perPizza": zod.number().nullable(),
   "totalRequired": zod.number().nullable(),
   "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
   "directIngredient": zod.boolean(),
   "batchColumn": zod.number().int().nullable(),
   "batchUnit": zod.string().nullable(),
@@ -1825,6 +1836,7 @@ export const RenameProductProfileResponse = zod.object({
   "perPizza": zod.number().nullable(),
   "totalRequired": zod.number().nullable(),
   "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
   "directIngredient": zod.boolean(),
   "batchColumn": zod.number().int().nullable(),
   "batchUnit": zod.string().nullable(),
@@ -1984,6 +1996,7 @@ export const MergeProductProfileResponse = zod.object({
   "perPizza": zod.number().nullable(),
   "totalRequired": zod.number().nullable(),
   "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
   "directIngredient": zod.boolean(),
   "batchColumn": zod.number().int().nullable(),
   "batchUnit": zod.string().nullable(),
@@ -2017,6 +2030,7 @@ export const MergeProductProfileResponse = zod.object({
   "perPizza": zod.number().nullable(),
   "totalRequired": zod.number().nullable(),
   "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
   "directIngredient": zod.boolean(),
   "batchColumn": zod.number().int().nullable(),
   "batchUnit": zod.string().nullable(),
@@ -2237,6 +2251,7 @@ export const GetRunResponse = zod.object({
   "perPizza": zod.number().nullable(),
   "totalRequired": zod.number().nullable(),
   "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
   "directIngredient": zod.boolean(),
   "batchColumn": zod.number().int().nullable(),
   "batchUnit": zod.string().nullable(),
@@ -2270,6 +2285,7 @@ export const GetRunResponse = zod.object({
   "perPizza": zod.number().nullable(),
   "totalRequired": zod.number().nullable(),
   "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
   "directIngredient": zod.boolean(),
   "batchColumn": zod.number().int().nullable(),
   "batchUnit": zod.string().nullable(),
@@ -2514,6 +2530,7 @@ export const ApplyRunCommandResponse = zod.object({
   "perPizza": zod.number().nullable(),
   "totalRequired": zod.number().nullable(),
   "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
   "directIngredient": zod.boolean(),
   "batchColumn": zod.number().int().nullable(),
   "batchUnit": zod.string().nullable(),
@@ -2547,6 +2564,7 @@ export const ApplyRunCommandResponse = zod.object({
   "perPizza": zod.number().nullable(),
   "totalRequired": zod.number().nullable(),
   "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
   "directIngredient": zod.boolean(),
   "batchColumn": zod.number().int().nullable(),
   "batchUnit": zod.string().nullable(),
@@ -2659,6 +2677,20 @@ export const GetRunStationProgressResponse = zod.object({
   "perBatch": zod.number(),
   "exactRequired": zod.number(),
   "wholeBatchRequired": zod.number()
+})),
+  "proposedUsage": zod.array(zod.object({
+  "id": zod.string(),
+  "requirementId": zod.string(),
+  "requirementName": zod.string(),
+  "ingredientName": zod.string(),
+  "unit": zod.string(),
+  "source": zod.string(),
+  "sourceAmount": zod.number().nullable(),
+  "quantityBasis": zod.enum(['per_pizza', 'per_batch', 'unresolved']),
+  "amountColumn": zod.string().nullable(),
+  "batchColumn": zod.number().int().nullable(),
+  "proposedQuantity": zod.number().nullable(),
+  "blockedReason": zod.string().nullable()
 }))
 })).max(getRunStationProgressResponseCurrentRequirementsOneItemsMax)
 }),zod.null()]),
@@ -2675,6 +2707,251 @@ export const GetRunStationProgressResponse = zod.object({
   "countUpdatedAt": zod.coerce.date().nullable(),
   "updatedAt": zod.coerce.date().nullable()
 })).max(getRunStationProgressResponseStationsMax)
+})
+
+
+/**
+ * Proposals come from the saved run plan and saved station counts. Quantities are not deducted until an operator confirms actual use.
+ * @summary Review proposed and confirmed ingredient usage
+ */
+export const getRunInventoryUsagePathRunIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
+export const GetRunInventoryUsageParams = zod.object({
+  "runId": zod.coerce.string().regex(getRunInventoryUsagePathRunIdRegExp)
+})
+
+export const getRunInventoryUsageResponseBlockedCountMin = 0;
+
+
+
+export const GetRunInventoryUsageResponse = zod.object({
+  "runId": zod.string().uuid(),
+  "runStatus": zod.string(),
+  "canConfirm": zod.boolean(),
+  "blockedCount": zod.number().int().min(getRunInventoryUsageResponseBlockedCountMin),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "requirementId": zod.string(),
+  "requirementName": zod.string(),
+  "ingredientName": zod.string(),
+  "unit": zod.string(),
+  "source": zod.string(),
+  "sourceAmount": zod.number().nullable(),
+  "quantityBasis": zod.enum(['per_pizza', 'per_batch', 'unresolved']),
+  "amountColumn": zod.string().nullable(),
+  "batchColumn": zod.number().int().nullable(),
+  "proposedQuantity": zod.number().nullable(),
+  "actualUsed": zod.number().nullable(),
+  "inventoryOnHand": zod.number().nullable(),
+  "blockedReason": zod.string().nullable()
+})),
+  "reconciliation": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "entries": zod.array(zod.object({
+  "id": zod.string(),
+  "requirementId": zod.string(),
+  "requirementName": zod.string(),
+  "ingredientName": zod.string(),
+  "unit": zod.string(),
+  "source": zod.string(),
+  "sourceAmount": zod.number().nullable(),
+  "quantityBasis": zod.enum(['per_pizza', 'per_batch', 'unresolved']),
+  "amountColumn": zod.string().nullable(),
+  "batchColumn": zod.number().int().nullable(),
+  "proposedQuantity": zod.number().nullable(),
+  "actualUsed": zod.number().nullable(),
+  "inventoryOnHand": zod.number().nullable(),
+  "blockedReason": zod.string().nullable()
+}))
+}),zod.null()])
+})
+
+
+/**
+ * @summary Confirm actual ingredient usage for a completed run
+ */
+export const confirmRunInventoryUsagePathRunIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
+export const ConfirmRunInventoryUsageParams = zod.object({
+  "runId": zod.coerce.string().regex(confirmRunInventoryUsagePathRunIdRegExp)
+})
+
+export const ConfirmRunInventoryUsageHeader = zod.object({
+  "X-CSRF-Token": zod.string()
+})
+
+export const confirmRunInventoryUsageBodyItemsItemIdMax = 300;
+
+export const confirmRunInventoryUsageBodyItemsItemActualUsedMin = 0;
+export const confirmRunInventoryUsageBodyItemsItemActualUsedMax = 999999999999;
+
+export const confirmRunInventoryUsageBodyItemsMax = 500;
+
+
+
+export const ConfirmRunInventoryUsageBody = zod.object({
+  "commandId": zod.string().uuid(),
+  "items": zod.array(zod.object({
+  "id": zod.string().min(1).max(confirmRunInventoryUsageBodyItemsItemIdMax),
+  "actualUsed": zod.number().min(confirmRunInventoryUsageBodyItemsItemActualUsedMin).max(confirmRunInventoryUsageBodyItemsItemActualUsedMax)
+})).min(1).max(confirmRunInventoryUsageBodyItemsMax)
+})
+
+export const confirmRunInventoryUsageResponseBlockedCountMin = 0;
+
+
+
+export const ConfirmRunInventoryUsageResponse = zod.object({
+  "runId": zod.string().uuid(),
+  "runStatus": zod.string(),
+  "canConfirm": zod.boolean(),
+  "blockedCount": zod.number().int().min(confirmRunInventoryUsageResponseBlockedCountMin),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "requirementId": zod.string(),
+  "requirementName": zod.string(),
+  "ingredientName": zod.string(),
+  "unit": zod.string(),
+  "source": zod.string(),
+  "sourceAmount": zod.number().nullable(),
+  "quantityBasis": zod.enum(['per_pizza', 'per_batch', 'unresolved']),
+  "amountColumn": zod.string().nullable(),
+  "batchColumn": zod.number().int().nullable(),
+  "proposedQuantity": zod.number().nullable(),
+  "actualUsed": zod.number().nullable(),
+  "inventoryOnHand": zod.number().nullable(),
+  "blockedReason": zod.string().nullable()
+})),
+  "reconciliation": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "entries": zod.array(zod.object({
+  "id": zod.string(),
+  "requirementId": zod.string(),
+  "requirementName": zod.string(),
+  "ingredientName": zod.string(),
+  "unit": zod.string(),
+  "source": zod.string(),
+  "sourceAmount": zod.number().nullable(),
+  "quantityBasis": zod.enum(['per_pizza', 'per_batch', 'unresolved']),
+  "amountColumn": zod.string().nullable(),
+  "batchColumn": zod.number().int().nullable(),
+  "proposedQuantity": zod.number().nullable(),
+  "actualUsed": zod.number().nullable(),
+  "inventoryOnHand": zod.number().nullable(),
+  "blockedReason": zod.string().nullable()
+}))
+}),zod.null()])
+})
+
+
+/**
+ * @summary Review on-hand stock and inventory history
+ */
+export const getFacilityInventoryResponseItemsItemRevisionMin = 0;
+
+
+
+export const GetFacilityInventoryResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "ingredientName": zod.string(),
+  "unit": zod.string(),
+  "onHand": zod.number(),
+  "revision": zod.number().int().min(getFacilityInventoryResponseItemsItemRevisionMin),
+  "updatedAt": zod.coerce.date()
+})),
+  "entries": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "inventoryId": zod.string().uuid(),
+  "ingredientName": zod.string(),
+  "unit": zod.string(),
+  "kind": zod.enum(['run_usage', 'stock_adjustment', 'correction']),
+  "delta": zod.number(),
+  "note": zod.string(),
+  "runId": zod.string().uuid().nullable(),
+  "reconciliationId": zod.string().uuid().nullable(),
+  "correctsEntryId": zod.string().uuid().nullable(),
+  "proposalId": zod.string().nullable(),
+  "requirementId": zod.string().nullable(),
+  "requirementName": zod.string().nullable(),
+  "sourceAmount": zod.number().nullable(),
+  "quantityBasis": zod.enum(['per_pizza', 'per_batch', 'unresolved']),
+  "source": zod.string(),
+  "amountColumn": zod.string().nullable(),
+  "batchColumn": zod.number().int().nullable(),
+  "proposedQuantity": zod.number().nullable(),
+  "actualUsed": zod.number().nullable(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Add opening stock or a reviewed inventory correction
+ */
+export const AdjustFacilityInventoryHeader = zod.object({
+  "X-CSRF-Token": zod.string()
+})
+
+export const adjustFacilityInventoryBodyIngredientNameMax = 200;
+
+export const adjustFacilityInventoryBodyDeltaMin = -999999999999;
+export const adjustFacilityInventoryBodyDeltaMax = 999999999999;
+
+export const adjustFacilityInventoryBodyNoteMin = 3;
+export const adjustFacilityInventoryBodyNoteMax = 500;
+
+
+
+export const AdjustFacilityInventoryBody = zod.object({
+  "commandId": zod.string().uuid(),
+  "ingredientName": zod.string().min(1).max(adjustFacilityInventoryBodyIngredientNameMax),
+  "unit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']),
+  "delta": zod.number().min(adjustFacilityInventoryBodyDeltaMin).max(adjustFacilityInventoryBodyDeltaMax),
+  "note": zod.string().min(adjustFacilityInventoryBodyNoteMin).max(adjustFacilityInventoryBodyNoteMax),
+  "correctsEntryId": zod.string().uuid().nullable()
+})
+
+export const adjustFacilityInventoryResponseItemsItemRevisionMin = 0;
+
+
+
+export const AdjustFacilityInventoryResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "ingredientName": zod.string(),
+  "unit": zod.string(),
+  "onHand": zod.number(),
+  "revision": zod.number().int().min(adjustFacilityInventoryResponseItemsItemRevisionMin),
+  "updatedAt": zod.coerce.date()
+})),
+  "entries": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "inventoryId": zod.string().uuid(),
+  "ingredientName": zod.string(),
+  "unit": zod.string(),
+  "kind": zod.enum(['run_usage', 'stock_adjustment', 'correction']),
+  "delta": zod.number(),
+  "note": zod.string(),
+  "runId": zod.string().uuid().nullable(),
+  "reconciliationId": zod.string().uuid().nullable(),
+  "correctsEntryId": zod.string().uuid().nullable(),
+  "proposalId": zod.string().nullable(),
+  "requirementId": zod.string().nullable(),
+  "requirementName": zod.string().nullable(),
+  "sourceAmount": zod.number().nullable(),
+  "quantityBasis": zod.enum(['per_pizza', 'per_batch', 'unresolved']),
+  "source": zod.string(),
+  "amountColumn": zod.string().nullable(),
+  "batchColumn": zod.number().int().nullable(),
+  "proposedQuantity": zod.number().nullable(),
+  "actualUsed": zod.number().nullable(),
+  "createdAt": zod.coerce.date()
+}))
 })
 
 
@@ -2842,6 +3119,20 @@ export const UpdateRunStationCountResponse = zod.object({
   "perBatch": zod.number(),
   "exactRequired": zod.number(),
   "wholeBatchRequired": zod.number()
+})),
+  "proposedUsage": zod.array(zod.object({
+  "id": zod.string(),
+  "requirementId": zod.string(),
+  "requirementName": zod.string(),
+  "ingredientName": zod.string(),
+  "unit": zod.string(),
+  "source": zod.string(),
+  "sourceAmount": zod.number().nullable(),
+  "quantityBasis": zod.enum(['per_pizza', 'per_batch', 'unresolved']),
+  "amountColumn": zod.string().nullable(),
+  "batchColumn": zod.number().int().nullable(),
+  "proposedQuantity": zod.number().nullable(),
+  "blockedReason": zod.string().nullable()
 }))
 })).max(updateRunStationCountResponseCurrentRequirementsOneItemsMax)
 }),zod.null()]),
@@ -3112,6 +3403,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "perPizza": zod.number().nullable(),
   "totalRequired": zod.number().nullable(),
   "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
   "directIngredient": zod.boolean(),
   "batchColumn": zod.number().int().nullable(),
   "batchUnit": zod.string().nullable(),
@@ -3145,6 +3437,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "perPizza": zod.number().nullable(),
   "totalRequired": zod.number().nullable(),
   "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
   "directIngredient": zod.boolean(),
   "batchColumn": zod.number().int().nullable(),
   "batchUnit": zod.string().nullable(),
@@ -3296,6 +3589,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "perPizza": zod.number().nullable(),
   "totalRequired": zod.number().nullable(),
   "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
   "directIngredient": zod.boolean(),
   "batchColumn": zod.number().int().nullable(),
   "batchUnit": zod.string().nullable(),
@@ -3329,6 +3623,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "perPizza": zod.number().nullable(),
   "totalRequired": zod.number().nullable(),
   "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
   "directIngredient": zod.boolean(),
   "batchColumn": zod.number().int().nullable(),
   "batchUnit": zod.string().nullable(),

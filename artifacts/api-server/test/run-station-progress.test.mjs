@@ -135,6 +135,7 @@ test("station progress response contract includes counts and current needs", () 
         remainingWholeBatches: 1,
         remainingRemainder: 8,
         remainingIngredients: [],
+        proposedUsage: [],
       }],
     },
     stations: [{

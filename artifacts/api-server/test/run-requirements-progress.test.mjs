@@ -62,6 +62,7 @@ test("remaining requirements use the lowest reported case count in their matchin
       exactRequired: 11.25,
       wholeBatchRequired: 15,
     }],
+    proposedUsage: [],
   });
   assert.equal(result.items[1].remainingRequired, null);
   assert.equal(result.items[1].remainingCases, null);
@@ -89,4 +90,105 @@ test("missing station counts are visibly unresolved rather than treated as compl
   assert.equal(line.completedCases, null);
   assert.equal(line.remainingCases, null);
   assert.equal(result.items[0].remainingRequired, null);
+});
+
+test("usage proposals retain source units and distinguish saved recipe use from unresolved lines", () => {
+  const savedPlan = {
+    targetCases: 100,
+    items: [
+      {
+        id: "direct-cheese",
+        name: "Cheese",
+        originalName: "Cheese",
+        source: "Spec.xlsx · row 14",
+        station: "Production line",
+        stationArea: "production_line",
+        amountColumn: "Amount",
+        usageUnit: "oz",
+        perPizza: 1.25,
+        totalRequired: 50,
+        directIngredient: true,
+        issues: [],
+        ingredients: [],
+      },
+      {
+        id: "batch:dough:2",
+        name: "Dough",
+        originalName: "Dough",
+        source: "Dough.xlsx · Flour row 8",
+        station: "Dough & sauce preparation",
+        stationArea: "dough_sauce_prep",
+        amountColumn: "Usage",
+        batchColumn: 2,
+        batchUnit: "lb",
+        totalRequired: 20,
+        batchesExact: 2,
+        batchYield: 10,
+        recipeId: "dough",
+        directIngredient: false,
+        issues: [],
+        ingredients: [{
+          name: "Flour",
+          unit: "lb",
+          perBatch: 10,
+          exactRequired: 20,
+          wholeBatchRequired: 20,
+        }],
+      },
+      {
+        id: "unresolved",
+        name: "Unknown ingredient",
+        originalName: "Unknown ingredient",
+        source: "Spec.xlsx · row 15",
+        station: "Production line",
+        stationArea: "production_line",
+        amountColumn: null,
+        usageUnit: null,
+        totalRequired: null,
+        recipeId: null,
+        directIngredient: false,
+        issues: ["Confirm the source unit."],
+        ingredients: [],
+      },
+    ],
+    batchPreparation: [],
+  };
+  const result = calculateRunRequirementsProgress(savedPlan, [
+    { area: "production_line", completedCases: 25, recorded: true },
+    { area: "dough_sauce_prep", completedCases: 40, recorded: true },
+  ]);
+  const proposals = result.items.flatMap((item) => item.proposedUsage);
+
+  assert.deepEqual(proposals.map(({ ingredientName, unit, sourceAmount, quantityBasis, proposedQuantity, blockedReason, source }) => ({
+    ingredientName, unit, sourceAmount, quantityBasis, proposedQuantity, blockedReason, source,
+  })), [
+    {
+      ingredientName: "Cheese",
+      unit: "oz",
+      sourceAmount: 1.25,
+      quantityBasis: "per_pizza",
+      proposedQuantity: 12.5,
+      blockedReason: null,
+      source: "Spec.xlsx · row 14",
+    },
+    {
+      ingredientName: "Flour",
+      unit: "lb",
+      sourceAmount: 10,
+      quantityBasis: "per_batch",
+      proposedQuantity: 8,
+      blockedReason: null,
+      source: "Dough.xlsx · Flour row 8",
+    },
+    {
+      ingredientName: "Unknown ingredient",
+      unit: "",
+      sourceAmount: null,
+      quantityBasis: "unresolved",
+      proposedQuantity: null,
+      blockedReason: "Confirm the source unit.",
+      source: "Spec.xlsx · row 15",
+    },
+  ]);
+  assert.equal(savedPlan.items[0].totalRequired, 50, "the saved plan remains unchanged");
 });

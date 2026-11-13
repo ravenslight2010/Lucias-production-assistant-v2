@@ -27,6 +27,8 @@ export interface RunRequirementItem {
   totalRequired: number | null;
   /** @nullable */
   recipeId: string | null;
+  /** @nullable */
+  recipeSource: string | null;
   directIngredient: boolean;
   /** @nullable */
   batchColumn: number | null;

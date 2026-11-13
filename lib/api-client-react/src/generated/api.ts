@@ -26,6 +26,7 @@ import type {
   ErrorResponse,
   FacilityContext,
   FacilityInput,
+  FacilityInventoryList,
   FacilityMember,
   FacilityMemberInput,
   FacilityMemberInviteResult,
@@ -38,6 +39,7 @@ import type {
   HealthStatus,
   ImportBatchList,
   InvalidTransition,
+  InventoryAdjustmentInput,
   LibraryNameChange,
   ListRunsParams,
   NameLibrary,
@@ -55,6 +57,8 @@ import type {
   RunCreateInput,
   RunCreated,
   RunEnvelope,
+  RunInventoryUsage,
+  RunInventoryUsageInput,
   RunList,
   RunRequirementsInput,
   RunRequirementsPlan,
@@ -2190,6 +2194,331 @@ export function useGetRunStationProgress<TData = Awaited<ReturnType<typeof getRu
 
 
 
+
+export const getGetRunInventoryUsageUrl = (runId: string,) => {
+
+
+
+
+  return `/api/v2/runs/${runId}/inventory-usage`
+}
+
+/**
+ * Proposals come from the saved run plan and saved station counts. Quantities are not deducted until an operator confirms actual use.
+ * @summary Review proposed and confirmed ingredient usage
+ */
+export const getRunInventoryUsage = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<RunInventoryUsage> => {
+
+  return customFetch<RunInventoryUsage>(getGetRunInventoryUsageUrl(runId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRunInventoryUsageQueryKey = (runId: string,) => {
+    return [
+    `/api/v2/runs/${runId}/inventory-usage`
+    ] as const;
+    }
+
+
+export const getGetRunInventoryUsageQueryOptions = <TData = Awaited<ReturnType<typeof getRunInventoryUsage>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRunInventoryUsage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRunInventoryUsageQueryKey(runId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRunInventoryUsage>>> = ({ signal }) => getRunInventoryUsage(runId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: runId !== null && runId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRunInventoryUsage>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRunInventoryUsageQueryResult = NonNullable<Awaited<ReturnType<typeof getRunInventoryUsage>>>
+export type GetRunInventoryUsageQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * Proposals come from the saved run plan and saved station counts. Quantities are not deducted until an operator confirms actual use.
+ * @summary Review proposed and confirmed ingredient usage
+ */
+export function useGetRunInventoryUsage<TData = Awaited<ReturnType<typeof getRunInventoryUsage>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+ runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRunInventoryUsage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRunInventoryUsageQueryOptions(runId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getConfirmRunInventoryUsageUrl = (runId: string,) => {
+
+
+
+
+  return `/api/v2/runs/${runId}/inventory-usage`
+}
+
+/**
+ * @summary Confirm actual ingredient usage for a completed run
+ */
+export const confirmRunInventoryUsage = async (runId: string,
+    runInventoryUsageInput: RunInventoryUsageInput, options?: Parameters<typeof customFetch>[1]): Promise<RunInventoryUsage> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<RunInventoryUsage>(getConfirmRunInventoryUsageUrl(runId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(runInventoryUsageInput)
+  }
+);}
+
+
+
+
+
+export const getConfirmRunInventoryUsageMutationKey = () => ['confirmRunInventoryUsage'] as const;
+
+export const getConfirmRunInventoryUsageMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmRunInventoryUsage>>, TError,ConfirmRunInventoryUsageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof confirmRunInventoryUsage>>, TError,ConfirmRunInventoryUsageMutationVariables, TContext> => {
+
+const mutationKey = getConfirmRunInventoryUsageMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmRunInventoryUsage>>, ConfirmRunInventoryUsageMutationVariables> = (props) => {
+          const {runId,data} = props ?? {};
+
+          return  confirmRunInventoryUsage(runId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfirmRunInventoryUsageMutationResult = NonNullable<Awaited<ReturnType<typeof confirmRunInventoryUsage>>>
+    export type ConfirmRunInventoryUsageMutationBody = BodyType<RunInventoryUsageInput>
+    export type ConfirmRunInventoryUsageMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+    export type ConfirmRunInventoryUsageMutationVariables = {runId: string;data: BodyType<RunInventoryUsageInput>}
+
+    /** @summary Confirm actual ingredient usage for a completed run */
+export const useConfirmRunInventoryUsage = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmRunInventoryUsage>>, TError,ConfirmRunInventoryUsageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof confirmRunInventoryUsage>>,
+        TError,
+        ConfirmRunInventoryUsageMutationVariables,
+        TContext
+      > => {
+      return useMutation(getConfirmRunInventoryUsageMutationOptions(options));
+    }
+
+export const getGetFacilityInventoryUrl = () => {
+
+
+
+
+  return `/api/v2/inventory`
+}
+
+/**
+ * @summary Review on-hand stock and inventory history
+ */
+export const getFacilityInventory = async ( options?: Parameters<typeof customFetch>[1]): Promise<FacilityInventoryList> => {
+
+  return customFetch<FacilityInventoryList>(getGetFacilityInventoryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFacilityInventoryQueryKey = () => {
+    return [
+    `/api/v2/inventory`
+    ] as const;
+    }
+
+
+export const getGetFacilityInventoryQueryOptions = <TData = Awaited<ReturnType<typeof getFacilityInventory>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFacilityInventory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFacilityInventoryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFacilityInventory>>> = ({ signal }) => getFacilityInventory({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFacilityInventory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFacilityInventoryQueryResult = NonNullable<Awaited<ReturnType<typeof getFacilityInventory>>>
+export type GetFacilityInventoryQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/** @summary Review on-hand stock and inventory history */
+export function useGetFacilityInventory<TData = Awaited<ReturnType<typeof getFacilityInventory>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFacilityInventory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFacilityInventoryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAdjustFacilityInventoryUrl = () => {
+
+
+
+
+  return `/api/v2/inventory`
+}
+
+/**
+ * @summary Add opening stock or a reviewed inventory correction
+ */
+export const adjustFacilityInventory = async (inventoryAdjustmentInput: InventoryAdjustmentInput, options?: Parameters<typeof customFetch>[1]): Promise<FacilityInventoryList> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<FacilityInventoryList>(getAdjustFacilityInventoryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(inventoryAdjustmentInput)
+  }
+);}
+
+
+
+
+
+export const getAdjustFacilityInventoryMutationKey = () => ['adjustFacilityInventory'] as const;
+
+export const getAdjustFacilityInventoryMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adjustFacilityInventory>>, TError,AdjustFacilityInventoryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adjustFacilityInventory>>, TError,AdjustFacilityInventoryMutationVariables, TContext> => {
+
+const mutationKey = getAdjustFacilityInventoryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adjustFacilityInventory>>, AdjustFacilityInventoryMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  adjustFacilityInventory(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdjustFacilityInventoryMutationResult = NonNullable<Awaited<ReturnType<typeof adjustFacilityInventory>>>
+    export type AdjustFacilityInventoryMutationBody = BodyType<InventoryAdjustmentInput>
+    export type AdjustFacilityInventoryMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+    export type AdjustFacilityInventoryMutationVariables = {data: BodyType<InventoryAdjustmentInput>}
+
+    /** @summary Add opening stock or a reviewed inventory correction */
+export const useAdjustFacilityInventory = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adjustFacilityInventory>>, TError,AdjustFacilityInventoryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adjustFacilityInventory>>,
+        TError,
+        AdjustFacilityInventoryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAdjustFacilityInventoryMutationOptions(options));
+    }
 
 export const getUpdateRunStationProgressUrl = (runId: string,
     stationId: string,) => {

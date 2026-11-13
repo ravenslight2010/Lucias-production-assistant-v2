@@ -22,13 +22,19 @@ export async function getFacilityMembership(userId: string) {
   return membership ?? null;
 }
 
-export type RunPermissionAction = "create" | "update_station_progress" | RunAction;
+export type RunPermissionAction =
+  | "create"
+  | "update_station_progress"
+  | "confirm_inventory_usage"
+  | "adjust_inventory"
+  | RunAction;
 
 const operatorActions = new Set<RunPermissionAction>([
   "start",
   "pause",
   "resume",
   "update_station_progress",
+  "confirm_inventory_usage",
 ]);
 
 export function assertRunPermission(

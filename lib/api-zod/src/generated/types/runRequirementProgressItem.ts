@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { FacilityStationArea } from './facilityStationArea.ts';
+import type { ProposedIngredientUsage } from './proposedIngredientUsage.ts';
 import type { RunIngredientRequirement } from './runIngredientRequirement.ts';
 
 export interface RunRequirementProgressItem {
@@ -35,4 +36,5 @@ export interface RunRequirementProgressItem {
   /** @nullable */
   remainingRemainder: number | null;
   remainingIngredients: RunIngredientRequirement[];
+  proposedUsage: ProposedIngredientUsage[];
 }

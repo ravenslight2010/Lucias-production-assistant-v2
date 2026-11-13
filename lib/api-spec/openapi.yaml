@@ -22,6 +22,8 @@ tags:
     description: Imported facility product setup data
   - name: imports
     description: Facility workbook import history
+  - name: facility-inventory
+    description: On-hand ingredient stock and auditable adjustments
   - name: dashboard
     description: Production overview
 paths:
@@ -716,6 +718,120 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+  /v2/runs/{runId}/inventory-usage:
+    get:
+      operationId: getRunInventoryUsage
+      tags: [runs]
+      summary: Review proposed and confirmed ingredient usage
+      description: Proposals come from the saved run plan and saved station counts. Quantities are not deducted until an operator confirms actual use.
+      security:
+        - v2Session: []
+      parameters:
+        - in: path
+          name: runId
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+      responses:
+        "200":
+          description: Current source-traced usage proposal and any completed reconciliation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunInventoryUsage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: confirmRunInventoryUsage
+      tags: [runs]
+      summary: Confirm actual ingredient usage for a completed run
+      security:
+        - v2Session: []
+      parameters:
+        - in: path
+          name: runId
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunInventoryUsageInput"
+      responses:
+        "200":
+          description: Confirmed actual usage and inventory deduction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunInventoryUsage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /v2/inventory:
+    get:
+      operationId: getFacilityInventory
+      tags: [facility-inventory]
+      summary: Review on-hand stock and inventory history
+      security:
+        - v2Session: []
+      responses:
+        "200":
+          description: Current facility balances and the latest inventory movements
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FacilityInventoryList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: adjustFacilityInventory
+      tags: [facility-inventory]
+      summary: Add opening stock or a reviewed inventory correction
+      security:
+        - v2Session: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InventoryAdjustmentInput"
+      responses:
+        "201":
+          description: Inventory adjustment recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FacilityInventoryList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /v2/runs/{runId}/stations/{stationId}:
     patch:
       operationId: updateRunStationProgress
@@ -1112,7 +1228,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RunIngredientRequirement"
-      required: [id, area, completedCases, remainingCases, remainingRequired, remainingBatchesExact, remainingWholeBatches, remainingRemainder, remainingIngredients]
+        proposedUsage:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProposedIngredientUsage"
+      required: [id, area, completedCases, remainingCases, remainingRequired, remainingBatchesExact, remainingWholeBatches, remainingRemainder, remainingIngredients, proposedUsage]
     RunRequirementsProgress:
       type: object
       properties:
@@ -1357,6 +1477,143 @@ components:
         exactRequired: {type: number}
         wholeBatchRequired: {type: number}
       required: [name, unit, perBatch, exactRequired, wholeBatchRequired]
+    ProposedIngredientUsage:
+      type: object
+      properties:
+        id: {type: string}
+        requirementId: {type: string}
+        requirementName: {type: string}
+        ingredientName: {type: string}
+        unit: {type: string}
+        source: {type: string}
+        sourceAmount: {type: ["number", "null"]}
+        quantityBasis: {type: string, enum: [per_pizza, per_batch, unresolved]}
+        amountColumn: {type: ["string", "null"]}
+        batchColumn: {type: ["integer", "null"]}
+        proposedQuantity: {type: ["number", "null"]}
+        blockedReason: {type: ["string", "null"]}
+      required: [id, requirementId, requirementName, ingredientName, unit, source, sourceAmount, quantityBasis, amountColumn, batchColumn, proposedQuantity, blockedReason]
+    RunInventoryUsageEntry:
+      type: object
+      properties:
+        id: {type: string}
+        requirementId: {type: string}
+        requirementName: {type: string}
+        ingredientName: {type: string}
+        unit: {type: string}
+        source: {type: string}
+        sourceAmount: {type: ["number", "null"]}
+        quantityBasis: {type: string, enum: [per_pizza, per_batch, unresolved]}
+        amountColumn: {type: ["string", "null"]}
+        batchColumn: {type: ["integer", "null"]}
+        proposedQuantity: {type: ["number", "null"]}
+        actualUsed: {type: ["number", "null"]}
+        inventoryOnHand: {type: ["number", "null"]}
+        blockedReason: {type: ["string", "null"]}
+      required: [id, requirementId, requirementName, ingredientName, unit, source, sourceAmount, quantityBasis, amountColumn, batchColumn, proposedQuantity, actualUsed, inventoryOnHand, blockedReason]
+    RunInventoryReconciliation:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        createdAt: {type: string, format: date-time}
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/RunInventoryUsageEntry"
+      required: [id, createdAt, entries]
+    RunInventoryUsage:
+      type: object
+      properties:
+        runId: {type: string, format: uuid}
+        runStatus: {type: string}
+        canConfirm: {type: boolean}
+        blockedCount: {type: integer, minimum: 0}
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/RunInventoryUsageEntry"
+        reconciliation:
+          anyOf:
+            - $ref: "#/components/schemas/RunInventoryReconciliation"
+            - type: "null"
+      required: [runId, runStatus, canConfirm, blockedCount, items, reconciliation]
+    RunInventoryUsageItemInput:
+      type: object
+      additionalProperties: false
+      properties:
+        id: {type: string, minLength: 1, maxLength: 300}
+        actualUsed: {type: number, minimum: 0, maximum: 999999999999}
+      required: [id, actualUsed]
+    RunInventoryUsageInput:
+      type: object
+      additionalProperties: false
+      properties:
+        commandId: {type: string, format: uuid}
+        items:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/RunInventoryUsageItemInput"
+      required: [commandId, items]
+    InventoryAdjustmentInput:
+      type: object
+      additionalProperties: false
+      properties:
+        commandId: {type: string, format: uuid}
+        ingredientName: {type: string, minLength: 1, maxLength: 200}
+        unit: {type: string, enum: [oz, lb, g, kg, each]}
+        delta: {type: number, not: {const: 0}, minimum: -999999999999, maximum: 999999999999}
+        note: {type: string, minLength: 3, maxLength: 500}
+        correctsEntryId: {type: ["string", "null"], format: uuid}
+      required: [commandId, ingredientName, unit, delta, note, correctsEntryId]
+    FacilityInventoryItem:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        ingredientName: {type: string}
+        unit: {type: string}
+        onHand: {type: number}
+        revision: {type: integer, minimum: 0}
+        updatedAt: {type: string, format: date-time}
+      required: [id, ingredientName, unit, onHand, revision, updatedAt]
+    InventoryTransaction:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        inventoryId: {type: string, format: uuid}
+        ingredientName: {type: string}
+        unit: {type: string}
+        kind: {type: string, enum: [run_usage, stock_adjustment, correction]}
+        delta: {type: number}
+        note: {type: string}
+        runId: {type: ["string", "null"], format: uuid}
+        reconciliationId: {type: ["string", "null"], format: uuid}
+        correctsEntryId: {type: ["string", "null"], format: uuid}
+        proposalId: {type: ["string", "null"]}
+        requirementId: {type: ["string", "null"]}
+        requirementName: {type: ["string", "null"]}
+        sourceAmount: {type: ["number", "null"]}
+        quantityBasis: {type: string, enum: [per_pizza, per_batch, unresolved]}
+        source: {type: string}
+        amountColumn: {type: ["string", "null"]}
+        batchColumn: {type: ["integer", "null"]}
+        proposedQuantity: {type: ["number", "null"]}
+        actualUsed: {type: ["number", "null"]}
+        createdAt: {type: string, format: date-time}
+      required: [id, inventoryId, ingredientName, unit, kind, delta, note, runId, reconciliationId, correctsEntryId, proposalId, requirementId, requirementName, sourceAmount, quantityBasis, source, amountColumn, batchColumn, proposedQuantity, actualUsed, createdAt]
+    FacilityInventoryList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/FacilityInventoryItem"
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/InventoryTransaction"
+      required: [items, entries]
     RunRequirementItem:
       type: object
       properties:
@@ -1380,6 +1637,7 @@ components:
         perPizza: {type: [number, "null"]}
         totalRequired: {type: [number, "null"]}
         recipeId: {type: [string, "null"]}
+        recipeSource: {type: [string, "null"]}
         directIngredient: {type: boolean}
         batchColumn: {type: [integer, "null"]}
         batchUnit: {type: [string, "null"]}
@@ -1390,7 +1648,7 @@ components:
         ingredients: {type: array, items: {$ref: "#/components/schemas/RunIngredientRequirement"}}
         instructions: {type: array, items: {type: string}}
         issues: {type: array, items: {type: string}}
-      required: [id, name, originalName, source, station, amountChoices, amountColumn, usageUnit, perPizza, totalRequired, recipeId, directIngredient, batchColumn, batchUnit, batchYield, batchesExact, wholeBatches, remainder, ingredients, instructions, issues]
+      required: [id, name, originalName, source, station, amountChoices, amountColumn, usageUnit, perPizza, totalRequired, recipeId, recipeSource, directIngredient, batchColumn, batchUnit, batchYield, batchesExact, wholeBatches, remainder, ingredients, instructions, issues]
     RunRequirementsPlan:
       type: object
       properties:

@@ -13,7 +13,9 @@ import type {
   RunRecipeLink,
   RunRequirementItem,
   RunRequirementsPlan,
+  RunStatus,
 } from '@workspace/api-client-react';
+import { RunInventoryUsagePanel } from './run-inventory-usage';
 import './run-requirements.css';
 
 type ReviewCallback = (review: RunPlanningReview | null, plan: RunRequirementsPlan | null) => void;
@@ -387,9 +389,10 @@ function IssueList({ issues, label }: { issues: string[]; label: string }) {
 /* Summary (no network)                                                */
 /* ------------------------------------------------------------------ */
 
-export function RunRequirementsSummary({ plan, runId, online = true, previewLabel }: {
+export function RunRequirementsSummary({ plan, runId, runStatus, online = true, previewLabel }: {
   plan: RunRequirementsPlan;
   runId?: string;
+  runStatus?: RunStatus;
   online?: boolean;
   previewLabel?: string;
 }) {
@@ -579,6 +582,7 @@ export function RunRequirementsSummary({ plan, runId, online = true, previewLabe
       <footer className="rr-footnote">
         Quantities are calculated from imported customer specs and attached formulas. Uses of the exact same selected formula and batch column are prepared once together; different formulas, alternative batch sizes, and sub-mixes are never substituted or combined. Acknowledging a reference or name change does not approve a formula, and this sheet is not a verified production approval.
       </footer>
+      {runId && runStatus && <RunInventoryUsagePanel runId={runId} runStatus={runStatus} online={online} />}
     </article>
   );
 }

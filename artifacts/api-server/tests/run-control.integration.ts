@@ -14,6 +14,7 @@ import {
   facilitiesTable,
   facilityMembersTable,
   facilityStationLayoutsTable,
+  inventoryTransactionsTable,
   pool,
   productionRunsTable,
   runCommandReceiptsTable,
@@ -22,6 +23,7 @@ import {
   runOutboxTable,
   runStationProgressTable,
 } from "@workspace/db";
+import { getFacilityInventory } from "../src/lib/run-inventory-service";
 import { createPlannedRun } from "../src/lib/run-create-service";
 import { executeRunCommand } from "../src/lib/run-command-service";
 import {
@@ -743,6 +745,240 @@ test("station progress saves counts safely and stays on the line timer", async (
     .where(eq(runStationProgressTable.runId, created.run.id))
     .limit(1);
   assert.equal(stationRow.revision, 3);
+});
+
+test("operators confirm source-based usage once and managers append linked corrections", async () => {
+  const [facility] = await db
+    .insert(facilitiesTable)
+    .values({ name: "Inventory reconciliation test facility" })
+    .returning();
+  const ownerId = `inventory-owner-${randomUUID()}`;
+  const operatorId = `inventory-operator-${randomUUID()}`;
+  const ownerClerkSessionId = `inventory-owner-session-${randomUUID()}`;
+  const operatorClerkSessionId = `inventory-operator-session-${randomUUID()}`;
+  await db.insert(facilityMembersTable).values([
+    { facilityId: facility.id, userId: ownerId, role: "owner" },
+    { facilityId: facility.id, userId: operatorId, role: "operator" },
+  ]);
+  const ownerSession = issueV2Session(ownerId, ownerClerkSessionId);
+  const operatorSession = issueV2Session(operatorId, operatorClerkSessionId);
+  let currentActorId = ownerId;
+  let currentClerkSessionId = ownerClerkSessionId;
+  const app = express();
+  app.use(express.json(), cookieParser());
+  app.use((req, _res, next) => {
+    const authHandler = Object.assign(
+      () => ({
+        userId: currentActorId,
+        sessionId: currentClerkSessionId,
+        tokenType: "session_token" as const,
+      }),
+      { [Symbol.for("@clerk/express.auth")]: true },
+    );
+    (req as Request & { auth: typeof authHandler }).auth = authHandler;
+    next();
+  });
+  app.use(productionRouter);
+  app.use(
+    (error: unknown, _req: Request, res: Response, _next: NextFunction) => {
+      if (error instanceof HttpError) {
+        res.status(error.statusCode).json({ error: error.message });
+        return;
+      }
+      res.status(500).json({ error: "Request could not be completed." });
+    },
+  );
+  const server = createServer(app);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  const origin = `http://127.0.0.1:${address.port}`;
+  const request = (
+    session: typeof ownerSession | typeof operatorSession,
+    path: string,
+    method = "GET",
+    body?: unknown,
+  ) => fetch(`${origin}${path}`, {
+    method,
+    headers: {
+      cookie: `v2_session=${session.token}`,
+      ...(body ? { "content-type": "application/json" } : {}),
+      ...(method === "GET" ? {} : {
+        origin,
+        "x-csrf-token": session.csrfToken,
+      }),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+
+  try {
+    const openingStock = await request(ownerSession, "/v2/inventory", "POST", {
+      commandId: randomUUID(),
+      ingredientName: "Cheese",
+      unit: "lb",
+      delta: 5,
+      note: "Opening count for the shift",
+      correctsEntryId: null,
+    });
+    assert.equal(openingStock.status, 201);
+
+    const now = new Date();
+    const [run] = await db
+      .insert(productionRunsTable)
+      .values({
+        facilityId: facility.id,
+        name: "Completed inventory run",
+        targetCases: 10,
+        status: "completed",
+        revision: 1,
+        productSnapshot: {
+          runRequirements: {
+            targetCases: 10,
+            items: [
+              {
+                id: "cheese-use",
+                name: "Cheese",
+                originalName: "Cheese",
+                source: "Specs.xlsx · row 4",
+                station: "Production line",
+                stationArea: "production_line",
+                amountChoices: [],
+                amountColumn: "Amount",
+                usageUnit: "lb",
+                perPizza: 1,
+                totalRequired: 10,
+                recipeId: null,
+                recipeSource: null,
+                directIngredient: true,
+                batchColumn: null,
+                batchUnit: null,
+                batchYield: null,
+                batchesExact: null,
+                wholeBatches: null,
+                remainder: null,
+                ingredients: [],
+                instructions: [],
+                issues: [],
+              },
+              {
+                id: "unresolved-use",
+                name: "Unknown ingredient",
+                originalName: "Unknown ingredient",
+                source: "Specs.xlsx · row 5",
+                station: "Production line",
+                stationArea: "production_line",
+                amountChoices: [],
+                amountColumn: null,
+                usageUnit: null,
+                perPizza: null,
+                totalRequired: null,
+                recipeId: null,
+                recipeSource: null,
+                directIngredient: true,
+                batchColumn: null,
+                batchUnit: null,
+                batchYield: null,
+                batchesExact: null,
+                wholeBatches: null,
+                remainder: null,
+                ingredients: [],
+                instructions: [],
+                issues: ["Confirm the source unit."],
+              },
+            ],
+            batchPreparation: [],
+          },
+        },
+        createdBy: ownerId,
+      })
+      .returning();
+    await db.insert(runStationProgressTable).values({
+      runId: run.id,
+      stationId: "line",
+      stationName: "Line",
+      stationArea: "production_line",
+      stationOrder: 0,
+      status: "completed",
+      completedCases: 5,
+      countUpdatedAt: now,
+      updatedAt: now,
+      updatedBy: ownerId,
+    });
+
+    currentActorId = operatorId;
+    currentClerkSessionId = operatorClerkSessionId;
+    const path = `/v2/runs/${run.id}/inventory-usage`;
+    const proposedResponse = await request(operatorSession, path);
+    assert.equal(proposedResponse.status, 200);
+    const proposal = await proposedResponse.json() as {
+      canConfirm: boolean;
+      blockedCount: number;
+      items: Array<{ id: string; unit: string; proposedQuantity: number | null; blockedReason: string | null }>;
+    };
+    assert.equal(proposal.canConfirm, true);
+    assert.equal(proposal.blockedCount, 1);
+    const cheese = proposal.items.find((item) => item.unit === "lb");
+    assert.ok(cheese);
+    assert.equal(cheese.proposedQuantity, 5);
+    assert.equal(cheese.blockedReason, null);
+    assert.ok(proposal.items.some((item) => item.blockedReason !== null));
+
+    const deniedStockChange = await request(operatorSession, "/v2/inventory", "POST", {
+      commandId: randomUUID(),
+      ingredientName: "Cheese",
+      unit: "lb",
+      delta: 2,
+      note: "Operator should not edit stock",
+      correctsEntryId: null,
+    });
+    assert.equal(deniedStockChange.status, 403);
+
+    const confirmation = {
+      commandId: randomUUID(),
+      items: [{ id: cheese.id, actualUsed: 3.5 }],
+    };
+    const confirmedResponse = await request(operatorSession, path, "POST", confirmation);
+    assert.equal(confirmedResponse.status, 200);
+    const confirmed = await confirmedResponse.json() as {
+      reconciliation: { entries: Array<{ actualUsed: number | null }> } | null;
+      items: Array<{ inventoryOnHand: number | null }>;
+    };
+    assert.equal(confirmed.reconciliation?.entries[0]?.actualUsed, 3.5);
+    assert.equal(confirmed.items.find((item) => item.inventoryOnHand !== null)?.inventoryOnHand, 1.5);
+
+    const replay = await request(operatorSession, path, "POST", confirmation);
+    assert.equal(replay.status, 200, "same confirmation key and values are safe to retry");
+    const duplicate = await request(operatorSession, path, "POST", {
+      ...confirmation,
+      commandId: randomUUID(),
+    });
+    assert.equal(duplicate.status, 409, "a run cannot deduct confirmed usage twice");
+
+    currentActorId = ownerId;
+    currentClerkSessionId = ownerClerkSessionId;
+    const [usageEntry] = await db
+      .select()
+      .from(inventoryTransactionsTable)
+      .where(eq(inventoryTransactionsTable.runId, run.id))
+      .limit(1);
+    assert.ok(usageEntry);
+    const correction = await request(ownerSession, "/v2/inventory", "POST", {
+      commandId: randomUUID(),
+      ingredientName: "Cheese",
+      unit: "lb",
+      delta: 0.5,
+      note: "Correct the measured amount",
+      correctsEntryId: usageEntry.id,
+    });
+    assert.equal(correction.status, 201);
+    const inventory = await getFacilityInventory(facility.id);
+    assert.equal(inventory.items.find((item) => item.ingredientName === "Cheese")?.onHand, 2);
+    assert.ok(inventory.entries.some((entry) => entry.correctsEntryId === usageEntry.id));
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
 });
 
 test("independent signed-in sessions share canonical revisions and safe retries", async () => {

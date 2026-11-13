@@ -261,6 +261,35 @@ export interface RunIngredientRequirement {
   wholeBatchRequired: number;
 }
 
+export type ProposedIngredientUsageQuantityBasis = typeof ProposedIngredientUsageQuantityBasis[keyof typeof ProposedIngredientUsageQuantityBasis];
+
+
+export const ProposedIngredientUsageQuantityBasis = {
+  per_pizza: 'per_pizza',
+  per_batch: 'per_batch',
+  unresolved: 'unresolved',
+} as const;
+
+export interface ProposedIngredientUsage {
+  id: string;
+  requirementId: string;
+  requirementName: string;
+  ingredientName: string;
+  unit: string;
+  source: string;
+  /** @nullable */
+  sourceAmount: number | null;
+  quantityBasis: ProposedIngredientUsageQuantityBasis;
+  /** @nullable */
+  amountColumn: string | null;
+  /** @nullable */
+  batchColumn: number | null;
+  /** @nullable */
+  proposedQuantity: number | null;
+  /** @nullable */
+  blockedReason: string | null;
+}
+
 export interface RunRequirementProgressItem {
   id: string;
   area: FacilityStationArea | null;
@@ -288,6 +317,7 @@ export interface RunRequirementProgressItem {
   /** @nullable */
   remainingRemainder: number | null;
   remainingIngredients: RunIngredientRequirement[];
+  proposedUsage: ProposedIngredientUsage[];
 }
 
 export interface RunRequirementsProgress {
@@ -504,6 +534,178 @@ export interface RunRecipeChoice {
   issues: string[];
 }
 
+export type RunInventoryUsageEntryQuantityBasis = typeof RunInventoryUsageEntryQuantityBasis[keyof typeof RunInventoryUsageEntryQuantityBasis];
+
+
+export const RunInventoryUsageEntryQuantityBasis = {
+  per_pizza: 'per_pizza',
+  per_batch: 'per_batch',
+  unresolved: 'unresolved',
+} as const;
+
+export interface RunInventoryUsageEntry {
+  id: string;
+  requirementId: string;
+  requirementName: string;
+  ingredientName: string;
+  unit: string;
+  source: string;
+  /** @nullable */
+  sourceAmount: number | null;
+  quantityBasis: RunInventoryUsageEntryQuantityBasis;
+  /** @nullable */
+  amountColumn: string | null;
+  /** @nullable */
+  batchColumn: number | null;
+  /** @nullable */
+  proposedQuantity: number | null;
+  /** @nullable */
+  actualUsed: number | null;
+  /** @nullable */
+  inventoryOnHand: number | null;
+  /** @nullable */
+  blockedReason: string | null;
+}
+
+export interface RunInventoryReconciliation {
+  id: string;
+  createdAt: string;
+  entries: RunInventoryUsageEntry[];
+}
+
+export interface RunInventoryUsage {
+  runId: string;
+  runStatus: string;
+  canConfirm: boolean;
+  /** @minimum 0 */
+  blockedCount: number;
+  items: RunInventoryUsageEntry[];
+  reconciliation: RunInventoryReconciliation | null;
+}
+
+export interface RunInventoryUsageItemInput {
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  id: string;
+  /**
+     * @minimum 0
+     * @maximum 999999999999
+     */
+  actualUsed: number;
+}
+
+export interface RunInventoryUsageInput {
+  commandId: string;
+  /**
+     * @minItems 1
+     * @maxItems 500
+     */
+  items: RunInventoryUsageItemInput[];
+}
+
+export type InventoryAdjustmentInputUnit = typeof InventoryAdjustmentInputUnit[keyof typeof InventoryAdjustmentInputUnit];
+
+
+export const InventoryAdjustmentInputUnit = {
+  oz: 'oz',
+  lb: 'lb',
+  g: 'g',
+  kg: 'kg',
+  each: 'each',
+} as const;
+
+export interface InventoryAdjustmentInput {
+  commandId: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  ingredientName: string;
+  unit: InventoryAdjustmentInputUnit;
+  /**
+     * @minimum -999999999999
+     * @maximum 999999999999
+     */
+  delta: number;
+  /**
+     * @minLength 3
+     * @maxLength 500
+     */
+  note: string;
+  /** @nullable */
+  correctsEntryId: string | null;
+}
+
+export interface FacilityInventoryItem {
+  id: string;
+  ingredientName: string;
+  unit: string;
+  onHand: number;
+  /** @minimum 0 */
+  revision: number;
+  updatedAt: string;
+}
+
+export type InventoryTransactionKind = typeof InventoryTransactionKind[keyof typeof InventoryTransactionKind];
+
+
+export const InventoryTransactionKind = {
+  run_usage: 'run_usage',
+  stock_adjustment: 'stock_adjustment',
+  correction: 'correction',
+} as const;
+
+export type InventoryTransactionQuantityBasis = typeof InventoryTransactionQuantityBasis[keyof typeof InventoryTransactionQuantityBasis];
+
+
+export const InventoryTransactionQuantityBasis = {
+  per_pizza: 'per_pizza',
+  per_batch: 'per_batch',
+  unresolved: 'unresolved',
+} as const;
+
+export interface InventoryTransaction {
+  id: string;
+  inventoryId: string;
+  ingredientName: string;
+  unit: string;
+  kind: InventoryTransactionKind;
+  delta: number;
+  note: string;
+  /** @nullable */
+  runId: string | null;
+  /** @nullable */
+  reconciliationId: string | null;
+  /** @nullable */
+  correctsEntryId: string | null;
+  /** @nullable */
+  proposalId: string | null;
+  /** @nullable */
+  requirementId: string | null;
+  /** @nullable */
+  requirementName: string | null;
+  /** @nullable */
+  sourceAmount: number | null;
+  quantityBasis: InventoryTransactionQuantityBasis;
+  source: string;
+  /** @nullable */
+  amountColumn: string | null;
+  /** @nullable */
+  batchColumn: number | null;
+  /** @nullable */
+  proposedQuantity: number | null;
+  /** @nullable */
+  actualUsed: number | null;
+  createdAt: string;
+}
+
+export interface FacilityInventoryList {
+  items: FacilityInventoryItem[];
+  entries: InventoryTransaction[];
+}
+
 export type RunRequirementItemAmountChoicesItem = {
   column: string;
   value: string;
@@ -527,6 +729,8 @@ export interface RunRequirementItem {
   totalRequired: number | null;
   /** @nullable */
   recipeId: string | null;
+  /** @nullable */
+  recipeSource: string | null;
   directIngredient: boolean;
   /** @nullable */
   batchColumn: number | null;

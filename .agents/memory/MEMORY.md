@@ -11,3 +11,4 @@
 - [PNPM patch lockfiles](pnpm-patched-lockfile-compatibility.md) — Generate and consume patched lockfiles with the same PNPM major to avoid frozen-install hash mismatches.
 - [Profile edit concurrency](profile-edit-concurrency.md) — Background list refreshes must not advance an open draft's reviewed revision and silently overwrite newer edits.
 - [Authenticated browser notebooks](authenticated-browser-notebooks.md) — Bundle reusable scenarios when the authenticated notebook cannot import ESM; normalize upload buffers at the harness boundary.
+- [Deferred visual verification](deferred-visual-verification.md) — Group visual checks blocked by missing browser access and run them together when it returns.

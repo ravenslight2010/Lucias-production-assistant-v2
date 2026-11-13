@@ -6,9 +6,11 @@
 - Workspace typecheck and build passed; build used the CI values
   `PORT=4173 BASE_PATH=/`.
 - V2 web tests: 77 passed.
-- API tests: 95 passed, including disposable-PostgreSQL integration tests.
+- API tests: 96 passed, including disposable-PostgreSQL integration tests.
 - Development pilot verification: passed against a fresh disposable local
-  PostgreSQL database, including the new dashboard preparation summary check.
+  PostgreSQL database. It checks opening inventory counts, planned-run
+  non-deduction, count-based usage refresh, quality attention, and restart
+  persistence.
 - Workspace build passed after the dashboard change; only the existing
   large-client-chunk advisory remains.
 - `git diff --check` passed for the documentation changes.

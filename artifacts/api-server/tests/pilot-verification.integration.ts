@@ -543,6 +543,58 @@ test("development pilot check verifies auth, line timer, station counts, invento
     }),
   });
   assert.equal(stalePullUpdate.status, 409);
+  const initialInventoryCountAt = new Date();
+  await db.insert(runStationProgressTable).values({
+    runId: inventoryRun.id,
+    stationId: "pilot-line",
+    stationName: "Pilot line",
+    stationArea: "production_line",
+    stationOrder: 1,
+    status: "in_progress",
+    completedCases: 0,
+    producedCount: 0,
+    preparationStatus: "ready",
+    revision: 0,
+    countUpdatedAt: initialInventoryCountAt,
+    updatedAt: initialInventoryCountAt,
+    updatedBy: actorId,
+  });
+  const usageBeforeCountResponse = await request(
+    `/v2/runs/${inventoryRun.id}/inventory-usage`,
+  );
+  assert.equal(usageBeforeCountResponse.status, 200);
+  const usageBeforeCount = await usageBeforeCountResponse.json() as {
+    items: Array<{ ingredientName: string; proposedQuantity: number | null }>;
+  };
+  assert.equal(
+    usageBeforeCount.items.find((item) => item.ingredientName === "Pilot ingredient")?.proposedQuantity,
+    0,
+    "no completed production should estimate zero ingredient use",
+  );
+  const changedInventoryCountResponse = await request(
+    `/v2/runs/${inventoryRun.id}/stations/pilot-line/count`,
+    {
+      method: "PUT",
+      body: JSON.stringify({
+        commandId: randomUUID(),
+        expectedRevision: 0,
+        completedCases: 1,
+      }),
+    },
+  );
+  assert.equal(changedInventoryCountResponse.status, 200);
+  const usageAfterCountResponse = await request(
+    `/v2/runs/${inventoryRun.id}/inventory-usage`,
+  );
+  assert.equal(usageAfterCountResponse.status, 200);
+  const usageAfterCount = await usageAfterCountResponse.json() as {
+    items: Array<{ ingredientName: string; proposedQuantity: number | null }>;
+  };
+  assert.equal(
+    usageAfterCount.items.find((item) => item.ingredientName === "Pilot ingredient")?.proposedQuantity,
+    1,
+    "estimated ingredient use should recalculate after a saved station count changes",
+  );
   await db
     .update(productionRunsTable)
     .set({ status: "completed" })
@@ -565,21 +617,13 @@ test("development pilot check verifies auth, line timer, station counts, invento
     );
   }
   const countedAt = new Date();
-  await db.insert(runStationProgressTable).values({
-    runId: inventoryRun.id,
-    stationId: "pilot-line",
-    stationName: "Pilot line",
-    stationArea: "production_line",
-    stationOrder: 1,
-    status: "completed",
-    completedCases: 2,
-    producedCount: 2,
-    preparationStatus: "ready",
-    revision: 0,
-    countUpdatedAt: countedAt,
-    updatedAt: countedAt,
-    updatedBy: actorId,
-  });
+  await db
+    .update(runStationProgressTable)
+    .set({
+      status: "completed",
+      updatedAt: countedAt,
+    })
+    .where(eq(runStationProgressTable.runId, inventoryRun.id));
 
   const openingStockResponse = await request("/v2/inventory", {
     method: "POST",
@@ -593,6 +637,69 @@ test("development pilot check verifies auth, line timer, station counts, invento
     }),
   });
   assert.equal(openingStockResponse.status, 201);
+
+  const openingInventoryResponse = await request("/v2/inventory");
+  assert.equal(openingInventoryResponse.status, 200);
+  const openingInventory = await openingInventoryResponse.json() as {
+    items: Array<{ ingredientName: string; unit: string; onHand: number; revision: number }>;
+    entries: Array<{ kind: string; delta: number }>;
+  };
+  const openingIngredient = openingInventory.items.find(
+    (item) => item.ingredientName === "Pilot ingredient" && item.unit === "lb",
+  );
+  assert.ok(openingIngredient, "opening count should create a facility inventory balance");
+  assert.equal(openingIngredient.onHand, 3);
+  assert.equal(openingInventory.entries.filter((entry) => entry.kind === "stock_adjustment").length, 1);
+
+  const plannedInventoryRunResponse = await request("/v2/runs", {
+    method: "POST",
+    body: JSON.stringify({
+      requestId: randomUUID(),
+      setupSnapshot: { label: "Planned-only inventory verification run", targetCases: 2 },
+    }),
+  });
+  assert.equal(plannedInventoryRunResponse.status, 201);
+  const plannedInventoryRun = await plannedInventoryRunResponse.json() as {
+    run: { id: string; status: string };
+  };
+  assert.equal(plannedInventoryRun.run.status, "planned");
+  const plannedUsageResponse = await request(
+    `/v2/runs/${plannedInventoryRun.run.id}/inventory-usage`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        commandId: randomUUID(),
+        items: [{
+          id: "pilot-ingredient",
+          actualUsed: 1,
+          expectedInventoryRevision: openingIngredient.revision,
+        }],
+      }),
+    },
+  );
+  assert.equal(plannedUsageResponse.status, 409, "planned runs cannot deduct ingredient stock");
+  const inventoryAfterPlannedAttemptResponse = await request("/v2/inventory");
+  assert.equal(inventoryAfterPlannedAttemptResponse.status, 200);
+  const inventoryAfterPlannedAttempt = await inventoryAfterPlannedAttemptResponse.json() as {
+    items: Array<{ ingredientName: string; unit: string; onHand: number; revision: number }>;
+    entries: Array<{ kind: string; delta: number }>;
+  };
+  const unchangedIngredient = inventoryAfterPlannedAttempt.items.find(
+    (item) => item.ingredientName === "Pilot ingredient" && item.unit === "lb",
+  );
+  assert.deepEqual(
+    unchangedIngredient && {
+      onHand: unchangedIngredient.onHand,
+      revision: unchangedIngredient.revision,
+    },
+    { onHand: openingIngredient.onHand, revision: openingIngredient.revision },
+    "a planned run must not change inventory balance or revision",
+  );
+  assert.equal(
+    inventoryAfterPlannedAttempt.entries.length,
+    openingInventory.entries.length,
+    "a planned run must not create an inventory transaction",
+  );
 
   const usagePath = `/v2/runs/${inventoryRun.id}/inventory-usage`;
   const reviewedUsageResponse = await request(usagePath);

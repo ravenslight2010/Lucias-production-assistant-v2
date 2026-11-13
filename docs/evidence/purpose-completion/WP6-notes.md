@@ -21,6 +21,9 @@
   `/__visual-preview/preparation`; it was checked at 390×844, 768×1024, and
   1440×900. Browser logs showed no errors, and its status buttons only change
   local preview state.
+- The importer, station calculator, and quality-check previews were also checked
+  at 390×844. They render with synthetic data, make no API requests, and show no
+  browser errors.
 - Workspace typecheck, build, API/web tests, and disposable pilot verification
   passed after this change.
 

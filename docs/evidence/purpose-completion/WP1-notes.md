@@ -13,14 +13,15 @@
 - `test/browser/README.md` documents the signed-in harness and safe use of a
   disposable development facility. It prohibits production data, auth bypasses,
   and committing browser credentials.
-- API schedule-import integration tests and the workspace test suites passed in
-  the WP0 baseline run; see [WP0 notes](WP0-notes.md).
+- The API schedule-import and profile-name integration tests and the web
+  workbook-parser tests passed in the latest local run. The authenticated UI
+  scripts below remain separate verification.
 
 ## Remaining verification
 
 The browser scripts require a real Clerk-authenticated Playwright `Page`. The
-static screenshot browser cannot sign in, and no authenticated browser page was
-available in this turn. Do not bypass Clerk or reuse a production/V1 account.
+static screenshot browser cannot sign in, and no authenticated browser page is
+available to this agent. Do not bypass Clerk or reuse a production/V1 account.
 Run both scripts with a fresh synthetic V2 identity in the documented
 authenticated browser harness before marking WP1 complete.
 

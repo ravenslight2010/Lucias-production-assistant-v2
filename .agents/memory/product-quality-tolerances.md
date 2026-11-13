@@ -3,8 +3,8 @@ name: Product quality tolerances
 description: User-provided acceptable deviations for run-tied quality checks.
 ---
 
-The user said most acceptable ranges are ±0.1 oz, while sauce and “pep” are ±0.05 oz. The measured QC values and the meaning of “pep” are not yet confirmed.
+The user said most acceptable ranges are ±0.1 oz and chose both individual ingredient weights and finished-pizza weight as QC measurements. Sauce and anything in the “pep applicators” use ±0.05 oz. The finished-pizza tolerance is not yet confirmed.
 
 **Why:** The user supplied these limits while scoping run-tied quality checks.
 
-**How to apply:** Treat the limits as ounces, but confirm the exact value each check measures and the full name behind “pep” before applying them. Preserve the separate sauce and “pep” tolerance; do not guess the measurement basis.
+**How to apply:** Treat the limits as ounces and preserve the tighter sauce and pep-applicator tolerance. Map the exception by the exact applicator/station source, not by guessing from an ingredient name. Confirm the finished-pizza tolerance and use captured targets; never infer missing target weights.

@@ -30,6 +30,60 @@ process.stdout.write(XLSX.write(book, {type: 'buffer', bookType: 'xlsx'}));
             "buffer": result.stdout}
 
 
+def applicator_workbook(marker):
+    result = subprocess.run(
+        ["node", "--input-type=module", "-e", """
+import * as XLSX from 'xlsx';
+const book = XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([
+  ['Sample Brand', 'Special'],
+  ['Sauce', 2],
+  ['Applicator - Unmapped unit', 0.5],
+  ['TARGET WEIGHT', 12],
+  ['WEIGHT SPEC RANGE', '11.75 - 12.25'],
+]), 'OZ');
+process.stdout.write(XLSX.write(book, {type: 'buffer', bookType: 'xlsx'}));
+""", marker], cwd=APP, check=True, capture_output=True,
+    )
+    return {"name": f"{marker}.xlsx",
+            "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "buffer": result.stdout}
+
+
+async def verify_applicator_role_review(page, base_url, marker):
+    await page.goto(f"{base_url.rstrip('/')}/imports")
+    await page.get_by_test_id("input-workbook-file").set_input_files(applicator_workbook(marker))
+    await page.get_by_test_id("select-workbook-kind").select_option("product_specs")
+    review = page.get_by_test_id("product-spec-role-review-0")
+    await expect(review).to_be_visible()
+    await expect(review).to_contain_text("Applicator - Unmapped unit")
+    await expect(review).to_contain_text("Needs confirmation")
+
+    await page.locator("#product-spec-brand-0").fill(f"Role review {marker}")
+    await page.locator("#product-spec-flavor-0").fill("Special")
+    role = page.get_by_test_id("select-product-spec-role-0-0")
+    await expect(role).to_have_value("")
+    await role.select_option("pep_applicator")
+    await expect(review).to_contain_text("Role confirmed")
+
+    async with page.expect_response(
+        lambda response: response.request.method == "POST" and
+        response.url.split("?")[0].endswith("/v2/product-profiles")
+    ) as pending:
+        await page.get_by_test_id("button-import-product-profiles").click()
+    saved = await pending.value
+    assert saved.ok, await saved.text()
+    profile = (await saved.json())["profile"]
+    content = profile["productData"]["content"]
+    assert "pep_applicator" in content["selectedProduct"]["roleOverrides"].values()
+    applicator = next(
+        row for row in content["structured"]["sections"][0]["ingredients"]
+        if row["name"] == "Applicator - Unmapped unit"
+    )
+    assert applicator["ingredientRole"] == "pep_applicator"
+    assert applicator["roleConfirmed"] is True
+
+
 async def run_journey(page, base_url):
     """Accept an already Clerk-authenticated page; never bypass API auth."""
     base = base_url.rstrip("/")
@@ -69,6 +123,8 @@ async def run_journey(page, base_url):
 
     await page.goto(f"{base}/imports")
     await expect(page.get_by_role("heading", name="Product profiles", exact=True)).to_be_visible()
+    await verify_applicator_role_review(page, base, f"roles-{token}")
+    await page.goto(f"{base}/imports")
     profile = await import_profile(brand, flavor, original)
     profile_id = profile["id"]
     await expect(page.get_by_test_id(f"card-profile-{profile_id}")).to_contain_text("REV 00")

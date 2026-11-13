@@ -29,7 +29,15 @@ import {
   type OperationalImportKind,
   type OperationalWorkbookData,
 } from '../importing/operational';
-import { parseProductSpecData, type ProductSpecData } from '../importing/product-spec';
+import {
+  isProductSpecIngredientRole,
+  isUnrecognizedApplicatorLabel,
+  parseProductSpecData,
+  productSpecRoleKey,
+  type ProductSpecData,
+  type ProductSpecIngredientRole,
+  type ProductSpecRoleOverrides,
+} from '../importing/product-spec';
 import { doughPortionChoices, scopeDoughWorkbook } from '../importing/dough';
 import { cheeseRecipeChoices, scopeCheeseWorkbook } from '../importing/cheese';
 import { sauceIssueCount } from '../importing/sauce';
@@ -128,6 +136,7 @@ function shippingProductData(workbook: ParsedWorkbook, selectedSheetNames: strin
 
 type ProductSpecDraft = ProductSpecProfileCandidate & {
   extracted?: ProductSpecData;
+  roleOverrides?: ProductSpecRoleOverrides;
   saveState?: 'saving' | 'saved' | 'failed';
   saveError?: string;
 };
@@ -141,15 +150,23 @@ type SchedulePlanningReview = {
 function prepareProductSpecDrafts(workbook: ParsedWorkbook): ProductSpecDraft[] {
   return parseProductSpecProfiles(workbook).map((candidate) => ({
     ...candidate,
-    extracted: parseProductSpecData(workbook, candidate),
+    roleOverrides: {},
+    extracted: parseProductSpecData(workbook, candidate, {}),
   }));
 }
+
+const productSpecRoleLabels: Record<ProductSpecIngredientRole, string> = {
+  sauce: 'Sauce (±0.05 oz)',
+  pep_applicator: 'Pep applicator (±0.05 oz)',
+  cheese_applicator: 'Cheese applicator (±0.1 oz)',
+  ingredient: 'Ordinary ingredient (±0.1 oz)',
+};
 
 const visualPreviewWorkbook: ParsedWorkbook = {
   fileName: 'Sample_Pizza_Recipe_Specs.xlsx',
   sizeBytes: 16_384,
   sheetCount: 1,
-  cellCount: 36,
+  cellCount: 38,
   kind: 'product_specs',
   kindConfidence: 'high',
   sheets: [{
@@ -158,6 +175,7 @@ const visualPreviewWorkbook: ParsedWorkbook = {
       ['Sample Brand', 'Classic Cheese'],
       ['Crust', 8.2],
       ['Sauce', 3.1],
+      ['Applicator - Unmapped sample', 0.2],
       ['Cheese', 5.4],
       ['TARGET WEIGHT', 16.7],
       ['WEIGHT SPEC RANGE', '16.2–17.2'],
@@ -314,6 +332,7 @@ function toProductSpecData(workbook: ParsedWorkbook, draft: ProductSpecDraft) {
     brand: draft.brand.trim(),
     flavor: draft.flavor.trim(),
   };
+  const roleOverrides = draft.roleOverrides ?? {};
   return {
     ...toSparseWorkbook(workbook),
     selectedProduct: {
@@ -321,8 +340,9 @@ function toProductSpecData(workbook: ParsedWorkbook, draft: ProductSpecDraft) {
       ...(draft.sourceBrand ? { sourceBrand: draft.sourceBrand } : {}),
       flavor: candidate.flavor,
       sections: draft.sections,
+      roleOverrides,
     },
-    structured: parseProductSpecData(workbook, candidate),
+    structured: parseProductSpecData(workbook, candidate, roleOverrides),
   };
 }
 
@@ -1016,6 +1036,26 @@ function WorkbookReview({
     ));
   };
 
+  const updateProductSpecRole = (
+    draft: ProductSpecDraft,
+    sourceKey: string,
+    value: string,
+  ) => {
+    const roleOverrides = { ...(draft.roleOverrides ?? {}) };
+    if (!value) {
+      delete roleOverrides[sourceKey];
+    } else if (isProductSpecIngredientRole(value)) {
+      roleOverrides[sourceKey] = value;
+    } else {
+      setValidation('Choose one of the listed source roles.');
+      return;
+    }
+    updateProductSpecDraft(draft.id, {
+      roleOverrides,
+      extracted: workbook ? parseProductSpecData(workbook, draft, roleOverrides) : draft.extracted,
+    });
+  };
+
   const addManualProductSpecDraft = () => {
     if (previewMode) return;
     setValidation('');
@@ -1262,6 +1302,11 @@ function WorkbookReview({
                 const draftProfile = profilesReady && draft.brand.trim() && draft.flavor.trim()
                   ? activeProfileByProduct.get(scheduleProductKey(draft.brand, draft.flavor))
                   : undefined;
+                const applicatorRows = draft.extracted?.sections.flatMap((section) =>
+                  section.ingredients
+                    .filter((ingredient) => isUnrecognizedApplicatorLabel(ingredient.name))
+                    .map((ingredient) => ({ section, ingredient })),
+                ) ?? [];
                 const sourceLocation = draft.sections.length
                   ? draft.sections.slice(0, 3).map((section) => `${section.sheet} · row ${section.headerRow}–${section.endRow}`).join('; ')
                   : 'Manual profile; full workbook retained';
@@ -1285,6 +1330,42 @@ function WorkbookReview({
                   {draft.sourceBrand && <p className="field-help" role="status">
                     Original workbook brand: {draft.sourceBrand}. This customer workbook uses separate Kroger profiles; the source cells are unchanged.
                   </p>}
+                  {applicatorRows.length > 0 && <section
+                    className="product-spec-role-review"
+                    aria-label={`Confirm applicator roles for ${draft.brand} ${draft.flavor}`}
+                    data-testid={`product-spec-role-review-${index}`}
+                  >
+                    <div>
+                      <strong>Unrecognized applicator rows</strong>
+                      <p className="field-help">Confirm each row’s role. Rows left unconfirmed stay flagged and won’t receive a quality-check target.</p>
+                    </div>
+                    {applicatorRows.map(({ section, ingredient }, roleIndex) => {
+                      const sourceKey = productSpecRoleKey(ingredient.sourceCoordinates);
+                      const controlId = `product-spec-role-${index}-${roleIndex}`;
+                      const currentRole = draft.roleOverrides?.[sourceKey];
+                      return <div className="product-spec-role-row" key={`${sourceKey}:${roleIndex}`}>
+                        <div className="product-spec-role-source">
+                          <strong>{ingredient.name}</strong>
+                          <small>{section.sheet} · row {ingredient.sourceRow} · {ingredient.roleConfirmed ? 'Role confirmed' : 'Needs confirmation'}</small>
+                        </div>
+                        <div className="form-field">
+                          <label htmlFor={controlId}>Confirmed role</label>
+                          <select
+                            id={controlId}
+                            data-testid={`select-product-spec-role-${index}-${roleIndex}`}
+                            value={currentRole ?? ''}
+                            onChange={(event) => updateProductSpecRole(draft, sourceKey, event.target.value)}
+                            disabled={locked}
+                          >
+                            <option value="">Choose a role</option>
+                            {Object.entries(productSpecRoleLabels).map(([role, label]) => (
+                              <option value={role} key={role}>{label}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>;
+                    })}
+                  </section>}
                   {draft.extracted && <ProductSpecSummary
                     nameResolution={referenceNames}
                     data={draft.extracted}

@@ -127,6 +127,7 @@ export const PreviewRunRequirementsResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
   "sourceCoordinates": zod.object({
   "sheet": zod.string(),
   "row": zod.number().int().nullable(),
@@ -167,6 +168,7 @@ export const PreviewRunRequirementsResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
   "sourceCoordinates": zod.object({
   "sheet": zod.string(),
   "row": zod.number().int().nullable(),
@@ -648,6 +650,7 @@ export const ListRunsResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
   "sourceCoordinates": zod.object({
   "sheet": zod.string(),
   "row": zod.number().int().nullable(),
@@ -688,6 +691,7 @@ export const ListRunsResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
   "sourceCoordinates": zod.object({
   "sheet": zod.string(),
   "row": zod.number().int().nullable(),
@@ -979,6 +983,7 @@ export const CreateRunResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
   "sourceCoordinates": zod.object({
   "sheet": zod.string(),
   "row": zod.number().int().nullable(),
@@ -1019,6 +1024,7 @@ export const CreateRunResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
   "sourceCoordinates": zod.object({
   "sheet": zod.string(),
   "row": zod.number().int().nullable(),
@@ -1431,6 +1437,7 @@ export const ListProductProfilesResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
   "sourceCoordinates": zod.object({
   "sheet": zod.string(),
   "row": zod.number().int().nullable(),
@@ -1471,6 +1478,7 @@ export const ListProductProfilesResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
   "sourceCoordinates": zod.object({
   "sheet": zod.string(),
   "row": zod.number().int().nullable(),
@@ -1672,6 +1680,7 @@ export const ImportProductProfileResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
   "sourceCoordinates": zod.object({
   "sheet": zod.string(),
   "row": zod.number().int().nullable(),
@@ -1712,6 +1721,7 @@ export const ImportProductProfileResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
   "sourceCoordinates": zod.object({
   "sheet": zod.string(),
   "row": zod.number().int().nullable(),
@@ -1918,6 +1928,7 @@ export const RenameProductProfileResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
   "sourceCoordinates": zod.object({
   "sheet": zod.string(),
   "row": zod.number().int().nullable(),
@@ -1958,6 +1969,7 @@ export const RenameProductProfileResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
   "sourceCoordinates": zod.object({
   "sheet": zod.string(),
   "row": zod.number().int().nullable(),
@@ -2135,6 +2147,7 @@ export const MergeProductProfileResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
   "sourceCoordinates": zod.object({
   "sheet": zod.string(),
   "row": zod.number().int().nullable(),
@@ -2175,6 +2188,7 @@ export const MergeProductProfileResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
   "sourceCoordinates": zod.object({
   "sheet": zod.string(),
   "row": zod.number().int().nullable(),
@@ -2413,6 +2427,7 @@ export const GetRunResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
   "sourceCoordinates": zod.object({
   "sheet": zod.string(),
   "row": zod.number().int().nullable(),
@@ -2453,6 +2468,7 @@ export const GetRunResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
   "sourceCoordinates": zod.object({
   "sheet": zod.string(),
   "row": zod.number().int().nullable(),
@@ -2715,6 +2731,7 @@ export const ApplyRunCommandResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
   "sourceCoordinates": zod.object({
   "sheet": zod.string(),
   "row": zod.number().int().nullable(),
@@ -2755,6 +2772,7 @@ export const ApplyRunCommandResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
   "sourceCoordinates": zod.object({
   "sheet": zod.string(),
   "row": zod.number().int().nullable(),
@@ -3871,6 +3889,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
   "sourceCoordinates": zod.object({
   "sheet": zod.string(),
   "row": zod.number().int().nullable(),
@@ -3911,6 +3930,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
   "sourceCoordinates": zod.object({
   "sheet": zod.string(),
   "row": zod.number().int().nullable(),
@@ -4074,6 +4094,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
   "sourceCoordinates": zod.object({
   "sheet": zod.string(),
   "row": zod.number().int().nullable(),
@@ -4114,6 +4135,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
   "sourceCoordinates": zod.object({
   "sheet": zod.string(),
   "row": zod.number().int().nullable(),
@@ -4286,6 +4308,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
   "sourceCoordinates": zod.object({
   "sheet": zod.string(),
   "row": zod.number().int().nullable(),
@@ -4326,6 +4349,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "originalName": zod.string(),
   "source": zod.string(),
   "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
   "sourceCoordinates": zod.object({
   "sheet": zod.string(),
   "row": zod.number().int().nullable(),

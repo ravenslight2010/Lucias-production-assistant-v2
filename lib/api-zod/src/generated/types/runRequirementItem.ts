@@ -17,6 +17,7 @@ export interface RunRequirementItem {
   originalName: string;
   source: string;
   ingredientRole: RunRequirementItemIngredientRole;
+  ingredientRoleConfirmed?: boolean;
   sourceCoordinates: RunRequirementItemSourceCoordinates;
   station: string;
   stationArea?: FacilityStationArea;

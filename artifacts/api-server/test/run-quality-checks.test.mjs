@@ -1,8 +1,36 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { after, default as test } from "node:test";
+import { build as esbuild } from "esbuild";
+import { mkdtemp, rm } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { PreviewRunRequirementsResponse } from "../../../lib/api-zod/src/generated/api.ts";
-import { buildRunRequirements } from "../src/lib/run-requirements.ts";
-import { buildRunQualityTargets } from "../src/lib/run-quality-checks.ts";
+
+const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+const bundleDirectory = await mkdtemp(
+  path.join(testDirectory, "../../../lib/db/tests/.run-quality-checks-"),
+);
+await esbuild({
+  entryPoints: [
+    path.resolve(testDirectory, "../src/lib/run-requirements.ts"),
+    path.resolve(testDirectory, "../src/lib/run-quality-checks.ts"),
+  ],
+  outdir: bundleDirectory,
+  outExtension: { ".js": ".mjs" },
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  packages: "bundle",
+  external: ["pg"],
+  banner: { js: 'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);' },
+});
+after(() => rm(bundleDirectory, { recursive: true, force: true }));
+const { buildRunRequirements } = await import(
+  pathToFileURL(path.join(bundleDirectory, "run-requirements.mjs")).href
+);
+const { buildRunQualityTargets } = await import(
+  pathToFileURL(path.join(bundleDirectory, "run-quality-checks.mjs")).href
+);
 
 const snapshot = () => ({
   runRequirements: {
@@ -178,7 +206,7 @@ test("copies imported row role and coordinates into the saved requirements plan"
   assert.doesNotThrow(() => PreviewRunRequirementsResponse.parse(resolvedPlan));
 });
 
-test("unknown applicator variants stay standard ingredients and require source-row review", () => {
+test("unknown applicator variants remain unresolved until source-role review", () => {
   const profile = {
     brand: "Lucia",
     flavor: "Cheese",
@@ -215,8 +243,9 @@ test("unknown applicator variants stay standard ingredients and require source-r
   const item = plan.items[0];
 
   assert.equal(item.ingredientRole, "ingredient", "unknown label cannot retain a tighter imported role");
+  assert.equal(item.ingredientRoleConfirmed, false);
   assert.deepEqual(item.sourceCoordinates, { sheet: "OZ", row: 7, nameColumn: "A" });
-  assert.ok(item.issues.some(issue => /OZ row 7.*Pep Applicator - New Model.*standard ingredient tolerance/.test(issue)));
+  assert.ok(item.issues.some(issue => /OZ row 7.*Pep Applicator - New Model.*this requirement stays flagged/.test(issue)));
   assert.equal(plan.status, "needs_review");
   assert.doesNotThrow(() => PreviewRunRequirementsResponse.parse(plan));
 
@@ -232,7 +261,28 @@ test("unknown applicator variants stay standard ingredients and require source-r
       finishedWeightSpec: { range: "11 - 13", unit: "oz", source: "customer-spec.xlsx · OZ row 9" },
     },
   });
-  assert.equal(quality.checks[0].toleranceOz, 0.1, "legacy snapshots also use standard tolerance for unfamiliar labels");
+  assert.equal(quality.checks[0].status, "unresolved", "legacy unknown applicators cannot receive a guessed target");
+  assert.match(quality.checks[0].unavailableReason, /confirm this applicator role/i);
+
+  profile.productData.sources[0].content.sections[0].ingredients[0].roleConfirmed = true;
+  const reviewedInitialPlan = buildRunRequirements(profile, 1, { unitsPerCase: 12 });
+  const confirmedPlan = buildRunRequirements(profile, 1, {
+    unitsPerCase: 12,
+    sectionId: reviewedInitialPlan.sectionId,
+    links: [{ itemId: reviewedInitialPlan.items[0].id, directIngredient: true }],
+  });
+  const confirmedItem = confirmedPlan.items[0];
+  assert.equal(confirmedItem.ingredientRole, "pep_applicator");
+  assert.equal(confirmedItem.ingredientRoleConfirmed, true);
+  assert.equal(confirmedItem.issues.some(issue => /unrecognized applicator/i.test(issue)), false);
+  const confirmedQuality = buildRunQualityTargets({
+    runRequirements: {
+      items: [confirmedItem],
+      finishedWeightSpec: { range: "11 - 13", unit: "oz", source: "customer-spec.xlsx · OZ row 9" },
+    },
+  });
+  assert.equal(confirmedQuality.checks[0].status, "ready");
+  assert.equal(confirmedQuality.checks[0].toleranceOz, 0.05);
 });
 
 test("does not invent a finished-weight target for an unclear or unlabelled source range", () => {

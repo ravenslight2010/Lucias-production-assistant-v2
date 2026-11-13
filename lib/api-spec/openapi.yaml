@@ -1690,6 +1690,7 @@ components:
         ingredientRole:
           type: string
           enum: [sauce, pep_applicator, cheese_applicator, ingredient]
+        ingredientRoleConfirmed: {type: boolean}
         sourceCoordinates:
           type: object
           properties:

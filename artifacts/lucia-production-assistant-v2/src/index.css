@@ -356,6 +356,12 @@ h3 { font: 700 16px/1.25 var(--app-font-display); }
 .product-spec-draft-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
 .product-spec-draft-fields .form-field { min-width: 0; margin: 4px 0 10px; }
 .product-spec-draft-meta { display: grid; gap: 4px; color: hsl(var(--muted-foreground)); font: 10px/1.5 var(--app-font-mono); overflow-wrap: anywhere; }
+.product-spec-role-review { display: grid; gap: 10px; min-width: 0; margin-top: 12px; padding: 12px; border: 1px solid hsl(var(--border)); border-left: 3px solid hsl(var(--primary)); border-radius: 8px; background: hsl(var(--muted) / .22); }
+.product-spec-role-review > div:first-child p { margin: 5px 0 0; line-height: 1.5; }
+.product-spec-role-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(190px, .65fr); gap: 12px; align-items: center; }
+.product-spec-role-source { display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.product-spec-role-source small { color: hsl(var(--muted-foreground)); font: 10px/1.45 var(--app-font-mono); }
+.product-spec-role-row .form-field { min-width: 0; margin: 0; }
 .product-spec-draft-actions { justify-content: flex-end; margin-top: 8px; padding-top: 8px; }
 .profile-list { display: grid; gap: 11px; }
 .profile-card { padding: 18px 20px; }
@@ -394,6 +400,7 @@ h3 { font: 700 16px/1.25 var(--app-font-display); }
   .import-fields { grid-template-columns: 1fr; }
   .product-spec-review { padding: 12px; }
   .product-spec-draft-fields { grid-template-columns: 1fr; }
+  .product-spec-role-row { grid-template-columns: 1fr; }
   .profile-card-head { flex-direction: column; }
   .profile-actions { align-items: stretch; }
   .profile-actions select, .profile-actions .button { width: 100%; max-width: none; }

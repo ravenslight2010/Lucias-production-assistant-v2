@@ -11,6 +11,9 @@ export type ProductSpecAmount = {
   value: string;
 };
 
+export type ProductSpecIngredientRole = "sauce" | "pep_applicator" | "cheese_applicator" | "ingredient";
+export type ProductSpecRoleOverrides = Record<string, ProductSpecIngredientRole>;
+
 export type ProductSpecIngredient = {
   sourceRow: number;
   sourceCoordinates: {
@@ -18,7 +21,8 @@ export type ProductSpecIngredient = {
     row: number;
     nameColumn: string;
   };
-  ingredientRole: "sauce" | "pep_applicator" | "cheese_applicator" | "ingredient";
+  ingredientRole: ProductSpecIngredientRole;
+  roleConfirmed?: boolean;
   name: string;
   amounts: ProductSpecAmount[];
 };
@@ -73,9 +77,55 @@ function ingredientRole(name: string): ProductSpecIngredient["ingredientRole"] {
   return "ingredient";
 }
 
+export function productSpecRoleKey(coordinates: ProductSpecIngredient["sourceCoordinates"]) {
+  return JSON.stringify([coordinates.sheet, coordinates.row, coordinates.nameColumn]);
+}
+
+export function isProductSpecIngredientRole(value: unknown): value is ProductSpecIngredientRole {
+  return value === "sauce" || value === "pep_applicator" ||
+    value === "cheese_applicator" || value === "ingredient";
+}
+
+function parseRoleOverrides(value: unknown): ProductSpecRoleOverrides | null {
+  if (value === undefined) return {};
+  if (!isRecord(value) || Object.keys(value).length > 200) return null;
+  const overrides: ProductSpecRoleOverrides = {};
+  for (const [key, role] of Object.entries(value)) {
+    let coordinates: unknown;
+    try {
+      coordinates = JSON.parse(key);
+    } catch {
+      return null;
+    }
+    if (
+      key.length > 256 ||
+      !Array.isArray(coordinates) ||
+      coordinates.length !== 3 ||
+      typeof coordinates[0] !== "string" ||
+      !coordinates[0].trim() ||
+      coordinates[0].length > 128 ||
+      typeof coordinates[1] !== "number" ||
+      !Number.isInteger(coordinates[1]) ||
+      coordinates[1] < 1 ||
+      coordinates[1] > WORKBOOK_LIMITS.maxRowsPerSheet ||
+      typeof coordinates[2] !== "string" ||
+      !/^[A-Z]{1,3}$/.test(coordinates[2]) ||
+      !isProductSpecIngredientRole(role)
+    ) {
+      return null;
+    }
+    overrides[key] = role;
+  }
+  return overrides;
+}
+
 export function isUnrecognizedApplicatorLabel(name: string) {
   const label = name.normalize("NFKC").trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   return /\bapplicators?\b/.test(label) && ingredientRole(name) === "ingredient";
+}
+
+export function isUnconfirmedApplicator(ingredient: Pick<ProductSpecIngredient, "name" | "roleConfirmed">) {
+  return isUnrecognizedApplicatorLabel(ingredient.name) && ingredient.roleConfirmed !== true;
 }
 
 function sectionColumns(section: ProductSpecSection, sheetColumnCount: number) {
@@ -87,6 +137,7 @@ function sectionColumns(section: ProductSpecSection, sheetColumnCount: number) {
 function parseSection(
   workbook: ParsedWorkbook,
   section: ProductSpecSection,
+  roleOverrides: ProductSpecRoleOverrides,
 ): ProductSpecSectionData | null {
   const sheet = workbook.sheets.find((item) => item.name === section.sheet);
   if (!sheet) return null;
@@ -153,21 +204,25 @@ function parseSection(
       if (!text) break;
       amounts.push({ column: excelColumnLabel(column), value: text });
     }
-    const role = ingredientRole(name);
     const sourceRow = rowIndex + 1;
-    if (isUnrecognizedApplicatorLabel(name)) {
+    const sourceCoordinates = {
+      sheet: section.sheet,
+      row: sourceRow,
+      nameColumn: excelColumnLabel(labelColumn),
+    };
+    const roleOverride = roleOverrides[productSpecRoleKey(sourceCoordinates)];
+    const role = roleOverride ?? ingredientRole(name);
+    const roleConfirmed = !isUnrecognizedApplicatorLabel(name) || roleOverride !== undefined;
+    if (!roleConfirmed) {
       warnings.push(
-        `${section.sheet} row ${sourceRow}: "${name}" contains an unrecognized applicator label. Verify its role before using this run plan; it remains an ordinary ingredient.`,
+        `${section.sheet} row ${sourceRow}: "${name}" contains an unrecognized applicator label. Confirm its role before using this run plan.`,
       );
     }
     ingredients.push({
       sourceRow,
-      sourceCoordinates: {
-        sheet: section.sheet,
-        row: rowIndex + 1,
-        nameColumn: excelColumnLabel(labelColumn),
-      },
+      sourceCoordinates,
       ingredientRole: role,
+      roleConfirmed,
       name,
       amounts,
     });
@@ -193,9 +248,10 @@ function parseSection(
 export function parseProductSpecData(
   workbook: ParsedWorkbook,
   candidate: ProductSpecProfileCandidate,
+  roleOverrides: ProductSpecRoleOverrides = {},
 ): ProductSpecData {
   const sections = candidate.sections
-    .map((section) => parseSection(workbook, section))
+    .map((section) => parseSection(workbook, section, roleOverrides))
     .filter((section): section is ProductSpecSectionData => section !== null);
   const warnings: string[] = [];
   if (!sections.length) warnings.push("No complete product-spec sections were available to extract.");
@@ -228,6 +284,8 @@ export function parsePreservedProductSpec(value: unknown): ProductSpecData | nul
   const selected = value.selectedProduct;
   if (typeof selected.brand !== "string" || typeof selected.flavor !== "string" ||
       !Array.isArray(selected.sections) || !selected.sections.length) return null;
+  const roleOverrides = parseRoleOverrides(selected.roleOverrides);
+  if (!roleOverrides) return null;
 
   const sheets: ParsedWorkbook["sheets"] = [];
   let cellCount = 0;
@@ -277,5 +335,5 @@ export function parsePreservedProductSpec(value: unknown): ProductSpecData | nul
     brand: selected.brand,
     flavor: selected.flavor,
     sections,
-  });
+  }, roleOverrides);
 }

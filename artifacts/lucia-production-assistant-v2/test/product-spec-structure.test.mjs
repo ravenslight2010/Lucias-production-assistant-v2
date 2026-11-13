@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parsePreservedProductSpec, parseProductSpecData } from "../src/importing/product-spec.ts";
+import { parsePreservedProductSpec, parseProductSpecData, productSpecRoleKey } from "../src/importing/product-spec.ts";
 import { parseProductSpecProfiles } from "../src/importing/workbook.ts";
 import { customerProductSpecFixtures } from "./fixtures/product-spec-role-workbooks.mjs";
 
@@ -172,11 +172,50 @@ test("flags unfamiliar applicator labels with source sheet and row while keeping
     row: 2,
     nameColumn: "A",
   });
-  assert.match(section.warnings[0], /OZ row 2.*Pep Applicator - New Model.*ordinary ingredient/);
+  assert.match(section.warnings[0], /OZ row 2.*Pep Applicator - New Model.*Confirm its role/);
   assert.equal(section.ingredients[1].ingredientRole, "ingredient");
-  assert.match(section.warnings[1], /OZ row 3.*Cheese applicators.*ordinary ingredient/);
+  assert.match(section.warnings[1], /OZ row 3.*Cheese applicators.*Confirm its role/);
   assert.equal(section.ingredients[2].ingredientRole, "pep_applicator");
   assert.equal(section.warnings.length, 2);
+});
+
+test("confirmed applicator roles persist with their exact source coordinates", () => {
+  const source = workbook([
+    ["Sample Brand", "Special"],
+    ["Sauce", 2],
+    ["Applicator - New Model", 0.5],
+    ["TARGET WEIGHT", 12],
+    ["WEIGHT SPEC RANGE", "11.75 - 12.25"],
+  ]);
+  const profile = parseProductSpecProfiles(source)[0];
+  const unreviewed = parseProductSpecData(source, profile);
+  const ingredient = unreviewed.sections[0].ingredients[1];
+  assert.equal(ingredient.roleConfirmed, false);
+  const key = productSpecRoleKey(ingredient.sourceCoordinates);
+  const roleOverrides = { [key]: "pep_applicator" };
+  const reviewed = parseProductSpecData(source, profile, roleOverrides);
+  assert.equal(reviewed.sections[0].ingredients[1].ingredientRole, "pep_applicator");
+  assert.equal(reviewed.sections[0].ingredients[1].roleConfirmed, true);
+  assert.equal(reviewed.sections[0].warnings.some((warning) => /unrecognized applicator/i.test(warning)), false);
+
+  const preserved = {
+    format: "lucia.workbook.sparse.v1",
+    selectedProduct: {
+      brand: profile.brand,
+      flavor: profile.flavor,
+      sections: profile.sections.map(({ endColumn, ...section }) => section),
+      roleOverrides,
+    },
+    sheets: source.sheets.map((sheet) => ({
+      name: sheet.name,
+      cells: sheet.rows.flatMap((row, r) => row.flatMap((value, c) =>
+        value == null ? [] : [{ r, c, v: value }],
+      )),
+    })),
+  };
+  const restored = parsePreservedProductSpec(preserved);
+  assert.equal(restored.sections[0].ingredients[1].ingredientRole, "pep_applicator");
+  assert.equal(restored.sections[0].ingredients[1].roleConfirmed, true);
 });
 
 test("keeps adjacent packaging tables out of ingredient amounts and product boundaries", () => {

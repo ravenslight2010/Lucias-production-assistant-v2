@@ -173,7 +173,7 @@ export function buildRunRequirements(profile: Profile, targetCases: number, opti
     const itemId = `${selected.id}:${index}`;
     const link = links.find(l => l.itemId === itemId);
     const originalName = text(raw.name);
-    const unknownApplicator = isUnrecognizedApplicatorLabel(originalName);
+    const unknownApplicator = isUnrecognizedApplicatorLabel(originalName) && raw.roleConfirmed !== true;
     const ref = canonical("recipe", selected.brand, originalName);
     const exact = [...recipes.values()].filter(r => nameKey({ kind: "recipe", brand: r.choice.brand, name: r.choice.name }) === nameKey(ref));
     if (link?.directIngredient && link.recipeId) throw new HttpError(400, "Choose either a recipe or a direct ingredient, not both.");
@@ -192,7 +192,7 @@ export function buildRunRequirements(profile: Profile, targetCases: number, opti
       const sourceSheet = text(coordinates.sheet) || text(selected.raw.sheet) || "unknown sheet";
       const sourceRow = numeric(coordinates.row) ?? numeric(raw.sourceRow);
       issues.push(
-        `${sourceSheet} row ${sourceRow ?? "?"}: "${originalName}" contains an unrecognized applicator label. Confirm its role before using this requirement; standard ingredient tolerance will apply.`,
+        `${sourceSheet} row ${sourceRow ?? "?"}: "${originalName}" contains an unrecognized applicator label. Confirm its role before recording quality checks; this requirement stays flagged.`,
       );
     }
     if (!amount) issues.push("Select the per-pizza source column; parallel amounts are not added together.");
@@ -239,6 +239,7 @@ export function buildRunRequirements(profile: Profile, targetCases: number, opti
       source: `${selected.source} · ${text(selected.raw.sheet)} row ${raw.sourceRow ?? "?"}`,
       ingredientRole: !unknownApplicator && (raw.ingredientRole === "sauce" || raw.ingredientRole === "pep_applicator" ||
         raw.ingredientRole === "cheese_applicator") ? raw.ingredientRole : "ingredient",
+      ingredientRoleConfirmed: !unknownApplicator,
       sourceCoordinates: {
         sheet: text(record(raw.sourceCoordinates) ? raw.sourceCoordinates.sheet : null) || text(selected.raw.sheet),
         row: numeric(record(raw.sourceCoordinates) ? raw.sourceCoordinates.row : raw.sourceRow),

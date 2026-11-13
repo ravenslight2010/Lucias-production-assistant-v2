@@ -50,6 +50,7 @@ test login without adding an authentication bypass to the application.
 
 Coverage:
 - Import original workbook, create planned run, compare complete captured data.
+- Review an unfamiliar applicator warning, assign a role, and verify the saved profile retains it.
 - Add a second workbook revision and rename both brand and flavor.
 - Cancel, then explicitly confirm a merge; check both bundles survive and source
   disappears from the active cards and run selectors without manually refreshing.

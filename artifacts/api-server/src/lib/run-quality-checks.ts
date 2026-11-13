@@ -30,10 +30,19 @@ function unresolvedTarget(
   };
 }
 
-function ingredientTolerance(role: unknown, sourceName: string) {
+function hasUnrecognizedApplicatorLabel(value: string) {
+  const label = value.normalize("NFKC").trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const recognized =
+    /^(?:(?:pizza )?sauce(?: applicator)?|(?:pep|pepperoni) applicator|cheese applicator)$/.test(label) ||
+    /^applicator\b.*\b(?:pep|pepperoni)\b.*\bcheese (?:mix|blend)\b/.test(label) ||
+    /^applicator\b.*\b(?:cheese|mozzarella)\b/.test(label);
+  return /\bapplicators?\b/.test(label) && !recognized;
+}
+
+function ingredientTolerance(role: unknown, sourceName: string, roleConfirmed = false) {
   const label = sourceName.normalize("NFKC").trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const knownApplicator = /^(?:(?:pizza )?sauce(?: applicator)?|(?:pep|pepperoni) applicator|cheese applicator)$/.test(label);
-  if (/\bapplicators?\b/.test(label) && !knownApplicator) return 0.1;
+  if (!roleConfirmed && /\bapplicators?\b/.test(label) && !knownApplicator) return 0.1;
   return role === "sauce" || role === "pep_applicator" ? 0.05 : 0.1;
 }
 
@@ -78,6 +87,16 @@ export function buildRunQualityTargets(productSnapshot: unknown): {
       label: name.slice(0, 200),
       source: source.slice(0, 500),
     };
+    const sourceRoleName = text(rawItem.originalName) || name;
+    const hasUnconfirmedApplicator = rawItem.ingredientRoleConfirmed === false ||
+      (rawItem.ingredientRoleConfirmed === undefined && hasUnrecognizedApplicatorLabel(sourceRoleName)) ||
+      (Array.isArray(rawItem.issues) && rawItem.issues.some(
+      (issue) => typeof issue === "string" && /unrecognized applicator label/i.test(issue),
+      ));
+    if (hasUnconfirmedApplicator) {
+      checks.push(unresolvedTarget(check, "Confirm this applicator role in the product specifications before recording a quality check."));
+      continue;
+    }
     const unit = text(rawItem.usageUnit).toLowerCase();
     const factor = weightToOz[unit];
     const perPizza = finiteNumber(rawItem.perPizza);
@@ -97,7 +116,11 @@ export function buildRunQualityTargets(productSnapshot: unknown): {
       continue;
     }
     const targetOz = round(convertedTarget);
-    const toleranceOz = ingredientTolerance(rawItem.ingredientRole, text(rawItem.originalName) || name);
+    const toleranceOz = ingredientTolerance(
+      rawItem.ingredientRole,
+      sourceRoleName,
+      rawItem.ingredientRoleConfirmed === true,
+    );
     checks.push({
       ...check,
       status: "ready",

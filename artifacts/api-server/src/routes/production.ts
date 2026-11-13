@@ -1096,9 +1096,52 @@ router.post(
         return;
       }
     }
+    const productSpecRoleOverrides: [string, string][] = [];
+    if (input.importKind === "product_specs" && input.productData &&
+        typeof input.productData === "object" && !Array.isArray(input.productData)) {
+      const selectedProduct = (input.productData as Record<string, unknown>).selectedProduct;
+      if (selectedProduct && typeof selectedProduct === "object" && !Array.isArray(selectedProduct)) {
+        const rawOverrides = (selectedProduct as Record<string, unknown>).roleOverrides;
+        if (rawOverrides !== undefined) {
+          if (!rawOverrides || typeof rawOverrides !== "object" || Array.isArray(rawOverrides)) {
+            throw new HttpError(400, "Product specification role choices are invalid.");
+          }
+          const entries = Object.entries(rawOverrides as Record<string, unknown>);
+          if (entries.length > 200) throw new HttpError(400, "Too many product specification role choices.");
+          for (const [key, role] of entries) {
+            let coordinates: unknown;
+            try {
+              coordinates = JSON.parse(key);
+            } catch {
+              throw new HttpError(400, "Product specification role source coordinates are invalid.");
+            }
+            if (
+              key.length > 256 ||
+              !Array.isArray(coordinates) ||
+              coordinates.length !== 3 ||
+              typeof coordinates[0] !== "string" ||
+              !coordinates[0].trim() ||
+              coordinates[0].length > 128 ||
+              typeof coordinates[1] !== "number" ||
+              !Number.isInteger(coordinates[1]) ||
+              coordinates[1] < 1 ||
+              coordinates[1] > 100_000 ||
+              typeof coordinates[2] !== "string" ||
+              !/^[A-Z]{1,3}$/.test(coordinates[2]) ||
+              !["sauce", "pep_applicator", "cheese_applicator", "ingredient"].includes(String(role))
+            ) {
+              throw new HttpError(400, "Product specification role choices are invalid.");
+            }
+            productSpecRoleOverrides.push([key, String(role)]);
+          }
+        }
+      }
+    }
+    productSpecRoleOverrides.sort(([a], [b]) => a.localeCompare(b));
     const dataHash = createHash("sha256")
       .update(JSON.stringify({
         brand, flavor, kind: input.importKind, sourceHash: input.sourceHash,
+        ...(productSpecRoleOverrides.length ? { productSpecRoleOverrides } : {}),
         ...(doughSelection ? { doughSelection } : {}),
         ...(cheeseSelection ? { cheeseSelection } : {}),
         ...(sauceSelection ? { sauceSelection } : {}),

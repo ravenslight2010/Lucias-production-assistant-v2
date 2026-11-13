@@ -520,10 +520,12 @@ function DashboardVisualPreviewPage() {
   const progress: DashboardRunProgress = {
     runId: run.id,
     areas: [
-      { area: 'dough_sauce_prep', stationCount: 2, countedStations: 2, lowestReportedCases: 42 },
+      { area: 'dough_prep', stationCount: 1, countedStations: 1, lowestReportedCases: 42 },
+      { area: 'sauce_prep', stationCount: 1, countedStations: 1, lowestReportedCases: 38 },
       { area: 'production_line', stationCount: 3, countedStations: 2, lowestReportedCases: 38 },
+      { area: 'freeze_tunnel', stationCount: 1, countedStations: 0, lowestReportedCases: null },
       { area: 'freezing_packaging', stationCount: 1, countedStations: 0, lowestReportedCases: null },
-      { area: 'warehouse', stationCount: 1, countedStations: 1, lowestReportedCases: 42 },
+      { area: 'warehouse', stationCount: 2, countedStations: 1, lowestReportedCases: 42 },
     ],
     preparationStatusCounts: { notStarted: 1, inProgress: 2, ready: 3, notRequired: 1 },
   };

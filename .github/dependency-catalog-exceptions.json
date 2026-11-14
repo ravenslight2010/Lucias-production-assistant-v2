@@ -1,0 +1,5 @@
+{
+  "react": {
+    "peerDependencies": "The API client library supports React 18+ consumers and must not pin consumers to the workspace app's React version."
+  }
+}

@@ -33,6 +33,10 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Check shared dependency declarations
+        run: pnpm run check:dependency-catalog
+      - name: Test dependency catalog guard
+        run: node --test scripts/tests/dependency-catalog.test.mjs
       - name: Typecheck workspace
         run: pnpm run typecheck
 

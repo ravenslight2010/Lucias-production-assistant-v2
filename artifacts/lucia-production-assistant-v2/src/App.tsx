@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { createContext, lazy, Suspense, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { ClerkProvider, Show, useAuth, useClerk } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
@@ -38,6 +38,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import { elapsedMilliseconds, formatElapsed } from '@/run-timer';
 import { dashboardPrimaryAction } from '@/dashboard-primary-action';
+import { DayCockpit, RunContextStrip, type CockpitRole } from '@/components/day-cockpit';
 
 const SignInPage = lazy(() => import('@/pages/sign-in'));
 const SignUpPage = lazy(() => import('@/pages/sign-up'));
@@ -69,6 +70,20 @@ const clerkPubKey = publishableKeyFromHost(
   import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
 );
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+
+type RunFocusContextValue = {
+  focusedRunId: string | null;
+  focusRun: (run: Run) => void;
+  clearFocus: () => void;
+};
+
+const RunFocusContext = createContext<RunFocusContextValue | null>(null);
+
+function useRunFocus() {
+  const context = useContext(RunFocusContext);
+  if (!context) throw new Error('Run focus state is not available.');
+  return context;
+}
 
 function stripBase(path: string) {
   return basePath && path.startsWith(basePath) ? path.slice(basePath.length) || '/' : path;
@@ -115,10 +130,14 @@ function Brand({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function SiteShell({ children, facilityName }: { children: ReactNode; facilityName?: string }) {
+function SiteShell({ children, facilityName, contextRun }: { children: ReactNode; facilityName?: string; contextRun?: Run | null }) {
   const { signOut } = useClerk();
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
+  const online = useConnection();
+  const client = useQueryClient();
+  const focus = useRunFocus();
   const handleSignOut = async () => {
+    focus.clearFocus();
     try {
       await revokeV2Session();
     } catch {
@@ -130,32 +149,125 @@ function SiteShell({ children, facilityName }: { children: ReactNode; facilityNa
     query: { queryKey: getGetFacilityContextQueryKey(), retry: false },
     request: { credentials: 'include' },
   });
+  const dashboardQuery = useGetDashboardSummary({
+    query: { queryKey: getGetDashboardSummaryQueryKey(), refetchInterval: online ? 5_000 : false },
+    request: { credentials: 'include' },
+  });
+  const command = useApplyRunCommand({ request: { credentials: 'include' } });
+  const [now, setNow] = useState(() => Date.now());
+  const [commandFeedback, setCommandFeedback] = useState('');
+  const commandKeys = useRef(new Map<string, string>());
+  const summary = dashboardQuery.data;
+  const role = facilityContext.data?.role ?? null;
+  const availableRuns = summary ? [...summary.activeRuns, ...summary.plannedRuns, ...summary.recentRuns] : [];
+  const selectedRun = availableRuns.find((run) => run.id === focus.focusedRunId) ?? null;
+  const focusedRun = contextRun ?? selectedRun ?? summary?.activeRuns[0] ?? summary?.plannedRuns[0] ?? null;
+  const activeRunForNav = focusedRun?.status === 'running' || focusedRun?.status === 'paused'
+    ? focusedRun
+    : summary?.activeRuns[0] ?? focusedRun;
+  const liveRunHref = activeRunForNav ? `/runs/${encodeURIComponent(activeRunForNav.id)}` : '/runs';
+  const contextElapsed = focusedRun ? formatElapsed(elapsedMilliseconds(focusedRun, now)) : null;
+  const canManageLifecycle = role === 'owner' || role === 'manager';
+
+  useEffect(() => {
+    setNow(Date.now());
+    if (!focusedRun || focusedRun.status !== 'running') return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, [focusedRun?.id, focusedRun?.status, focusedRun?.startedAt, focusedRun?.pausedAt, focusedRun?.resumedAt, focusedRun?.completedAt]);
+
+  const applyContextCommand = (run: Run, commandType: RunCommandRequest['commandType']) => {
+    if (!online || command.isPending || (commandType === 'complete' && !canManageLifecycle)) return;
+    setCommandFeedback('');
+    const commandScope = `${run.id}:${run.revision}:${commandType}`;
+    const commandId = commandKeys.current.get(commandScope) ?? crypto.randomUUID();
+    commandKeys.current.set(commandScope, commandId);
+    command.mutate({
+      runId: run.id,
+      data: { commandType, expectedRevision: run.revision, commandId },
+    }, {
+      onSuccess: (result) => {
+        commandKeys.current.delete(commandScope);
+        client.setQueryData(getGetRunQueryKey(run.id), { run: result.run });
+        void client.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+        void client.invalidateQueries({ queryKey: getListRunsQueryKey() });
+        void client.invalidateQueries({ queryKey: getGetRunStationProgressQueryKey(run.id) });
+        setCommandFeedback(result.replayed
+          ? `Already saved. Current state is ${result.run.status}, revision ${result.run.revision}.`
+          : `Saved. Run is ${result.run.status}, revision ${result.run.revision}.`);
+      },
+      onError: (error) => {
+        if (getErrorStatus(error) === 409) {
+          commandKeys.current.delete(commandScope);
+          setCommandFeedback('This run changed on another device. The latest state is refreshing; review it before trying again.');
+          void client.invalidateQueries({ queryKey: getGetRunQueryKey(run.id) });
+          void client.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+          void client.invalidateQueries({ queryKey: getListRunsQueryKey() });
+        } else {
+          setCommandFeedback(`${getErrorMessage(error, 'The run command could not be saved.')} Retry when the connection is ready.`);
+        }
+      },
+    });
+  };
+
   const currentFacilityName = facilityName || facilityContext.data?.facility?.name;
   const links = [
-    { href: '/', label: 'Overview', icon: Gauge },
-    { href: '/runs', label: 'Production runs', icon: ClipboardList },
-    { href: '/imports', label: 'Product profiles', icon: Factory },
+    { href: '/', label: 'Today', icon: Gauge },
+    { href: liveRunHref, label: 'Live run', icon: Activity },
     { href: '/stations', label: 'Stations', icon: MapPinned },
+    { href: '/imports', label: 'Imports', icon: Factory },
     { href: '/inventory', label: 'Inventory', icon: Package },
+    { href: '/runs', label: 'Run queue', icon: ClipboardList },
   ];
+  const secondaryLinks = [];
   if (facilityContext.data?.role === 'owner' || facilityContext.data?.role === 'manager') {
-    links.push({ href: '/manager', label: 'Manager workspace', icon: BookOpen });
+    secondaryLinks.push({ href: '/manager', label: 'Manager workspace', icon: BookOpen });
   }
   if (facilityContext.data?.role === 'owner') {
-    links.push({ href: '/team', label: 'Team members', icon: Users });
+    secondaryLinks.push({ href: '/team', label: 'Team members', icon: Users });
   }
+  const canOperateRuns = role === 'owner' || role === 'manager' || role === 'operator';
+  const contextProps = {
+    summary: summary ?? null,
+    role: role as CockpitRole,
+    online,
+    focusedRunId: focus.focusedRunId,
+    onFocusRun: focus.focusRun,
+    onOpenRun: (run: Run) => {
+      focus.focusRun(run);
+      setLocation(`/runs/${encodeURIComponent(run.id)}`);
+    },
+    onStartRun: canOperateRuns ? (run: Run) => applyContextCommand(run, 'start') : undefined,
+    onPauseRun: canOperateRuns ? (run: Run) => applyContextCommand(run, 'pause') : undefined,
+    onResumeRun: canOperateRuns ? (run: Run) => applyContextCommand(run, 'resume') : undefined,
+    onCompleteRun: canManageLifecycle ? (run: Run) => applyContextCommand(run, 'complete') : undefined,
+    pending: command.isPending,
+    pendingRunId: command.variables?.runId ?? null,
+    currentElapsedTime: contextElapsed,
+  };
+  const hasRunContext = Boolean(focusedRun || summary?.activeRuns.length || summary?.plannedRuns.length);
   return (
-    <div className="app-shell">
+    <div className={`app-shell${hasRunContext ? ' has-run-context' : ''}`}>
       <aside className="sidebar">
         <Link href="/" className="brand"><Brand /></Link>
         <div className="nav-label">Operations</div>
         <nav className="nav-links" aria-label="Main navigation">
           {links.map(({ href, label, icon: Icon }) => (
-            <Link key={href} href={href} className="nav-link" aria-current={location === href ? 'page' : undefined} data-testid={`link-nav-${label.toLowerCase().replaceAll(' ', '-')}`}>
+            <Link key={label} href={href} className="nav-link" aria-current={location === href || (label === 'Live run' && location.startsWith('/runs/')) ? 'page' : undefined} data-testid={`link-nav-${label.toLowerCase().replaceAll(' ', '-')}`}>
               <Icon size={17} aria-hidden="true" /><span>{label}</span>
             </Link>
           ))}
         </nav>
+        {secondaryLinks.length > 0 && <>
+          <div className="nav-label nav-label-secondary">Management</div>
+          <nav className="nav-links" aria-label="Management navigation">
+            {secondaryLinks.map(({ href, label, icon: Icon }) => (
+              <Link key={href} href={href} className="nav-link" aria-current={location === href ? 'page' : undefined} data-testid={`link-nav-${label.toLowerCase().replaceAll(' ', '-')}`}>
+                <Icon size={17} aria-hidden="true" /><span>{label}</span>
+              </Link>
+            ))}
+          </nav>
+        </>}
         <div className="sidebar-bottom">
           <div className="facility-mini">Current facility</div>
           <div className="facility-mini-name" data-testid="text-current-facility">{currentFacilityName || 'Facility setup'}</div>
@@ -169,7 +281,12 @@ function SiteShell({ children, facilityName }: { children: ReactNode; facilityNa
           <Link href="/" aria-label="Lucia home"><Brand compact /></Link>
           <nav className="mobile-links" aria-label="Main navigation">
             {links.map(({ href, label, icon: Icon }) => (
-              <Link key={href} href={href} aria-label={label} aria-current={location === href ? 'page' : undefined} data-testid={`mobile-nav-${label.toLowerCase().replaceAll(' ', '-')}`}>
+              <Link key={label} href={href} aria-label={label} title={label} aria-current={location === href || (label === 'Live run' && location.startsWith('/runs/')) ? 'page' : undefined} data-testid={`mobile-nav-${label.toLowerCase().replaceAll(' ', '-')}`}>
+                <Icon size={18} aria-hidden="true" />
+              </Link>
+            ))}
+            {secondaryLinks.map(({ href, label, icon: Icon }) => (
+              <Link key={href} href={href} aria-label={label} title={label} aria-current={location === href ? 'page' : undefined} data-testid={`mobile-nav-${label.toLowerCase().replaceAll(' ', '-')}`}>
                 <Icon size={18} aria-hidden="true" />
               </Link>
             ))}
@@ -178,7 +295,10 @@ function SiteShell({ children, facilityName }: { children: ReactNode; facilityNa
             </button>
           </nav>
         </header>
+        {commandFeedback && <div className={`shell-command-feedback${getErrorStatus(command.error) && getErrorStatus(command.error) !== 409 ? ' is-error' : ''}`} role="status" data-testid="status-context-command">{commandFeedback}</div>}
         {children}
+        {hasRunContext && <div className="run-context-spacer" aria-hidden="true" />}
+        {hasRunContext && <RunContextStrip {...contextProps} run={focusedRun} />}
       </div>
     </div>
   );
@@ -283,7 +403,7 @@ function Dashboard() {
     return <FacilitySetup online={online} />;
   }
   if (!facilityContext?.facility) return <LoadingPage title="Preparing your workspace" />;
-  return <FacilityDashboard facilityName={facilityContext.facility.name} role={facilityContext.role} />;
+  return <FacilityDashboard role={facilityContext.role} />;
 }
 
 function FacilitySetup({ online }: { online: boolean }) {
@@ -332,93 +452,41 @@ function FacilitySetup({ online }: { online: boolean }) {
   );
 }
 
-function FacilityDashboard({
-  facilityName,
-  role,
-}: {
-  facilityName: string;
-  role: 'owner' | 'manager' | 'operator' | null;
-}) {
+function FacilityDashboard({ role }: { role: CockpitRole }) {
   const online = useConnection();
+  const focus = useRunFocus();
+  const [, setLocation] = useLocation();
   const summary = useGetDashboardSummary({
     query: { queryKey: getGetDashboardSummaryQueryKey(), refetchInterval: online ? 5000 : false },
     request: { credentials: 'include' },
   });
   const data = summary.data;
-  const latestRuns = data?.recentRuns ?? [];
-  const activeRuns = data?.activeRuns ?? [];
-  const plannedRuns = data?.plannedRuns ?? [];
-  const activeRunProgress = new Map((data?.activeRunProgress ?? []).map((item) => [item.runId, item]));
-  const primaryAction = dashboardPrimaryAction(role, activeRuns, plannedRuns, Boolean(data));
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (activeRuns.length === 0) return;
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, [activeRuns.length]);
+  const primaryAction = role && data && role !== 'operator' && data.activeRuns.length === 0 && data.plannedRuns.length === 0
+    ? { kind: 'link' as const, label: 'Load day plan', href: '/imports' }
+    : dashboardPrimaryAction(role, data?.activeRuns ?? [], data?.plannedRuns ?? [], Boolean(data));
   return (
-    <SiteShell facilityName={data?.facility.name || facilityName}>
-      <main className="workspace">
-        <OfflineNotice hasCache={Boolean(data)} />
-        <div className="page-head">
-          <div><div className="eyebrow">Shift dashboard</div><h1>Good to have you back.</h1><p className="page-subtitle">{data?.facility.name || facilityName} · Current production at a glance.</p></div>
-          {primaryAction.kind === 'link'
-            ? <Link href={primaryAction.href} className="button button-primary" data-testid="dashboard-primary-action">
-                {primaryAction.label === 'New production run' && <Plus size={16} />}
-                {primaryAction.label}
-              </Link>
-            : <p className="field-help" role="status" data-testid="dashboard-primary-action">{primaryAction.text}</p>}
-        </div>
-        {summary.isLoading && !data ? <><div className="skeleton" /><div className="skeleton" /></> : null}
-        {summary.isError && !data && <DataError message={getErrorMessage(summary.error, 'Dashboard data could not be loaded.')} onRetry={() => void summary.refetch()} />}
-        {summary.isError && data && <div className="error-banner" role="status">Could not refresh. Showing the last saved dashboard view.</div>}
-        {data && <>
-          <section className="stats-grid" aria-label="Run totals">
-            <Stat label="In progress" value={data.counts.active} detail="Running or paused" icon={<Activity size={16} />} />
-            <Stat label="Planned" value={data.counts.planned} detail="Ready to start" icon={<ClipboardList size={16} />} />
-            <Stat label="Completed" value={data.counts.completed} detail="Recorded runs" icon={<Check size={16} />} />
-          </section>
-          {data.qualityAttention.length > 0 && (
-            <section className="panel dashboard-quality-attention" aria-labelledby="dashboard-quality-attention-title" data-testid="list-dashboard-quality-attention">
-              <div className="dashboard-quality-heading">
-                <div>
-                  <div className="eyebrow">Review needed</div>
-                  <h2 id="dashboard-quality-attention-title">Quality needs attention</h2>
-                </div>
-                <span>{data.qualityAttention.length} run{data.qualityAttention.length === 1 ? '' : 's'}</span>
-              </div>
-              <ul className="dashboard-quality-list">
-                {data.qualityAttention.map((item) => (
-                  <li key={item.runId} data-testid={`row-dashboard-quality-${item.runId}`}>
-                    <div className="dashboard-quality-run-heading">
-                      <Link href={`/runs/${encodeURIComponent(item.runId)}`} className="dashboard-quality-run">{item.runLabel}</Link>
-                      <span className={`status status-${item.runStatus}`}>{item.runStatus}</span>
-                    </div>
-                    <p>
-                      {item.failedChecks > 0 && <span>{item.failedChecks} failed measurement{item.failedChecks === 1 ? '' : 's'}</span>}
-                      {item.failedChecks > 0 && item.unresolvedChecks > 0 && <span aria-hidden="true"> · </span>}
-                      {item.unresolvedChecks > 0 && <span>{item.unresolvedChecks} check{item.unresolvedChecks === 1 ? '' : 's'} need review</span>}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-          <div className="section-heading"><div><h2>Active now</h2><p className="field-help">Line timers and saved station counts update with shared run state.</p></div><Link href="/runs" className="text-link">All runs <ArrowRight size={14} /></Link></div>
-          <section className="active-run-grid" aria-label="Live production overview">
-            {activeRuns.length ? activeRuns.map((run) => <ActiveRunCard key={run.id} run={run} progress={activeRunProgress.get(run.id)} now={now} />) : <div className="panel active-run-empty"><EmptyState title="No active runs" copy="When a run starts, its line timer and saved station counts will show here for the whole team." /></div>}
-          </section>
-          <div className="section-heading" style={{ marginTop: 30 }}><h2>Planned runs</h2><Link href="/runs" className="text-link">Manage schedule <ArrowRight size={14} /></Link></div>
-          <section className="panel run-list" aria-label="Planned production runs">
-            {plannedRuns.length ? plannedRuns.map((run) => <RunRow key={run.id} run={run} />) : <EmptyState title="No planned runs" copy="Create a planned run or import a schedule to build the production queue." action={<Link href="/runs" className="button button-secondary">Create a run <ArrowRight size={15} /></Link>} />}
-          </section>
-          <div className="section-heading" style={{ marginTop: 30 }}><h2>Recently updated</h2><span className="eyebrow">Latest activity</span></div>
-          <section className="panel run-list" aria-label="Recently updated runs">
-            {latestRuns.length ? latestRuns.map((run) => <RunRow key={run.id} run={run} />) : <EmptyState title="Nothing recorded yet" copy="Create the first production run to start a shared shift record." action={<Link href="/runs" className="button button-secondary">Create a run <ArrowRight size={15} /></Link>} />}
-          </section>
-        </>}
-        {!online && data && <p className="field-help" style={{ marginTop: 14 }}>Read-only cached data. No changes are being queued offline.</p>}
-      </main>
+    <SiteShell facilityName={data?.facility.name} >
+      <div className="workspace cockpit-workspace">
+        {!online && data && <OfflineNotice hasCache />}
+        <DayCockpit
+          summary={data ?? null}
+          role={role}
+          online={online}
+          focusedRunId={focus.focusedRunId}
+          onFocusRun={focus.focusRun}
+          onOpenRun={(run) => {
+            focus.focusRun(run);
+            setLocation(`/runs/${encodeURIComponent(run.id)}`);
+          }}
+          primaryActionLabel={primaryAction.kind === 'link' ? primaryAction.label : null}
+          onPrimaryAction={primaryAction.kind === 'link' ? () => setLocation(primaryAction.href) : undefined}
+          primaryActionNotice={primaryAction.kind === 'notice' ? primaryAction.text : null}
+          loading={summary.isLoading}
+          error={summary.isError ? getErrorMessage(summary.error, 'Dashboard data could not be refreshed.') : null}
+          onRetry={() => void summary.refetch()}
+          showContextStrip={false}
+        />
+      </div>
     </SiteShell>
   );
 }
@@ -495,6 +563,96 @@ function ActiveRunCard({
         <Link href={`/runs/${encodeURIComponent(run.id)}`} className="text-link">Open run <ArrowRight size={14} /></Link>
       </div>
     </article>
+  );
+}
+
+function DayCockpitVisualPreviewPage() {
+  const now = Date.now();
+  const activeRun: Run = {
+    id: '00000000-0000-4000-8000-000000000101',
+    status: 'running',
+    revision: 7,
+    createdAt: new Date(now - 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(now - 30 * 1000).toISOString(),
+    scheduledFor: null,
+    scheduleNotes: null,
+    scheduleSource: null,
+    startedAt: new Date(now - 42 * 60 * 1000).toISOString(),
+    pausedAt: null,
+    resumedAt: null,
+    completedAt: null,
+    setupSnapshot: { label: 'Lucia Classic / 12-inch', targetCases: 100 },
+    productSnapshot: null,
+    pauseIntervals: [],
+  };
+  const plannedRun: Run = {
+    ...activeRun,
+    id: '00000000-0000-4000-8000-000000000102',
+    status: 'planned',
+    scheduledFor: new Date(now + 45 * 60 * 1000).toISOString(),
+    startedAt: null,
+  };
+  const completedRun: Run = {
+    ...activeRun,
+    id: '00000000-0000-4000-8000-000000000103',
+    status: 'completed',
+    completedAt: new Date(now - 6 * 60 * 1000).toISOString(),
+  };
+  const summary: DashboardSummary = {
+    facility: {
+      id: '00000000-0000-4000-8000-000000000110',
+      name: 'Lucia Sample Facility',
+      createdAt: new Date(now - 24 * 60 * 60 * 1000).toISOString(),
+    },
+    counts: { active: 1, planned: 2, completed: 8 },
+    activeRuns: [activeRun],
+    plannedRuns: [plannedRun],
+    activeRunProgress: [{
+      runId: activeRun.id,
+      areas: [
+        { area: 'dough_prep', stationCount: 1, countedStations: 1, lowestReportedCases: 42 },
+        { area: 'sauce_prep', stationCount: 1, countedStations: 1, lowestReportedCases: 38 },
+        { area: 'production_line', stationCount: 3, countedStations: 2, lowestReportedCases: 38 },
+        { area: 'freeze_tunnel', stationCount: 1, countedStations: 0, lowestReportedCases: null },
+        { area: 'freezing_packaging', stationCount: 1, countedStations: 0, lowestReportedCases: null },
+        { area: 'warehouse', stationCount: 2, countedStations: 1, lowestReportedCases: 42 },
+      ],
+      preparationStatusCounts: { notStarted: 1, inProgress: 2, ready: 3, notRequired: 1 },
+    }],
+    qualityAttention: [{
+      runId: activeRun.id,
+      runLabel: activeRun.setupSnapshot.label,
+      runStatus: activeRun.status,
+      failedChecks: 1,
+      unresolvedChecks: 1,
+    }],
+    recentRuns: [completedRun],
+  };
+
+  return (
+    <div className="day-cockpit-preview-shell">
+      <div className="workspace day-cockpit-preview">
+        <p className="preview-readonly-note">Development-only preview · Synthetic values · No API calls or saved changes</p>
+        <DayCockpit
+          summary={summary}
+          role="operator"
+          online={false}
+          focusedRunId={activeRun.id}
+          onFocusRun={() => {}}
+          onOpenRun={() => {}}
+          showContextStrip={false}
+        />
+      </div>
+      <RunContextStrip
+        summary={summary}
+        role="operator"
+        online={false}
+        focusedRunId={activeRun.id}
+        run={activeRun}
+        onFocusRun={() => {}}
+        onOpenRun={() => {}}
+      />
+    </div>
   );
 }
 
@@ -760,7 +918,7 @@ function RunDetailPage() {
     });
   };
   return (
-    <SiteShell>
+    <SiteShell contextRun={run}>
       <main className="workspace">
         <OfflineNotice hasCache={Boolean(run)} />
         <Link href="/runs" className="text-link" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, marginBottom: 22 }}><ArrowLeft size={15} /> All runs</Link>
@@ -803,11 +961,35 @@ function RunDetailPage() {
               <Property label="Completed" value={run.completedAt ? formatDateTime(run.completedAt) : '—'} />
             </aside>
           </div>
-          <section className="panel snapshot-panel" style={{ marginTop: 16 }} aria-labelledby="product-snapshot-heading">
-            <div className="snapshot-title">
+          <nav className="run-workspace-nav" aria-label="Run workspace sections" data-testid="nav-run-workspace">
+            <a href="#run-stations">Stations and line timer</a>
+            <a href="#run-quality">Quality checks</a>
+            <a href="#run-requirements">Requirements and inventory</a>
+            <a href="#run-snapshot">Product source</a>
+          </nav>
+          <section className="run-workspace-section" id="run-stations" aria-label="Station execution">
+            <RunStationProgressSection
+              runId={run.id}
+              run={run}
+              online={online}
+              targetCases={run.setupSnapshot.targetCases}
+              requirementsPlan={run.productSnapshot?.runRequirements ?? null}
+            />
+          </section>
+          <section className="run-workspace-section" id="run-quality" aria-label="Run quality checks">
+            <RunQualityChecksSection runId={run.id} online={online} />
+          </section>
+          <section className="run-workspace-section" id="run-requirements" aria-label="Run requirements and inventory">
+            {run.productSnapshot?.runRequirements
+              ? <RunRequirementsSummary plan={run.productSnapshot.runRequirements} runId={run.id} runStatus={run.status} online={online} />
+              : <div className="notice" role="status">This run has no captured requirements plan. Its original snapshot has not been changed.</div>}
+          </section>
+          <details className="panel snapshot-panel" id="run-snapshot" style={{ marginTop: 16 }} open={run.status === 'planned' || run.status === 'completed'}>
+            <summary className="snapshot-title">
               <div className="snapshot-mark"><Factory size={18} aria-hidden="true" /></div>
               <div><div className="eyebrow">Captured at run creation</div><h2 id="product-snapshot-heading">Product setup snapshot</h2></div>
-            </div>
+              <span className="snapshot-toggle-copy">Source details</span>
+            </summary>
             {run.productSnapshot
               ? <>
                 <div className="property-row"><span>Profile</span><strong>{run.productSnapshot.brand} / {run.productSnapshot.flavor}</strong></div>
@@ -819,17 +1001,7 @@ function RunDetailPage() {
                 <details className="profile-bundle"><summary>View captured source data</summary><pre>{JSON.stringify(run.productSnapshot.productData, null, 2)}</pre></details>
               </>
               : <div className="notice" role="status">No product profile snapshot was attached when this run was created. The run setup remains unchanged.</div>}
-          </section>
-          {run.productSnapshot?.runRequirements && <RunRequirementsSummary plan={run.productSnapshot.runRequirements} runId={run.id} runStatus={run.status} online={online} />}
-          {!run.productSnapshot?.runRequirements && <div className="notice" role="status">This run has no captured requirements plan. Its original snapshot has not been changed.</div>}
-          <RunStationProgressSection
-            runId={run.id}
-            run={run}
-            online={online}
-            targetCases={run.setupSnapshot.targetCases}
-            requirementsPlan={run.productSnapshot?.runRequirements ?? null}
-          />
-          <RunQualityChecksSection runId={run.id} online={online} />
+          </details>
           {command.isPending && <div className="notice" role="status"><LoaderCircle size={15} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />Sending the revision-checked command. Wait for confirmation before leaving this page.</div>}
         </>}
       </main>
@@ -1053,6 +1225,29 @@ function V2SessionBootstrapper() {
 
 function RouterContent() {
   const [, setLocation] = useLocation();
+  const [focusedRunId, setFocusedRunId] = useState<string | null>(() => {
+    try {
+      return window.localStorage.getItem('lucia-v2:focused-run');
+    } catch {
+      return null;
+    }
+  });
+  const focusRun = (run: Run) => {
+    setFocusedRunId(run.id);
+    try {
+      window.localStorage.setItem('lucia-v2:focused-run', run.id);
+    } catch {
+      // The in-memory focus remains usable when browser storage is unavailable.
+    }
+  };
+  const clearFocus = () => {
+    setFocusedRunId(null);
+    try {
+      window.localStorage.removeItem('lucia-v2:focused-run');
+    } catch {
+      // Sign-out still proceeds when browser storage is unavailable.
+    }
+  };
   const health = useHealthCheck({
     query: {
       queryKey: ['/api/healthz'],
@@ -1076,6 +1271,7 @@ function RouterContent() {
       routerPush={(to) => setLocation(stripBase(to))}
       routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
     >
+      <RunFocusContext.Provider value={{ focusedRunId, focusRun, clearFocus }}>
       <ClerkQueryClientCacheInvalidator />
       <V2SessionBootstrapper />
       <WorkerAvailabilityNotice health={health.data} />
@@ -1096,6 +1292,7 @@ function RouterContent() {
           </Switch>
         </Suspense>
       </ErrorBoundary>
+      </RunFocusContext.Provider>
     </ClerkProvider>
   );
 }
@@ -1109,7 +1306,8 @@ function App() {
   const isRunQualityChecksPreview = import.meta.env.DEV && visualPath === '/__visual-preview/quality-checks';
   const isRunPreparationPreview = import.meta.env.DEV && visualPath === '/__visual-preview/preparation';
   const isDashboardVisualPreview = import.meta.env.DEV && visualPath === '/__visual-preview/dashboard';
-  if (!clerkPubKey && !isVisualSandbox && !isVisualPreview && !isStationLineupPreview && !isStationCalculatorPreview && !isRunQualityChecksPreview && !isRunPreparationPreview && !isDashboardVisualPreview) {
+  const isDayCockpitVisualPreview = import.meta.env.DEV && visualPath === '/__visual-preview/day-cockpit';
+  if (!clerkPubKey && !isVisualSandbox && !isVisualPreview && !isStationLineupPreview && !isStationCalculatorPreview && !isRunQualityChecksPreview && !isRunPreparationPreview && !isDashboardVisualPreview && !isDayCockpitVisualPreview) {
     throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY in .env file');
   }
   return (
@@ -1119,6 +1317,8 @@ function App() {
           ? <Suspense fallback={<LoadingPage title="Loading visual sandbox" />}><VisualSandboxPage basePath={basePath} /></Suspense>
           : isStationLineupPreview
             ? <Suspense fallback={<LoadingPage title="Loading station lineup sandbox" />}><StationLineupPage previewMode /></Suspense>
+          : isDayCockpitVisualPreview
+          ? <WouterRouter base={basePath}><DayCockpitVisualPreviewPage /></WouterRouter>
           : isDashboardVisualPreview
           ? <WouterRouter base={basePath}><DashboardVisualPreviewPage /></WouterRouter>
           : isVisualPreview

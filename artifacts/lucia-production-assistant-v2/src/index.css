@@ -113,6 +113,7 @@
 .brand-name { font: 800 16px/1.1 var(--app-font-display); letter-spacing: -.04em; }
 .brand-sub { margin-top: 4px; color: hsl(var(--sidebar-muted)); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
 .nav-label { margin: 46px 10px 12px; color: hsl(var(--sidebar-muted)); font: 500 10px/1 var(--app-font-mono); letter-spacing: .12em; text-transform: uppercase; }
+.nav-label-secondary { margin-top: 28px; }
 .nav-links { display: grid; gap: 5px; }
 .nav-link { display: flex; align-items: center; gap: 12px; min-height: 46px; padding: 0 12px; border-radius: 9px; color: #d0dbd9; text-decoration: none; font-size: 14px; font-weight: 600; transition: background .18s, color .18s; }
 .nav-link:hover, .nav-link[aria-current="page"] { background: rgba(230,239,231,.1); color: #fff; }
@@ -389,9 +390,19 @@ h3 { font: 700 16px/1.25 var(--app-font-display); }
 .profile-bundle pre { max-height: 250px; overflow: auto; white-space: pre-wrap; }
 .snapshot-panel { padding: 22px; }
 .snapshot-title { display: flex; align-items: flex-start; gap: 12px; }
+.snapshot-panel > summary { cursor: pointer; list-style: none; }
+.snapshot-panel > summary::-webkit-details-marker { display: none; }
+.snapshot-panel > summary:focus-visible { outline: 3px solid hsl(var(--accent)); outline-offset: 5px; border-radius: 6px; }
+.snapshot-toggle-copy { margin: 8px 0 0 auto; color: hsl(var(--primary)); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.snapshot-panel[open] .snapshot-toggle-copy { color: hsl(var(--muted-foreground)); }
 .snapshot-mark { flex: 0 0 38px; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; color: hsl(var(--primary)); background: hsl(var(--primary) / .09); }
 .snapshot-panel h2 { margin: 0 0 6px; }
 .snapshot-panel p { margin-bottom: 14px; color: hsl(var(--muted-foreground)); font-size: 13px; line-height: 1.55; }
+.run-workspace-nav { display: flex; gap: 7px; margin: 16px 0 6px; padding: 2px 0 6px; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-width: thin; }
+.run-workspace-nav a { display: inline-flex; align-items: center; flex: 0 0 auto; min-height: 42px; padding: 0 13px; border: 1px solid hsl(var(--border)); border-radius: 7px; color: hsl(var(--primary)); background: hsl(var(--card)); text-decoration: none; font-size: 12px; font-weight: 700; }
+.run-workspace-nav a:hover { background: hsl(var(--primary) / .07); }
+.run-workspace-section { margin-top: 14px; scroll-margin-top: 16px; }
+.run-workspace-section > .panel { width: 100%; }
 .confirm-merge { flex-basis: 100%; padding: 12px; border: 1px solid #e6c8a2; border-radius: 9px; background: #fff5e8; color: #684923; font-size: 12px; line-height: 1.5; }
 .import-history-section { margin-top: 32px; }
 .import-history-section .section-heading { align-items: flex-end; margin-bottom: 13px; }
@@ -435,13 +446,17 @@ h3 { font: 700 16px/1.25 var(--app-font-display); }
 @media (max-width: 700px) {
   .app-shell { display: block; }
   .sidebar { display: none; }
-  .mobile-topbar { min-height: 67px; padding: 0 18px; display: flex; align-items: center; justify-content: space-between; background: hsl(var(--sidebar)); color: hsl(var(--sidebar-foreground)); }
+  .mobile-topbar { min-height: 67px; padding: 0 14px; display: flex; align-items: center; gap: 10px; background: hsl(var(--sidebar)); color: hsl(var(--sidebar-foreground)); }
   .mobile-topbar .brand-mark { width: 34px; height: 34px; }
   .mobile-topbar .brand-name { font-size: 14px; }
-  .mobile-links { display: flex; align-items: center; gap: 5px; }
-  .mobile-links a { display: grid; place-items: center; min-width: 42px; min-height: 42px; border-radius: 8px; color: #e5eee8; text-decoration: none; }
+  .mobile-links { display: flex; flex: 1; align-items: center; justify-content: flex-start; gap: 3px; min-width: 0; max-width: calc(100vw - 150px); margin-left: auto; overflow-x: auto; scrollbar-width: none; overscroll-behavior-inline: contain; }
+  .mobile-links::-webkit-scrollbar { display: none; }
+  .mobile-links a { display: grid; flex: 0 0 42px; place-items: center; min-width: 42px; min-height: 44px; border-radius: 8px; color: #e5eee8; text-decoration: none; }
   .mobile-links a[aria-current="page"] { background: rgba(230,239,231,.13); color: #fff; }
   .workspace { padding: 24px 18px 44px; }
+  .run-context-spacer { height: 110px; }
+  .shell-command-feedback { margin-inline: 14px; }
+  .run-workspace-nav a { min-height: 44px; }
   .page-head { align-items: flex-start; flex-direction: column; margin: 5px 0 24px; }
   .page-head .button { width: 100%; }
   .stats-grid { gap: 8px; }

@@ -65,6 +65,13 @@ synthetic case counts and station preparation statuses. It runs outside
 sign-in, is available only in Vite development mode, and uses no facility data
 or save actions.
 
+## Dev-only day cockpit preview
+
+Open `/__visual-preview/day-cockpit` to inspect the Today cockpit with
+synthetic active, planned, and completed runs, station coverage, preparation
+status, and quality attention. It runs outside sign-in, is available only in
+Vite development mode, and does not call the API or save changes.
+
 ## Profile snapshot regression
 
 `profile_snapshots.py` runs the real UI against the real development API, with

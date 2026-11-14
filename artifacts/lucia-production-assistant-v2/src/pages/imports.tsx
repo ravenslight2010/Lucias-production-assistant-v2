@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import {
-  AlertTriangle, ArrowDownToLine, ChevronDown, CircleAlert, FileSpreadsheet,
+  AlertTriangle, ArrowDownToLine, ArrowRight, ChevronDown, CircleAlert, FileSpreadsheet,
   GitMerge, LoaderCircle, Pencil, RefreshCw, ShieldCheck, Upload,
 } from 'lucide-react';
 import {
@@ -54,6 +54,7 @@ import {
   type ProductSpecProfileCandidate,
 } from '../importing/workbook';
 import './imports.css';
+import { Link } from 'wouter';
 
 const kindLabels: Record<ImportKind, string> = {
   product_specs: 'Product specifications',
@@ -1499,6 +1500,7 @@ function WorkbookReview({
                 {validation && <div className="error-banner" role="alert">{validation}</div>}
                 {scheduleImporter.isError && <div className={errorStatus(scheduleImporter.error) === 409 ? 'notice' : 'error-banner'} role="alert">{errorText(scheduleImporter.error, 'Schedule import failed. No partial runs were saved.')}</div>}
                 {savedMessage && <div className="notice" role="status"><ShieldCheck size={15} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />{savedMessage}</div>}
+                {scheduleImporter.isSuccess && savedMessage && <Link href="/runs" className="button button-secondary" data-testid="link-imported-runs">Open the planned runs <ArrowRight size={14} /></Link>}
                 <button className="button button-primary" type="submit" disabled={previewMode || !online || scheduleImporter.isPending || !hasScheduleMappings || !hasSchedulePlanning || schedulePreview.errors.length > 0} data-testid="button-import-schedule">
                   {scheduleImporter.isPending ? <LoaderCircle size={16} className="spin" /> : <ArrowDownToLine size={16} />}
                   {scheduleImporter.isPending ? 'Creating reviewed run plans…' : `Import ${schedulePreview.runs.length} planned ${schedulePreview.runs.length === 1 ? 'run' : 'runs'}`}

@@ -10,21 +10,21 @@ be ignored.
 
 | Work package | Status | Current evidence and remaining acceptance |
 |---|---|---|
-| WP0 — Repo hygiene and status docs | **Complete** | Product status is corrected below. PNPM 9.15.9 frozen install, typecheck, build, and web/API tests pass locally. See [WP0 notes](evidence/purpose-completion/WP0-notes.md). |
+| WP0 — Repo hygiene and status docs | **Complete** | Product status is corrected below. PNPM 10.26.1 frozen install, typecheck, build, and web/API tests pass locally. See [WP0 notes](evidence/purpose-completion/WP0-notes.md) for the historical PNPM 9 baseline. |
 | WP1 — Day-plan import | **Partial** | Product and process importers, name cleanup/merge, schedule-to-planned-run flow, and reviewed requirement snapshots exist. Synthetic signed-in browser regressions cover product snapshots and schedule imports, but they have not been run in this turn; see [WP1 notes](evidence/purpose-completion/WP1-notes.md). |
 | WP2 — Station execution | **Partial** | Shared line timer, station status, revision-checked counts, station-level prep readiness, and separately saved early-pull checklist items exist. Source rows remain unassigned to stations unless the source maps them; the disposable API pilot checks status changes, retries, and stale revisions. Signed-in two-session floor verification remains. |
 | WP3 — Live production math | **Partial** | Run detail uses captured requirements and station progress for remaining demand. A tracked synthetic golden case covers dough, sauce, cheese, tray, batch rounding, and count-driven usage; the disposable API pilot confirms saved counts recalculate use. Signed-in live-page refresh remains. |
 | WP4 — Inventory from production | **Partial** | Facility inventory, adjustments, and run-level actual-use confirmation exist. The disposable pilot verifies opening counts and blocks planned-run deductions; integration coverage also checks stale-stock protection, confirmed deductions, retries, double-deduction prevention, and correction links. Signed-in confirmation remains unverified. |
 | WP5 — Run-tied quality checks | **Partial** | Run-level ounce measurements, customer tolerances, finished-weight ranges, unresolved-applicator blocking, and dashboard summaries for failed/unresolved checks exist. The disposable API pilot verifies the failed-check summary; the signed-in recording path remains unverified. |
 | WP6 — Dashboard coherence | **Partial** | Dashboard shows run totals, active timers, station-area counts, station preparation status, planned runs, recent activity, and quality-attention counts. The primary action is role-aware: operators open active/planned work; owners/managers can create runs. Signed-in state rendering and phone behavior remain unverified. |
-| WP7 — Hardening and CI | **Partial** | Local typecheck, build, and web/API test suites pass. GitHub Actions on the resulting changes has not been run; preserve the PNPM 9 lockfile format and require CI before pushing or publishing. |
+| WP7 — Hardening and CI | **Partial** | Local typecheck, build, and web/API test suites pass with PNPM 10.26.1. GitHub Actions on the latest changes has not been run; preserve the pinned PNPM 10 toolchain and require CI before pushing or publishing. |
 
 ## WP0 — Repo hygiene and truth in docs
 
 - [x] Updated `replit.md` to distinguish implemented, partial, and unverified behavior.
 - [x] Added this checklist and a WP0 verification note.
 - [x] Confirmed GitHub `main` was already up to date at the task baseline.
-- [x] Verified the frozen install with the lockfile-compatible PNPM 9.15.9.
+- [x] Verified the frozen install with PNPM 10.26.1.
 - [x] Ran workspace typecheck, workspace build, and web/API tests.
 
 ## WP1 — Day-plan import (P0)
@@ -85,7 +85,7 @@ be ignored.
 ## WP7 — Hardening, tests, and CI
 
 - [x] Workspace typecheck, build, and web/API test suites pass locally with the supported toolchain.
-- [x] Frozen install succeeds with PNPM 9.15.9, which matches the patched lockfile format.
+- [x] Frozen install succeeds with PNPM 10.26.1, which matches the patched lockfile format.
 - [ ] Run GitHub CI after the next change set and require Typecheck, Build, Unit/API tests, and lockfile checks to pass.
 - [ ] Run the signed-in core journey without bypassing Clerk or facility authorization.
 

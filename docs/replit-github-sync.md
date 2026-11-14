@@ -18,10 +18,11 @@ On every push to `main`, workflow **Replit sync notice**:
 git fetch origin
 git checkout main
 git pull --ff-only origin main
-corepack pnpm@9.15.9 install --frozen-lockfile
+pnpm install --frozen-lockfile
 ```
 
 If the lockfile changed, commit only after a successful frozen install.
+PNPM 10.26.1 is pinned in the root manifest; GitHub Actions uses that same pin.
 
 Comment on the tracker issue:
 

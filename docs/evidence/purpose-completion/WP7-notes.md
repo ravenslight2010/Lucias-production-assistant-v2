@@ -18,8 +18,9 @@
 
 ## Remaining
 
-GitHub Actions has not run on these changes, and no changes were pushed or
-published. The disposable pilot test does not verify Replit VM overlap or
-external sign-in providers. Keep CI's PNPM 9 toolchain aligned with the patched
-lockfile; the workspace's bare PNPM 10.26.1 fails the frozen install. The
-signed-in browser journey remains unverified in this turn.
+GitHub Actions had not run on that historical changeset, and no changes were
+pushed or published at the time. The disposable pilot test does not verify
+Replit VM overlap or external sign-in providers. The PNPM 9 toolchain notes in
+this historical verification were superseded on 2026-11-13 by the coordinated
+PNPM 10.26.1 migration across the manifest, lockfile, CI, and setup script. The
+signed-in browser journey remains unverified in that turn.

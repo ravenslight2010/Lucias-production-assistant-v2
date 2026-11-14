@@ -15,10 +15,17 @@ checklist. The repo was already at the task baseline (`d7c74b5`); fetching
 - API tests — 95 passed, including disposable-PostgreSQL integration tests.
 - `git diff --check` — passed.
 
-The shell's bare `pnpm` is 10.26.1 and rejects the patched lockfile metadata.
-The repository CI installs PNPM 9, and the lockfile succeeds with PNPM 9.15.9.
-The GitHub-sync instructions now specify the compatible Corepack command; do not
-regenerate the lockfile with PNPM 10.
+This verification predates the repository's later PNPM 10.26.1 migration. The
+PNPM 9.15.9 commands above are historical evidence only; current setup and CI
+use the root-manifest PNPM 10.26.1 pin.
+The lockfile and setup commands must be regenerated and verified with the
+repository's pinned PNPM version.
+
+## Superseded toolchain note
+
+On 2026-11-13, the workspace was standardized on PNPM 10.26.1. The lockfile,
+post-merge setup, GitHub Actions, and current instructions were migrated and
+verified together.
 
 ## Limits
 

@@ -8,28 +8,27 @@ When GitHub `main` is updated outside Replit, issue **Replit sync: pull latest G
 
 ```bash
 git fetch origin && git pull --ff-only origin main
-corepack pnpm@9.15.9 install --frozen-lockfile
+pnpm install --frozen-lockfile
 ```
 
 Details: `docs/replit-github-sync.md`.
-The patched lockfile was verified with PNPM 9.15.9; GitHub CI installs PNPM 9.
-The current Replit shell's PNPM 10 rejects this patched lockfile, so use the
-Corepack command above and do not regenerate the lockfile under PNPM 10.
+The root `package.json` pins PNPM 10.26.1. GitHub Actions reads that pin rather
+than declaring a separate PNPM version.
 
 ## Run & Operate
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
 - `pnpm --filter @workspace/lucia-production-assistant-v2 run dev` — run the V2 web app
-- `corepack pnpm@9.15.9 run typecheck` — full typecheck across all packages
-- `PORT=4173 BASE_PATH=/ corepack pnpm@9.15.9 run build` — typecheck + build all packages
-- `corepack pnpm@9.15.9 --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `corepack pnpm@9.15.9 --filter @workspace/db run push` — push DB schema changes (dev only)
+- `pnpm run typecheck` — full typecheck across all packages
+- `PORT=4173 BASE_PATH=/ pnpm run build` — typecheck + build all packages
+- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
+- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — this V2 project's PostgreSQL connection string
 - Authentication uses the Replit-managed Clerk setup; do not add V1 credentials.
 
 ## Stack
 
-- pnpm 9.15.9 workspaces, Node.js 24, TypeScript 5.9
+- pnpm 10.26.1 workspaces, Node.js 24, TypeScript 5.9
 - API: Express 5
 - DB: PostgreSQL + Drizzle ORM
 - Validation: Zod (`zod/v4`), `drizzle-zod`

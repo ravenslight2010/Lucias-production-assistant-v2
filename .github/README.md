@@ -23,6 +23,6 @@ Code scanning uses **GitHub default CodeQL setup** (no duplicate workflow).
 
 - **Auto-merge** enabled
 - **Delete branch on merge** enabled
-- **`main` protection** — Typecheck, Build, Unit and API tests, lockfile; must be up to date
+- **`main` protection** — Typecheck, Build, Unit and API tests, lockfile, and Dependency review; must be up to date
 - Dependabot security updates + vulnerability alerts
 - Secret scanning + push protection

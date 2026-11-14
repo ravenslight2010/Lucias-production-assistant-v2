@@ -1,4 +1,4 @@
-export type RunStatus = "planned" | "draft" | "running" | "paused" | "completed";
+export type RunStatus = "planned" | "draft" | "running" | "paused" | "completed" | "incomplete";
 export type RunAction = "start" | "pause" | "resume" | "complete";
 
 export interface RunLifecycleState {

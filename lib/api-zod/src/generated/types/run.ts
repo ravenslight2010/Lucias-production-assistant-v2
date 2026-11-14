@@ -38,6 +38,8 @@ export interface Run {
   resumedAt: Date | null;
   /** @nullable */
   completedAt: Date | null;
+  /** @nullable */
+  endedAt: Date | null;
   setupSnapshot: RunSetup;
   productSnapshot: ProductProfile | null;
   pauseIntervals: PauseInterval[];

@@ -1261,7 +1261,7 @@ components:
       required: [error, current]
     RunStatus:
       type: string
-      enum: [planned, running, paused, completed]
+      enum: [planned, running, paused, completed, incomplete]
     RunStationProgressStatus:
       type: string
       enum: [not_started, in_progress, paused, completed]
@@ -2461,6 +2461,9 @@ components:
         completedAt:
           type: [string, "null"]
           format: date-time
+        endedAt:
+          type: [string, "null"]
+          format: date-time
         setupSnapshot:
           $ref: "#/components/schemas/RunSetup"
         productSnapshot:
@@ -2484,6 +2487,7 @@ components:
         - pausedAt
         - resumedAt
         - completedAt
+        - endedAt
         - setupSnapshot
         - productSnapshot
         - pauseIntervals

@@ -14,4 +14,5 @@ export const RunStatus = {
   running: 'running',
   paused: 'paused',
   completed: 'completed',
+  incomplete: 'incomplete',
 } as const;

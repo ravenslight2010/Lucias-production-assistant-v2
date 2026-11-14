@@ -20,6 +20,7 @@ export function toContractRun(run: ProductionRun) {
     pausedAt: run.pausedAt,
     resumedAt: run.resumedAt,
     completedAt: run.completedAt,
+    endedAt: run.endedAt ?? run.completedAt,
     setupSnapshot: {
       label: run.name,
       targetCases: run.targetCases,

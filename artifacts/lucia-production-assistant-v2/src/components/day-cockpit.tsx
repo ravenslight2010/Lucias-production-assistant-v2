@@ -11,7 +11,7 @@ import {
   RotateCcw,
   WifiOff,
 } from 'lucide-react';
-import { formatProductionDate, isRunCarriedOver } from '../production-day';
+import { formatProductionDate } from '../production-day';
 import './day-cockpit.css';
 
 export type CockpitRole = 'owner' | 'manager' | 'operator' | null;
@@ -94,6 +94,7 @@ const statusLabels: Record<RunStatus, string> = {
   running: 'Running',
   paused: 'Paused',
   completed: 'Completed',
+  incomplete: 'Incomplete',
 };
 
 function allRuns(summary: DashboardSummary) {
@@ -186,9 +187,6 @@ function RunCard({ run, props, progress }: {
         <span className="day-run-card-top">
           <span className={statusClass(run.status)}>{statusLabels[run.status]}</span>
           <span className="day-run-card-tags">
-            {props.summary && isRunCarriedOver(run, props.summary.productionDay.date, props.summary.productionDay.timezone) && (
-              <span className="day-carryover-tag" data-testid={`badge-carryover-${run.id}`}>Carryover</span>
-            )}
             {attention && <span className="day-attention-tag"><CircleAlert size={12} /> Review</span>}
           </span>
         </span>
@@ -279,9 +277,6 @@ export function DayCockpit(props: DayCockpitProps) {
   const active = summary?.activeRuns ?? [];
   const planned = summary?.plannedRuns ?? [];
   const completed = summary?.todayCompletedRuns ?? [];
-  const carriedOverCount = summary
-    ? [...active, ...planned].filter((run) => isRunCarriedOver(run, summary.productionDay.date, summary.productionDay.timezone)).length
-    : 0;
   const qualityItems = summary?.qualityAttention ?? [];
   const recentImports = props.recentImports ?? [];
   const importReviewCount = recentImports.filter((batch) => batch.status === 'draft').length;
@@ -337,9 +332,7 @@ export function DayCockpit(props: DayCockpitProps) {
         <Clock3 size={16} aria-hidden="true" />
         <span>
           <strong>New production day · midnight</strong>
-          {carriedOverCount
-            ? `${carriedOverCount} visible unfinished ${carriedOverCount === 1 ? 'run is' : 'runs are'} carried forward. Run timers and recorded progress remain unchanged.`
-            : 'Unfinished runs carry forward; timers and recorded progress are not reset.'}
+          Unfinished runs close as incomplete. Their saved history is retained; they do not enter the new day.
           <small>Facility time: {summary.productionDay.timezone}</small>
         </span>
       </div>

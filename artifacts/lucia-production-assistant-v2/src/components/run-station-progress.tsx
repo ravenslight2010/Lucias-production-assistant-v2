@@ -76,6 +76,10 @@ function timestamp(value: string | null) {
 }
 
 function stationEventLabel(status: RunStationProgressStatus, run: LineTimerRun) {
+  if (run.status === 'incomplete') {
+    const time = timestamp(run.endedAt);
+    return `Run closed incomplete${time ? ` at ${time}` : ''}`;
+  }
   if (status === 'not_started') return 'Starts with the line timer';
   const eventAt =
     status === 'completed'
@@ -156,6 +160,7 @@ export default function RunStationProgress({
   const stations = progressQuery.data?.stations ?? [];
   const currentRequirements = progressQuery.data?.currentRequirements ?? null;
   const elapsed = formatElapsed(elapsedMilliseconds(run, now));
+  const readOnly = !online || run.status === 'completed' || run.status === 'incomplete';
   const totalProduced = stations.reduce((total, station) => total + station.producedCount, 0);
   const preparedCount = stations.filter(
     (station) =>
@@ -163,7 +168,8 @@ export default function RunStationProgress({
       station.preparationStatus === 'not_required',
   ).length;
   const isLegacyComplete =
-    run.status === 'completed' && progressQuery.data?.initialized === false;
+    (run.status === 'completed' || run.status === 'incomplete') &&
+    progressQuery.data?.initialized === false;
 
   useEffect(() => {
     setDrafts({});
@@ -215,7 +221,9 @@ export default function RunStationProgress({
         ? 'Running'
         : run.status === 'paused'
           ? 'Paused'
-          : 'Ended';
+          : run.status === 'incomplete'
+            ? 'Closed incomplete'
+            : 'Ended';
 
   const changeDraft = (
     stationId: string,
@@ -440,7 +448,9 @@ export default function RunStationProgress({
           )}
           {isLegacyComplete && (
             <div className="run-station-empty" data-testid="empty-run-station-history">
-              This run ended before station snapshots were available.
+              {run.status === 'incomplete'
+                ? 'This run closed at midnight before station snapshots were recorded.'
+                : 'This run ended before station snapshots were available.'}
             </div>
           )}
           {!isLegacyComplete && stations.length === 0 && (
@@ -498,7 +508,7 @@ export default function RunStationProgress({
                                   max={2_147_483_647}
                                   step={1}
                                   value={draft.producedCount}
-                                  disabled={!online || updateProgress.isPending || updateCount.isPending}
+                                  disabled={readOnly || updateProgress.isPending || updateCount.isPending}
                                   aria-label={`${station.stationName} produced count`}
                                   data-testid={`input-station-produced-${station.stationId}`}
                                   onChange={(event) => changeDraft(station.stationId, { producedCount: event.target.value })}
@@ -508,7 +518,7 @@ export default function RunStationProgress({
                                 <span>Preparation pull</span>
                                 <select
                                   value={draft.preparationStatus}
-                                  disabled={!online || updateProgress.isPending || updateCount.isPending}
+                                  disabled={readOnly || updateProgress.isPending || updateCount.isPending}
                                   aria-label={`${station.stationName} preparation status`}
                                   data-testid={`select-station-preparation-${station.stationId}`}
                                   onChange={(event) => changeDraft(station.stationId, { preparationStatus: event.target.value as RunStationPreparationStatus })}
@@ -522,7 +532,7 @@ export default function RunStationProgress({
                                 className="button button-secondary run-station-save"
                                 type="button"
                                 onClick={() => saveStation(station.stationId)}
-                                disabled={!online || !draft.dirty || updateProgress.isPending || updateCount.isPending}
+                                disabled={readOnly || !draft.dirty || updateProgress.isPending || updateCount.isPending}
                                 data-testid={`button-save-station-${station.stationId}`}
                               >
                                 {isSaving ? <LoaderCircle size={15} className="station-spin" /> : <Save size={15} />}
@@ -552,13 +562,13 @@ export default function RunStationProgress({
                                   }}
                                   aria-invalid={Boolean(countErrors[station.stationId])}
                                   aria-describedby={`count-help-${runId}-${station.stationId}`}
-                                  disabled={!online || run.status === 'completed' || updateCount.isPending || updateProgress.isPending}
+                                  disabled={readOnly || updateCount.isPending || updateProgress.isPending}
                                   data-testid={`input-station-count-${station.stationId}`}
                                 />
                                 <button
                                   type="submit"
                                   className="button button-secondary"
-                                  disabled={!online || run.status === 'completed' || updateCount.isPending || updateProgress.isPending || !dirtyCounts.current.has(station.stationId)}
+                                  disabled={readOnly || updateCount.isPending || updateProgress.isPending || !dirtyCounts.current.has(station.stationId)}
                                   aria-label={`Save completed case count for ${station.stationName}`}
                                   data-testid={`button-save-station-count-${station.stationId}`}
                                 >

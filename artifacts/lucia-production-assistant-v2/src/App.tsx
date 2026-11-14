@@ -614,6 +614,7 @@ function DayCockpitVisualPreviewPage() {
     pausedAt: null,
     resumedAt: null,
     completedAt: null,
+    endedAt: null,
     setupSnapshot: { label: 'Lucia Classic / 12-inch', targetCases: 100 },
     productSnapshot: null,
     pauseIntervals: [],
@@ -630,6 +631,7 @@ function DayCockpitVisualPreviewPage() {
     id: '00000000-0000-4000-8000-000000000103',
     status: 'completed',
     completedAt: new Date(now - 6 * 60 * 1000).toISOString(),
+    endedAt: new Date(now - 6 * 60 * 1000).toISOString(),
   };
   const summary: DashboardSummary = {
     productionDay: {
@@ -716,6 +718,7 @@ function DashboardVisualPreviewPage() {
     pausedAt: null,
     resumedAt: null,
     completedAt: null,
+    endedAt: null,
     setupSnapshot: { label: 'Synthetic sample · 100 cases', targetCases: 100 },
     productSnapshot: null,
     pauseIntervals: [],
@@ -769,7 +772,7 @@ function RunRow({ run }: { run: Run }) {
 }
 
 function Status({ status }: { status: RunStatus }) {
-  return <span className={`status status-${status}`} data-testid={`status-run-${status}`}>{status}</span>;
+  return <span className={`status status-${status}`} data-testid={`status-run-${status}`}>{status === 'incomplete' ? 'Incomplete' : status}</span>;
 }
 
 function EmptyState({ title, copy, action }: { title: string; copy: string; action?: ReactNode }) {
@@ -896,7 +899,7 @@ function RunsPage() {
           <h2>{filter === 'all' ? 'All facility runs' : `${filter[0].toUpperCase()}${filter.slice(1)} runs`}</h2>
           <label className="sr-only" htmlFor="run-filter">Filter runs by status</label>
           <select id="run-filter" aria-label="Filter runs by status" data-testid="select-run-filter" value={filter} onChange={(event) => setFilter(event.target.value as RunStatus | 'all')} style={{ minHeight: 40, padding: '0 12px', border: '1px solid hsl(var(--input))', borderRadius: 8, background: 'hsl(var(--card))', color: 'hsl(var(--foreground))' }}>
-            <option value="all">All statuses</option><option value="planned">Planned</option><option value="running">Running</option><option value="paused">Paused</option><option value="completed">Completed</option>
+            <option value="all">All statuses</option><option value="planned">Planned</option><option value="running">Running</option><option value="paused">Paused</option><option value="completed">Completed</option><option value="incomplete">Incomplete</option>
           </select>
         </div>
         {runsQuery.data && <section className="panel run-list" aria-label="Facility production runs">
@@ -985,6 +988,7 @@ function RunDetailPage() {
                 <h2>Lifecycle controls</h2>
                 <p className="page-subtitle">Every change is checked against revision {run.revision}. Other devices see the confirmed state after it saves.</p>
                 {run.status === 'completed' && <div className="notice"><Check size={15} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />This run is complete. Its lifecycle is closed.</div>}
+                {run.status === 'incomplete' && <div className="notice" role="status" data-testid="notice-run-incomplete"><CircleAlert size={15} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />This run was closed at midnight as incomplete. Its recorded history is retained and its timer is stopped.</div>}
                 {actions.length > 0 && <div className="control-row">
                   {actions.map((item) => <button key={item.action} type="button" className={`button ${item.className}`} disabled={!online || command.isPending} onClick={() => runAction(item.action)} data-testid={`button-run-${item.action}`}>
                     {command.isPending && command.variables?.data.commandType === item.action ? <LoaderCircle size={16} /> : item.icon}
@@ -1003,7 +1007,9 @@ function RunDetailPage() {
               <Property label="Started" value={run.startedAt ? formatDateTime(run.startedAt) : 'Not started'} />
               <Property label="Paused" value={run.pausedAt ? formatDateTime(run.pausedAt) : '—'} />
               <Property label="Resumed" value={run.resumedAt ? formatDateTime(run.resumedAt) : '—'} />
-              <Property label="Completed" value={run.completedAt ? formatDateTime(run.completedAt) : '—'} />
+              {run.status === 'incomplete'
+                ? <Property label="Closed" value={run.endedAt ? formatDateTime(run.endedAt) : '—'} />
+                : <Property label="Completed" value={run.completedAt ? formatDateTime(run.completedAt) : '—'} />}
             </aside>
           </div>
           <nav className="run-workspace-nav" aria-label="Run workspace sections" data-testid="nav-run-workspace">
@@ -1099,6 +1105,7 @@ function stateDescription(status: RunStatus) {
     case 'running': return 'This run is in progress. Changes to its state are shared after confirmation.';
     case 'paused': return 'This run is paused. Resume when the team is ready to continue.';
     case 'completed': return 'This run has been completed and recorded.';
+    case 'incomplete': return 'This run was closed at midnight without completion. Its saved progress and history are retained.';
     default: return 'Run state is unavailable.';
   }
 }

@@ -6,6 +6,7 @@ export type LineTimerRun = {
   pausedAt: string | null;
   resumedAt: string | null;
   completedAt: string | null;
+  endedAt: string | null;
   pauseIntervals: Array<{ startedAt: string; endedAt: string | null }>;
 };
 
@@ -13,10 +14,13 @@ export function elapsedMilliseconds(run: LineTimerRun, now: number) {
   if (!run.startedAt) return 0;
   const startedAt = Date.parse(run.startedAt);
   if (Number.isNaN(startedAt)) return 0;
-  const endedAt =
-    run.status === 'completed' && run.completedAt
-      ? Date.parse(run.completedAt)
-      : now;
+  const frozenAt =
+    run.status === 'completed'
+      ? run.completedAt ?? run.endedAt
+      : run.status === 'incomplete'
+        ? run.endedAt
+        : null;
+  const endedAt = frozenAt ? Date.parse(frozenAt) : now;
   const wallTime = Math.max(0, endedAt - startedAt);
   const pausedTime = run.pauseIntervals.reduce((total, interval) => {
     const pauseStart = Date.parse(interval.startedAt);

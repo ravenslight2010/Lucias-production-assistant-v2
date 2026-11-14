@@ -121,6 +121,7 @@ export async function executeRunCommand(input: {
       .update(productionRunsTable)
       .set({
         ...nextState,
+        endedAt: nextState.status === "completed" ? now : current.endedAt,
         revision: current.revision + 1,
         updatedAt: now,
       })

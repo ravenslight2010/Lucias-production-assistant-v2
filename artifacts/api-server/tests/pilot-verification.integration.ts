@@ -11,6 +11,8 @@ import {
   facilityMembersTable,
   facilityStationLayoutsTable,
   productionRunsTable,
+  runEventsTable,
+  runOutboxTable,
   runStationProgressTable,
   pool,
 } from "@workspace/db";
@@ -21,6 +23,25 @@ const clerkSessionId = `pilot-session-${randomUUID()}`;
 const session = issueV2Session(actorId, clerkSessionId);
 const childBundle = process.env.PILOT_HTTP_CHILD_BUNDLE;
 assert.ok(childBundle, "The pilot verification runner must build its test server.");
+const productionTimezone = "America/Chicago";
+
+function productionDate(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: productionTimezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
+function previousDate(date: string) {
+  const previous = new Date(`${date}T12:00:00.000Z`);
+  previous.setUTCDate(previous.getUTCDate() - 1);
+  return previous.toISOString().slice(0, 10);
+}
 
 let facilityId: string | undefined;
 let child: ChildProcess | undefined;
@@ -820,4 +841,140 @@ test("development pilot check verifies auth, line timer, station counts, invento
       unresolvedChecks: 1,
     },
   );
+
+  const today = productionDate(new Date());
+  const yesterday = previousDate(today);
+  const priorStart = new Date(`${yesterday}T15:00:00.000Z`);
+  const priorPause = new Date(`${yesterday}T17:00:00.000Z`);
+  const [stalePlanned] = await db
+    .insert(productionRunsTable)
+    .values({
+      facilityId,
+      name: "Midnight rollover planned test",
+      status: "planned",
+      scheduledFor: yesterday,
+      createdBy: actorId,
+    })
+    .returning({ id: productionRunsTable.id });
+  const [staleRunning] = await db
+    .insert(productionRunsTable)
+    .values({
+      facilityId,
+      name: "Midnight rollover running test",
+      status: "running",
+      revision: 4,
+      startedAt: priorStart,
+      createdBy: actorId,
+    })
+    .returning({ id: productionRunsTable.id });
+  const [stalePaused] = await db
+    .insert(productionRunsTable)
+    .values({
+      facilityId,
+      name: "Midnight rollover paused test",
+      status: "paused",
+      revision: 6,
+      startedAt: priorStart,
+      pausedAt: priorPause,
+      pauseIntervals: [{ startedAt: priorPause.toISOString(), endedAt: null }],
+      createdBy: actorId,
+    })
+    .returning({ id: productionRunsTable.id });
+
+  const rolloverDashboardResponse = await request("/dashboard/summary");
+  assert.equal(rolloverDashboardResponse.status, 200);
+  const rolloverDashboard = await rolloverDashboardResponse.json() as {
+    productionDay: { date: string };
+    activeRuns: Array<{ id: string }>;
+    plannedRuns: Array<{ id: string }>;
+  };
+  assert.equal(rolloverDashboard.productionDay.date, today);
+  assert.ok(!rolloverDashboard.activeRuns.some((run) => run.id === staleRunning.id));
+  assert.ok(!rolloverDashboard.activeRuns.some((run) => run.id === stalePaused.id));
+  assert.ok(!rolloverDashboard.plannedRuns.some((run) => run.id === stalePlanned.id));
+
+  const rolloverRunsResponse = await request("/v2/runs?limit=100");
+  assert.equal(rolloverRunsResponse.status, 200);
+  const rolloverRuns = await rolloverRunsResponse.json() as {
+    runs: Array<{
+      id: string;
+      status: string;
+      revision: number;
+      completedAt: string | null;
+      endedAt: string | null;
+      pauseIntervals: Array<{ startedAt: string; endedAt: string | null }>;
+    }>;
+  };
+  for (const [id, revision] of [
+    [stalePlanned.id, 1],
+    [staleRunning.id, 5],
+    [stalePaused.id, 7],
+  ] as const) {
+    const closed = rolloverRuns.runs.find((run) => run.id === id);
+    assert.ok(closed, `closed run ${id} remains in run history`);
+    assert.equal(closed.status, "incomplete");
+    assert.equal(closed.revision, revision);
+    assert.equal(closed.completedAt, null, "an incomplete run is not recorded as completed");
+    assert.ok(closed.endedAt, "the midnight close time is recorded");
+    assert.equal(productionDate(new Date(closed.endedAt)), today);
+    const localCloseTime = new Intl.DateTimeFormat("en-US", {
+      timeZone: productionTimezone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).format(new Date(closed.endedAt));
+    assert.equal(localCloseTime, "00:00");
+    const events = await db
+      .select({ action: runEventsTable.action, toStatus: runEventsTable.toStatus })
+      .from(runEventsTable)
+      .where(eq(runEventsTable.runId, id));
+    assert.deepEqual(events, [{ action: "production_day_rollover", toStatus: "incomplete" }]);
+    const outbox = await db
+      .select({ runId: runOutboxTable.runId })
+      .from(runOutboxTable)
+      .where(eq(runOutboxTable.runId, id));
+    assert.equal(outbox.length, 1, "the close is published once for other sessions");
+    if (id === stalePaused.id) {
+      assert.equal(closed.pauseIntervals.at(-1)?.endedAt, closed.endedAt);
+    }
+  }
+
+  const retryRolloverResponse = await request("/dashboard/summary");
+  assert.equal(retryRolloverResponse.status, 200);
+  for (const id of [stalePlanned.id, staleRunning.id, stalePaused.id]) {
+    const events = await db
+      .select({ id: runEventsTable.id })
+      .from(runEventsTable)
+      .where(eq(runEventsTable.runId, id));
+    assert.equal(events.length, 1, "repeated dashboard refresh must not duplicate rollover history");
+  }
+  const lateStartResponse = await sendCommand(stalePlanned.id, "start", 1);
+  assert.equal(lateStartResponse.status, 409, "a run closed at midnight cannot be started later");
+  const lateResumeResponse = await sendCommand(stalePaused.id, "resume", 7);
+  assert.equal(lateResumeResponse.status, 409, "a run closed at midnight cannot be resumed later");
+  const lateStationUpdateResponse = await request(
+    `/v2/runs/${staleRunning.id}/stations/pilot-line`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        commandId: randomUUID(),
+        expectedRevision: 0,
+        producedCount: 1,
+        preparationStatus: "ready",
+      }),
+    },
+  );
+  assert.equal(lateStationUpdateResponse.status, 409, "a closed run cannot accept station edits");
+  const lateCountUpdateResponse = await request(
+    `/v2/runs/${staleRunning.id}/stations/pilot-line/count`,
+    {
+      method: "PUT",
+      body: JSON.stringify({
+        commandId: randomUUID(),
+        expectedRevision: 0,
+        completedCases: 1,
+      }),
+    },
+  );
+  assert.equal(lateCountUpdateResponse.status, 409, "a closed run cannot accept new counts");
 });

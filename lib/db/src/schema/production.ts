@@ -28,6 +28,7 @@ export const runStatusEnum = pgEnum("run_status", [
   "running",
   "paused",
   "completed",
+  "incomplete",
 ]);
 
 export const facilitiesTable = pgTable("facilities", {
@@ -148,6 +149,7 @@ export const productionRunsTable = pgTable(
     pausedAt: timestamp("paused_at", { withTimezone: true }),
     resumedAt: timestamp("resumed_at", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
     pauseIntervals: jsonb("pause_intervals")
       .$type<Array<{ startedAt: string; endedAt: string | null }>>()
       .notNull()

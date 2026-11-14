@@ -127,6 +127,7 @@ export const RunStatus = {
   running: 'running',
   paused: 'paused',
   completed: 'completed',
+  incomplete: 'incomplete',
 } as const;
 
 export type RunStationProgressStatus = typeof RunStationProgressStatus[keyof typeof RunStationProgressStatus];
@@ -1568,6 +1569,8 @@ export interface Run {
   resumedAt: string | null;
   /** @nullable */
   completedAt: string | null;
+  /** @nullable */
+  endedAt: string | null;
   setupSnapshot: RunSetup;
   productSnapshot: ProductProfile | null;
   pauseIntervals: PauseInterval[];

@@ -20,7 +20,7 @@ const makeRun = (productSnapshot = legacySnapshot) => ({
   id: runId, name: "Smoke / Sauce", status: "planned", revision: 0,
   createdAt: at, updatedAt: at, scheduledFor: null, scheduleNotes: null,
   scheduleSource: null, startedAt: null, pausedAt: null, resumedAt: null,
-  completedAt: null, targetCases: 2, productProfileId: profileId,
+  completedAt: null, endedAt: null, targetCases: 2, productProfileId: profileId,
   productSnapshot, pauseIntervals: [],
 });
 

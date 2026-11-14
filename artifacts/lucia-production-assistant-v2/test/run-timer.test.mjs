@@ -11,6 +11,7 @@ test('line timer excludes completed pause intervals', () => {
     pausedAt: null,
     resumedAt: new Date(at('10:30')).toISOString(),
     completedAt: null,
+    endedAt: null,
     pauseIntervals: [
       {
         startedAt: new Date(at('10:15')).toISOString(),
@@ -29,6 +30,7 @@ test('paused line timer stays fixed while the pause is open', () => {
     pausedAt: new Date(at('10:15')).toISOString(),
     resumedAt: null,
     completedAt: null,
+    endedAt: null,
     pauseIntervals: [
       {
         startedAt: new Date(at('10:15')).toISOString(),
@@ -48,6 +50,30 @@ test('completed line timer stops at end and excludes all paused time', () => {
     pausedAt: null,
     resumedAt: new Date(at('10:30')).toISOString(),
     completedAt: new Date(at('11:00')).toISOString(),
+    endedAt: new Date(at('11:00')).toISOString(),
+    pauseIntervals: [
+      {
+        startedAt: new Date(at('10:15')).toISOString(),
+        endedAt: new Date(at('10:30')).toISOString(),
+      },
+      {
+        startedAt: new Date(at('10:40')).toISOString(),
+        endedAt: new Date(at('11:00')).toISOString(),
+      },
+    ],
+  };
+
+  assert.equal(elapsedMilliseconds(run, at('12:00')), 25 * 60 * 1000);
+});
+
+test('incomplete line timer stops at midnight and excludes paused time', () => {
+  const run = {
+    status: 'incomplete',
+    startedAt: new Date(at('10:00')).toISOString(),
+    pausedAt: null,
+    resumedAt: new Date(at('10:30')).toISOString(),
+    completedAt: null,
+    endedAt: new Date(at('11:00')).toISOString(),
     pauseIntervals: [
       {
         startedAt: new Date(at('10:15')).toISOString(),

@@ -128,8 +128,8 @@ export async function updateRunPreparationTask(input: {
       .for("update")
       .limit(1);
     if (!lockedRun) throw new HttpError(404, "Run not found.");
-    if (lockedRun.status === "completed") {
-      throw new HttpError(409, "Completed runs are read-only.");
+    if (lockedRun.status === "completed" || lockedRun.status === "incomplete") {
+      throw new HttpError(409, "Closed runs are read-only.");
     }
 
     const sourceTask = capturedPullItems(runId, lockedRun.productSnapshot)

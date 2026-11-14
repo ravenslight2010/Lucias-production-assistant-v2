@@ -628,7 +628,7 @@ export const listRunsResponseRunsItemProductSnapshotOneRunRequirementsProductSet
 export const ListRunsResponse = zod.object({
   "runs": zod.array(zod.object({
   "id": zod.string().uuid(),
-  "status": zod.enum(['planned', 'running', 'paused', 'completed']),
+  "status": zod.enum(['planned', 'running', 'paused', 'completed', 'incomplete']),
   "revision": zod.number().int().min(listRunsResponseRunsItemRevisionMin).max(listRunsResponseRunsItemRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -646,6 +646,7 @@ export const ListRunsResponse = zod.object({
   "pausedAt": zod.coerce.date().nullable(),
   "resumedAt": zod.coerce.date().nullable(),
   "completedAt": zod.coerce.date().nullable(),
+  "endedAt": zod.coerce.date().nullable(),
   "setupSnapshot": zod.object({
   "label": zod.string().min(1).max(listRunsResponseRunsItemSetupSnapshotLabelMax),
   "targetCases": zod.number().int().min(1).max(listRunsResponseRunsItemSetupSnapshotTargetCasesMax),
@@ -1019,7 +1020,7 @@ export const CreateRunResponse = zod.object({
   "replayed": zod.boolean(),
   "run": zod.object({
   "id": zod.string().uuid(),
-  "status": zod.enum(['planned', 'running', 'paused', 'completed']),
+  "status": zod.enum(['planned', 'running', 'paused', 'completed', 'incomplete']),
   "revision": zod.number().int().min(createRunResponseRunRevisionMin).max(createRunResponseRunRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -1037,6 +1038,7 @@ export const CreateRunResponse = zod.object({
   "pausedAt": zod.coerce.date().nullable(),
   "resumedAt": zod.coerce.date().nullable(),
   "completedAt": zod.coerce.date().nullable(),
+  "endedAt": zod.coerce.date().nullable(),
   "setupSnapshot": zod.object({
   "label": zod.string().min(1).max(createRunResponseRunSetupSnapshotLabelMax),
   "targetCases": zod.number().int().min(1).max(createRunResponseRunSetupSnapshotTargetCasesMax),
@@ -3244,7 +3246,7 @@ export const getRunResponseRunProductSnapshotOneRunRequirementsProductSetupAller
 export const GetRunResponse = zod.object({
   "run": zod.object({
   "id": zod.string().uuid(),
-  "status": zod.enum(['planned', 'running', 'paused', 'completed']),
+  "status": zod.enum(['planned', 'running', 'paused', 'completed', 'incomplete']),
   "revision": zod.number().int().min(getRunResponseRunRevisionMin).max(getRunResponseRunRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -3262,6 +3264,7 @@ export const GetRunResponse = zod.object({
   "pausedAt": zod.coerce.date().nullable(),
   "resumedAt": zod.coerce.date().nullable(),
   "completedAt": zod.coerce.date().nullable(),
+  "endedAt": zod.coerce.date().nullable(),
   "setupSnapshot": zod.object({
   "label": zod.string().min(1).max(getRunResponseRunSetupSnapshotLabelMax),
   "targetCases": zod.number().int().min(1).max(getRunResponseRunSetupSnapshotTargetCasesMax),
@@ -3606,7 +3609,7 @@ export const ApplyRunCommandResponse = zod.object({
   "commandId": zod.string(),
   "run": zod.object({
   "id": zod.string().uuid(),
-  "status": zod.enum(['planned', 'running', 'paused', 'completed']),
+  "status": zod.enum(['planned', 'running', 'paused', 'completed', 'incomplete']),
   "revision": zod.number().int().min(applyRunCommandResponseRunRevisionMin).max(applyRunCommandResponseRunRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -3624,6 +3627,7 @@ export const ApplyRunCommandResponse = zod.object({
   "pausedAt": zod.coerce.date().nullable(),
   "resumedAt": zod.coerce.date().nullable(),
   "completedAt": zod.coerce.date().nullable(),
+  "endedAt": zod.coerce.date().nullable(),
   "setupSnapshot": zod.object({
   "label": zod.string().min(1).max(applyRunCommandResponseRunSetupSnapshotLabelMax),
   "targetCases": zod.number().int().min(1).max(applyRunCommandResponseRunSetupSnapshotTargetCasesMax),
@@ -5133,7 +5137,7 @@ export const GetDashboardSummaryResponse = zod.object({
 }),
   "activeRuns": zod.array(zod.object({
   "id": zod.string().uuid(),
-  "status": zod.enum(['planned', 'running', 'paused', 'completed']),
+  "status": zod.enum(['planned', 'running', 'paused', 'completed', 'incomplete']),
   "revision": zod.number().int().min(getDashboardSummaryResponseActiveRunsItemRevisionMin).max(getDashboardSummaryResponseActiveRunsItemRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -5151,6 +5155,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "pausedAt": zod.coerce.date().nullable(),
   "resumedAt": zod.coerce.date().nullable(),
   "completedAt": zod.coerce.date().nullable(),
+  "endedAt": zod.coerce.date().nullable(),
   "setupSnapshot": zod.object({
   "label": zod.string().min(1).max(getDashboardSummaryResponseActiveRunsItemSetupSnapshotLabelMax),
   "targetCases": zod.number().int().min(1).max(getDashboardSummaryResponseActiveRunsItemSetupSnapshotTargetCasesMax),
@@ -5361,7 +5366,7 @@ export const GetDashboardSummaryResponse = zod.object({
 })),
   "plannedRuns": zod.array(zod.object({
   "id": zod.string().uuid(),
-  "status": zod.enum(['planned', 'running', 'paused', 'completed']),
+  "status": zod.enum(['planned', 'running', 'paused', 'completed', 'incomplete']),
   "revision": zod.number().int().min(getDashboardSummaryResponsePlannedRunsItemRevisionMin).max(getDashboardSummaryResponsePlannedRunsItemRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -5379,6 +5384,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "pausedAt": zod.coerce.date().nullable(),
   "resumedAt": zod.coerce.date().nullable(),
   "completedAt": zod.coerce.date().nullable(),
+  "endedAt": zod.coerce.date().nullable(),
   "setupSnapshot": zod.object({
   "label": zod.string().min(1).max(getDashboardSummaryResponsePlannedRunsItemSetupSnapshotLabelMax),
   "targetCases": zod.number().int().min(1).max(getDashboardSummaryResponsePlannedRunsItemSetupSnapshotTargetCasesMax),
@@ -5605,13 +5611,13 @@ export const GetDashboardSummaryResponse = zod.object({
   "qualityAttention": zod.array(zod.object({
   "runId": zod.string().uuid(),
   "runLabel": zod.string().min(1).max(getDashboardSummaryResponseQualityAttentionItemRunLabelMax),
-  "runStatus": zod.enum(['planned', 'running', 'paused', 'completed']),
+  "runStatus": zod.enum(['planned', 'running', 'paused', 'completed', 'incomplete']),
   "failedChecks": zod.number().int().min(getDashboardSummaryResponseQualityAttentionItemFailedChecksMin).max(getDashboardSummaryResponseQualityAttentionItemFailedChecksMax),
   "unresolvedChecks": zod.number().int().min(getDashboardSummaryResponseQualityAttentionItemUnresolvedChecksMin).max(getDashboardSummaryResponseQualityAttentionItemUnresolvedChecksMax)
 })).max(getDashboardSummaryResponseQualityAttentionMax),
   "recentRuns": zod.array(zod.object({
   "id": zod.string().uuid(),
-  "status": zod.enum(['planned', 'running', 'paused', 'completed']),
+  "status": zod.enum(['planned', 'running', 'paused', 'completed', 'incomplete']),
   "revision": zod.number().int().min(getDashboardSummaryResponseRecentRunsItemRevisionMin).max(getDashboardSummaryResponseRecentRunsItemRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -5629,6 +5635,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "pausedAt": zod.coerce.date().nullable(),
   "resumedAt": zod.coerce.date().nullable(),
   "completedAt": zod.coerce.date().nullable(),
+  "endedAt": zod.coerce.date().nullable(),
   "setupSnapshot": zod.object({
   "label": zod.string().min(1).max(getDashboardSummaryResponseRecentRunsItemSetupSnapshotLabelMax),
   "targetCases": zod.number().int().min(1).max(getDashboardSummaryResponseRecentRunsItemSetupSnapshotTargetCasesMax),
@@ -5839,7 +5846,7 @@ export const GetDashboardSummaryResponse = zod.object({
 })),
   "todayCompletedRuns": zod.array(zod.object({
   "id": zod.string().uuid(),
-  "status": zod.enum(['planned', 'running', 'paused', 'completed']),
+  "status": zod.enum(['planned', 'running', 'paused', 'completed', 'incomplete']),
   "revision": zod.number().int().min(getDashboardSummaryResponseTodayCompletedRunsItemRevisionMin).max(getDashboardSummaryResponseTodayCompletedRunsItemRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -5857,6 +5864,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "pausedAt": zod.coerce.date().nullable(),
   "resumedAt": zod.coerce.date().nullable(),
   "completedAt": zod.coerce.date().nullable(),
+  "endedAt": zod.coerce.date().nullable(),
   "setupSnapshot": zod.object({
   "label": zod.string().min(1).max(getDashboardSummaryResponseTodayCompletedRunsItemSetupSnapshotLabelMax),
   "targetCases": zod.number().int().min(1).max(getDashboardSummaryResponseTodayCompletedRunsItemSetupSnapshotTargetCasesMax),

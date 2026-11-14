@@ -137,6 +137,7 @@ import { loadNameResolution, resolvedProduct } from "../lib/name-resolution";
 import { managerDataSource } from "../lib/manager-profile-data";
 import { shippingDataMatchesBrand, shippingSelectionIdentity } from "../lib/shipping-import-validation";
 import { toContractRun } from "../lib/run-contract";
+import { closeUnfinishedRunsFromPriorDays } from "../lib/production-day-rollover-service";
 import {
   DEFAULT_FACILITY_STATIONS,
   FacilityStationLayoutError,
@@ -208,6 +209,21 @@ async function membershipOrRespond(
   if (!membership) {
     res.status(403).json({ error: "Set up a facility before continuing." });
     return null;
+  }
+  const requestPath = req.originalUrl.split("?")[0] ?? "";
+  if (
+    requestPath.endsWith("/dashboard/summary") ||
+    /\/v2\/runs(?:\/|$)/.test(requestPath)
+  ) {
+    const closedRunCount = await closeUnfinishedRunsFromPriorDays(
+      membership.facilityId,
+    );
+    if (closedRunCount > 0) {
+      req.log.info(
+        { facilityId: membership.facilityId, closedRunCount },
+        "Closed unfinished runs at production-day rollover",
+      );
+    }
   }
   return { actorId, membership };
 }

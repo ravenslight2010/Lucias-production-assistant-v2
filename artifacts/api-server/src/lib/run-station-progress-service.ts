@@ -216,7 +216,7 @@ export async function getRunStationProgress(input: {
       ),
     };
   }
-  if (run.status === "completed") {
+  if (run.status === "completed" || run.status === "incomplete") {
     return {
       initialized: false,
       stations: [],
@@ -283,6 +283,9 @@ export async function updateRunStationProgress(input: {
       .for("update")
       .limit(1);
     if (!run) throw new HttpError(404, "Run not found.");
+    if (run.status === "completed" || run.status === "incomplete") {
+      throw new HttpError(409, "Closed runs cannot accept station progress changes.");
+    }
 
     const [receipt] = await tx
       .select()
@@ -447,8 +450,8 @@ export async function updateRunStationCount(input: {
       .for("update")
       .limit(1);
     if (!run) throw new HttpError(404, "Run not found.");
-    if (run.status === "completed") {
-      throw new HttpError(409, "Completed runs cannot accept station count changes.");
+    if (run.status === "completed" || run.status === "incomplete") {
+      throw new HttpError(409, "Closed runs cannot accept station count changes.");
     }
     if (input.completedCases > run.targetCases) {
       throw new HttpError(400, "A station count cannot exceed this run's target cases.");

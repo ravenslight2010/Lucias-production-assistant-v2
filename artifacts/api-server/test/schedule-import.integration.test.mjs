@@ -68,7 +68,7 @@ test(
         "ON_ERROR_STOP=1",
         "-c",
         `
-          CREATE TYPE run_status AS ENUM ('planned', 'draft', 'running', 'paused', 'completed');
+          CREATE TYPE run_status AS ENUM ('planned', 'draft', 'running', 'paused', 'completed', 'incomplete');
           CREATE TABLE facilities (
             id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
             name text NOT NULL,
@@ -128,6 +128,7 @@ test(
             paused_at timestamptz,
             resumed_at timestamptz,
             completed_at timestamptz,
+            ended_at timestamptz,
             pause_intervals jsonb NOT NULL DEFAULT '[]'::jsonb
           );
         `,

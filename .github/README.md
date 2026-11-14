@@ -3,7 +3,7 @@
 | Workflow | Purpose |
 |----------|---------|
 | `ci.yml` | Typecheck, build, unit/API tests, prod dependency audit |
-| `api-integration.yml` | DB run-control when `initdb` exists; skips otherwise |
+| `api-integration.yml` | DB run-control integration; fails visibly if PostgreSQL test prerequisites are missing |
 | `codegen-check.yml` | OpenAPI → Orval generated clients must match git |
 | `dependency-review.yml` | PR dependency vulnerability/license review |
 | `lockfile.yml` | pnpm-only lockfile + frozen install |
@@ -24,5 +24,6 @@ Code scanning uses **GitHub default CodeQL setup** (no duplicate workflow).
 - **Auto-merge** enabled
 - **Delete branch on merge** enabled
 - **`main` protection** — Typecheck, Build, Unit and API tests, lockfile, and Dependency review; must be up to date
+- The DB run-control integration workflow is separate from required merge checks; a missing test prerequisite is reported as a failure, not a pass.
 - Dependabot security updates + vulnerability alerts
 - Secret scanning + push protection

@@ -37,6 +37,8 @@ jobs:
         run: pnpm run check:dependency-catalog
       - name: Test dependency catalog guard
         run: node --test scripts/tests/dependency-catalog.test.mjs
+      - name: Test database-integration prerequisite check
+        run: node --test scripts/tests/require-postgres-initdb.test.mjs
       - name: Typecheck workspace
         run: pnpm run typecheck
 

@@ -7,8 +7,8 @@
 - [Station timer behavior](station-timer-behavior.md) — Every station follows the production line timer for start, pause, resume, and end.
 - [Station-count requirement scaling](station-count-requirement-scaling.md) — Scale the captured plan by the lowest reported case count in each matching area.
 - [Import-to-run flow](import-to-run-flow.md) — Imports are a primary source of run data; trace imported product and process data into downstream V2 workflows.
-- [PNPM 9 override location](pnpm9-override-location.md) — Put critical overrides in root `package.json`; the pinned PNPM 9 install ignored workspace-only overrides.
-- [PNPM patch lockfiles](pnpm-patched-lockfile-compatibility.md) — Generate and consume patched lockfiles with the same PNPM major to avoid frozen-install hash mismatches.
+- [PNPM override location](pnpm9-override-location.md) — Keep security and compatibility overrides in the root manifest.
+- [PNPM 10 patched lockfiles](pnpm-patched-lockfile-compatibility.md) — Keep the manifest, CI, setup script, and patched lockfile on PNPM 10.26.1.
 - [Profile edit concurrency](profile-edit-concurrency.md) — Background list refreshes must not advance an open draft's reviewed revision and silently overwrite newer edits.
 - [Authenticated browser notebooks](authenticated-browser-notebooks.md) — Bundle reusable scenarios when the authenticated notebook cannot import ESM; normalize upload buffers at the harness boundary.
 - [Deferred visual verification](deferred-visual-verification.md) — Group visual checks blocked by missing browser access and run them together when it returns.

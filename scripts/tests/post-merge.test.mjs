@@ -42,7 +42,7 @@ function runSetup(
     writeFileSync(
       path.join(directory, "corepack"),
       `#!/bin/bash
-if [ "$1" = "pnpm@9" ]; then
+if [ "$1" = "pnpm@10.26.1" ]; then
   shift
 else
   exit 99

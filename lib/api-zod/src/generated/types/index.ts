@@ -15,6 +15,7 @@ export * from './dashboardQualityAttention.ts';
 export * from './dashboardRunProgress.ts';
 export * from './dashboardSummary.ts';
 export * from './dashboardSummaryCounts.ts';
+export * from './dashboardSummaryProductionDay.ts';
 export * from './errorResponse.ts';
 export * from './facility.ts';
 export * from './facilityAssignableRole.ts';

@@ -21,8 +21,12 @@ export interface Run {
   revision: number;
   createdAt: Date;
   updatedAt: Date;
-  /** @nullable */
-  scheduledFor: Date | null;
+  /**
+     * Calendar date in the facility schedule; it is not an instant.
+     * @nullable
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  scheduledFor: string | null;
   /** @nullable */
   scheduleNotes: string | null;
   scheduleSource: ScheduleRunSource | null;

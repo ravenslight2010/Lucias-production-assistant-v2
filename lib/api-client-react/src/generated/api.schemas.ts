@@ -329,7 +329,7 @@ export interface RunRequirementsProgress {
      * @maximum 1000000
      */
   targetCases: number;
-  /** @maxItems 4 */
+  /** @maxItems 7 */
   areas: RunRequirementProgressArea[];
   /** @maxItems 400 */
   items: RunRequirementProgressItem[];
@@ -1551,7 +1551,11 @@ export interface Run {
   revision: number;
   createdAt: string;
   updatedAt: string;
-  /** @nullable */
+  /**
+     * Calendar date in the facility schedule; it is not an instant.
+     * @nullable
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
   scheduledFor: string | null;
   /** @nullable */
   scheduleNotes: string | null;
@@ -1740,10 +1744,21 @@ export interface InvalidTransition {
   currentStatus: RunStatus;
 }
 
+export type DashboardSummaryProductionDay = {
+  /**
+     * Calendar date in the facility production timezone.
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  date: string;
+  timezone: string;
+};
+
 export type DashboardSummaryCounts = {
   active: number;
   planned: number;
   completed: number;
+  /** Runs completed since midnight in the facility production timezone. */
+  completedToday: number;
 };
 
 export interface DashboardAreaProgress {
@@ -1791,7 +1806,7 @@ export interface DashboardPreparationStatusCounts {
 
 export interface DashboardRunProgress {
   runId: string;
-  /** @maxItems 4 */
+  /** @maxItems 7 */
   areas: DashboardAreaProgress[];
   preparationStatusCounts: DashboardPreparationStatusCounts;
 }
@@ -1817,6 +1832,7 @@ export interface DashboardQualityAttention {
 }
 
 export interface DashboardSummary {
+  productionDay: DashboardSummaryProductionDay;
   facility: Facility;
   counts: DashboardSummaryCounts;
   activeRuns: Run[];
@@ -1827,6 +1843,8 @@ export interface DashboardSummary {
   /** @maxItems 18 */
   qualityAttention: DashboardQualityAttention[];
   recentRuns: Run[];
+  /** @maxItems 4 */
+  todayCompletedRuns: Run[];
 }
 
 /**

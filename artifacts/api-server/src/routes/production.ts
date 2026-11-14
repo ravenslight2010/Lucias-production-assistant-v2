@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gt, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, gte, inArray, isNull, lt, lte, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { doughImportSelectionIdentity } from "../lib/dough-import-selection";
 import { cheeseImportSelectionIdentity } from "../lib/cheese-import-selection";
@@ -157,7 +157,20 @@ import {
 } from "../lib/v2-session";
 
 const maxTargetCases = 2_147_483_647;
+const productionDayTimezone = "America/Chicago";
 const router: IRouter = Router();
+
+function productionDayDate(now: Date, timezone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
 
 router.use(requireAuth);
 
@@ -1830,7 +1843,15 @@ router.get(
   const access = await membershipOrRespond(req, res);
   if (!access) return;
 
-  const [statusCounts, activeRuns, plannedRuns, recentRuns] = await Promise.all([
+  const productionDayStart = sql`date_trunc('day', now() AT TIME ZONE ${productionDayTimezone}) AT TIME ZONE ${productionDayTimezone}`;
+  const nextProductionDayStart = sql`(date_trunc('day', now() AT TIME ZONE ${productionDayTimezone}) + interval '1 day') AT TIME ZONE ${productionDayTimezone}`;
+  const completedTodayFilter = and(
+    eq(productionRunsTable.facilityId, access.membership.facilityId),
+    eq(productionRunsTable.status, "completed"),
+    gte(productionRunsTable.completedAt, productionDayStart),
+    lt(productionRunsTable.completedAt, nextProductionDayStart),
+  );
+  const [statusCounts, activeRuns, plannedRuns, recentRuns, completedTodayCount, todayCompletedRuns] = await Promise.all([
     db
       .select({ status: productionRunsTable.status, total: count() })
       .from(productionRunsTable)
@@ -1864,6 +1885,16 @@ router.get(
       .where(eq(productionRunsTable.facilityId, access.membership.facilityId))
       .orderBy(desc(productionRunsTable.updatedAt))
       .limit(8),
+    db
+      .select({ total: count() })
+      .from(productionRunsTable)
+      .where(completedTodayFilter),
+    db
+      .select()
+      .from(productionRunsTable)
+      .where(completedTodayFilter)
+      .orderBy(desc(productionRunsTable.completedAt), desc(productionRunsTable.updatedAt))
+      .limit(4),
   ]);
 
   const progressRows = activeRuns.length
@@ -2008,7 +2039,7 @@ router.get(
       : [];
   });
 
-  const counts = { active: 0, planned: 0, completed: 0 };
+  const counts = { active: 0, planned: 0, completed: 0, completedToday: completedTodayCount[0]?.total ?? 0 };
   for (const item of statusCounts) {
     if (item.status === "running" || item.status === "paused") {
       counts.active += item.total;
@@ -2026,6 +2057,10 @@ router.get(
 
   res.json(
     GetDashboardSummaryResponse.parse({
+      productionDay: {
+        date: productionDayDate(new Date(), productionDayTimezone),
+        timezone: productionDayTimezone,
+      },
       facility,
       counts,
       activeRuns: activeRuns.map(toContractRun),
@@ -2033,6 +2068,7 @@ router.get(
       activeRunProgress,
       qualityAttention,
       recentRuns: recentRuns.map(toContractRun),
+      todayCompletedRuns: todayCompletedRuns.map(toContractRun),
     }),
   );
 });

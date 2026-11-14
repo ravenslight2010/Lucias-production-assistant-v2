@@ -10,4 +10,6 @@ export type DashboardSummaryCounts = {
   active: number;
   planned: number;
   completed: number;
+  /** Runs completed since midnight in the facility production timezone. */
+  completedToday: number;
 };

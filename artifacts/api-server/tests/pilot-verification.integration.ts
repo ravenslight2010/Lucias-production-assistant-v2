@@ -112,7 +112,11 @@ async function request(path: string, init: RequestInit = {}) {
     headers.set("content-type", "application/json");
     headers.set("x-csrf-token", session.csrfToken);
   }
-  return fetch(`${origin}${path}`, { ...init, headers });
+  const response = await fetch(`${origin}${path}`, { ...init, headers });
+  if (response.status >= 500) {
+    process.stderr.write(`Pilot request ${init.method ?? "GET"} ${path} returned ${response.status}: ${await response.clone().text()}\n`);
+  }
+  return response;
 }
 
 async function sendCommand(
@@ -202,8 +206,15 @@ test("development pilot check verifies auth, line timer, station counts, invento
   const plannedDashboardResponse = await request("/dashboard/summary");
   assert.equal(plannedDashboardResponse.status, 200);
   const plannedDashboard = await plannedDashboardResponse.json() as {
+    productionDay: { date: string; timezone: string };
+    counts: { completedToday: number };
     plannedRuns: Array<{ id: string }>;
+    todayCompletedRuns: Array<{ id: string }>;
   };
+  assert.match(plannedDashboard.productionDay.date, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(plannedDashboard.productionDay.timezone, "America/Chicago");
+  assert.equal(plannedDashboard.counts.completedToday, 0);
+  assert.deepEqual(plannedDashboard.todayCompletedRuns, []);
   assert.ok(
     plannedDashboard.plannedRuns.some((run) => run.id === created.run.id),
     "planned runs should appear in the dashboard queue",
@@ -372,6 +383,24 @@ test("development pilot check verifies auth, line timer, station counts, invento
   };
   assert.equal(completed.run.status, "completed");
   assert.equal(completed.run.revision, 4);
+
+  const completedDashboardResponse = await request("/dashboard/summary");
+  const completedDashboardText = await completedDashboardResponse.text();
+  if (completedDashboardResponse.status !== 200) {
+    throw new Error(
+      `Completed-day summary returned ${completedDashboardResponse.status}: ${completedDashboardText}`,
+    );
+  }
+  const completedDashboard = JSON.parse(completedDashboardText) as {
+    counts: { completedToday: number };
+    todayCompletedRuns: Array<{ id: string }>;
+  };
+  assert.equal(completedDashboard.counts.completedToday, 1);
+  assert.deepEqual(
+    completedDashboard.todayCompletedRuns.map((run) => run.id),
+    [created.run.id],
+    "the new production day summary should include the completed run",
+  );
 
   const completedProgressResponse = await request(`/v2/runs/${created.run.id}/stations`);
   const completedProgress = await completedProgressResponse.json() as {

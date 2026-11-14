@@ -42,6 +42,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import { elapsedMilliseconds, formatElapsed } from '@/run-timer';
 import { dashboardPrimaryAction } from '@/dashboard-primary-action';
+import { dateInTimeZone, PRODUCTION_DAY_TIMEZONE } from './production-day';
 import { DayCockpit, RunContextStrip, type CockpitRole } from '@/components/day-cockpit';
 
 const SignInPage = lazy(() => import('@/pages/sign-in'));
@@ -631,12 +632,16 @@ function DayCockpitVisualPreviewPage() {
     completedAt: new Date(now - 6 * 60 * 1000).toISOString(),
   };
   const summary: DashboardSummary = {
+    productionDay: {
+      date: dateInTimeZone(new Date(now), PRODUCTION_DAY_TIMEZONE) ?? '2026-11-13',
+      timezone: PRODUCTION_DAY_TIMEZONE,
+    },
     facility: {
       id: '00000000-0000-4000-8000-000000000110',
       name: 'Lucia Sample Facility',
       createdAt: new Date(now - 24 * 60 * 60 * 1000).toISOString(),
     },
-    counts: { active: 1, planned: 2, completed: 8 },
+    counts: { active: 1, planned: 2, completed: 8, completedToday: 1 },
     activeRuns: [activeRun],
     plannedRuns: [plannedRun],
     activeRunProgress: [{
@@ -659,6 +664,7 @@ function DayCockpitVisualPreviewPage() {
       unresolvedChecks: 1,
     }],
     recentRuns: [completedRun],
+    todayCompletedRuns: [completedRun],
   };
 
   return (

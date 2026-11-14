@@ -528,6 +528,7 @@ export const ListRunsQueryParams = zod.object({
 export const listRunsResponseRunsItemRevisionMin = 0;
 export const listRunsResponseRunsItemRevisionMax = 9007199254740991;
 
+export const listRunsResponseRunsItemScheduledForRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const listRunsResponseRunsItemScheduleSourceOneFileMax = 255;
 
 export const listRunsResponseRunsItemScheduleSourceOneSheetMax = 80;
@@ -631,7 +632,7 @@ export const ListRunsResponse = zod.object({
   "revision": zod.number().int().min(listRunsResponseRunsItemRevisionMin).max(listRunsResponseRunsItemRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
-  "scheduledFor": zod.coerce.date().nullable(),
+  "scheduledFor": zod.string().regex(listRunsResponseRunsItemScheduledForRegExp).nullable().describe('Calendar date in the facility schedule; it is not an instant.'),
   "scheduleNotes": zod.string().nullable(),
   "scheduleSource": zod.union([zod.object({
   "importId": zod.string().uuid(),
@@ -916,6 +917,7 @@ export const CreateRunBody = zod.object({
 export const createRunResponseRunRevisionMin = 0;
 export const createRunResponseRunRevisionMax = 9007199254740991;
 
+export const createRunResponseRunScheduledForRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const createRunResponseRunScheduleSourceOneFileMax = 255;
 
 export const createRunResponseRunScheduleSourceOneSheetMax = 80;
@@ -1021,7 +1023,7 @@ export const CreateRunResponse = zod.object({
   "revision": zod.number().int().min(createRunResponseRunRevisionMin).max(createRunResponseRunRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
-  "scheduledFor": zod.coerce.date().nullable(),
+  "scheduledFor": zod.string().regex(createRunResponseRunScheduledForRegExp).nullable().describe('Calendar date in the facility schedule; it is not an instant.'),
   "scheduleNotes": zod.string().nullable(),
   "scheduleSource": zod.union([zod.object({
   "importId": zod.string().uuid(),
@@ -3142,6 +3144,7 @@ export const GetRunParams = zod.object({
 export const getRunResponseRunRevisionMin = 0;
 export const getRunResponseRunRevisionMax = 9007199254740991;
 
+export const getRunResponseRunScheduledForRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const getRunResponseRunScheduleSourceOneFileMax = 255;
 
 export const getRunResponseRunScheduleSourceOneSheetMax = 80;
@@ -3245,7 +3248,7 @@ export const GetRunResponse = zod.object({
   "revision": zod.number().int().min(getRunResponseRunRevisionMin).max(getRunResponseRunRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
-  "scheduledFor": zod.coerce.date().nullable(),
+  "scheduledFor": zod.string().regex(getRunResponseRunScheduledForRegExp).nullable().describe('Calendar date in the facility schedule; it is not an instant.'),
   "scheduleNotes": zod.string().nullable(),
   "scheduleSource": zod.union([zod.object({
   "importId": zod.string().uuid(),
@@ -3500,6 +3503,7 @@ export const ApplyRunCommandBody = zod.object({
 export const applyRunCommandResponseRunRevisionMin = 0;
 export const applyRunCommandResponseRunRevisionMax = 9007199254740991;
 
+export const applyRunCommandResponseRunScheduledForRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const applyRunCommandResponseRunScheduleSourceOneFileMax = 255;
 
 export const applyRunCommandResponseRunScheduleSourceOneSheetMax = 80;
@@ -3606,7 +3610,7 @@ export const ApplyRunCommandResponse = zod.object({
   "revision": zod.number().int().min(applyRunCommandResponseRunRevisionMin).max(applyRunCommandResponseRunRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
-  "scheduledFor": zod.coerce.date().nullable(),
+  "scheduledFor": zod.string().regex(applyRunCommandResponseRunScheduledForRegExp).nullable().describe('Calendar date in the facility schedule; it is not an instant.'),
   "scheduleNotes": zod.string().nullable(),
   "scheduleSource": zod.union([zod.object({
   "importId": zod.string().uuid(),
@@ -3853,7 +3857,7 @@ export const getRunStationProgressResponseCurrentRequirementsOneAreasItemComplet
 export const getRunStationProgressResponseCurrentRequirementsOneAreasItemRemainingCasesMin = 0;
 export const getRunStationProgressResponseCurrentRequirementsOneAreasItemRemainingCasesMax = 2147483647;
 
-export const getRunStationProgressResponseCurrentRequirementsOneAreasMax = 4;
+export const getRunStationProgressResponseCurrentRequirementsOneAreasMax = 7;
 
 export const getRunStationProgressResponseCurrentRequirementsOneItemsItemCompletedCasesMin = 0;
 export const getRunStationProgressResponseCurrentRequirementsOneItemsItemCompletedCasesMax = 2147483647;
@@ -4584,7 +4588,7 @@ export const updateRunStationCountResponseCurrentRequirementsOneAreasItemComplet
 export const updateRunStationCountResponseCurrentRequirementsOneAreasItemRemainingCasesMin = 0;
 export const updateRunStationCountResponseCurrentRequirementsOneAreasItemRemainingCasesMax = 2147483647;
 
-export const updateRunStationCountResponseCurrentRequirementsOneAreasMax = 4;
+export const updateRunStationCountResponseCurrentRequirementsOneAreasMax = 7;
 
 export const updateRunStationCountResponseCurrentRequirementsOneItemsItemCompletedCasesMin = 0;
 export const updateRunStationCountResponseCurrentRequirementsOneItemsItemCompletedCasesMax = 2147483647;
@@ -4677,9 +4681,11 @@ export const UpdateRunStationCountResponse = zod.object({
 /**
  * @summary Get the facility's run summary and recent activity
  */
+export const getDashboardSummaryResponseProductionDayDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const getDashboardSummaryResponseActiveRunsItemRevisionMin = 0;
 export const getDashboardSummaryResponseActiveRunsItemRevisionMax = 9007199254740991;
 
+export const getDashboardSummaryResponseActiveRunsItemScheduledForRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const getDashboardSummaryResponseActiveRunsItemScheduleSourceOneFileMax = 255;
 
 export const getDashboardSummaryResponseActiveRunsItemScheduleSourceOneSheetMax = 80;
@@ -4777,6 +4783,7 @@ export const getDashboardSummaryResponseActiveRunsItemProductSnapshotOneRunRequi
 export const getDashboardSummaryResponsePlannedRunsItemRevisionMin = 0;
 export const getDashboardSummaryResponsePlannedRunsItemRevisionMax = 9007199254740991;
 
+export const getDashboardSummaryResponsePlannedRunsItemScheduledForRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const getDashboardSummaryResponsePlannedRunsItemScheduleSourceOneFileMax = 255;
 
 export const getDashboardSummaryResponsePlannedRunsItemScheduleSourceOneSheetMax = 80;
@@ -4882,7 +4889,7 @@ export const getDashboardSummaryResponseActiveRunProgressItemAreasItemCountedSta
 export const getDashboardSummaryResponseActiveRunProgressItemAreasItemLowestReportedCasesMin = 0;
 export const getDashboardSummaryResponseActiveRunProgressItemAreasItemLowestReportedCasesMax = 2147483647;
 
-export const getDashboardSummaryResponseActiveRunProgressItemAreasMax = 4;
+export const getDashboardSummaryResponseActiveRunProgressItemAreasMax = 7;
 
 export const getDashboardSummaryResponseActiveRunProgressItemPreparationStatusCountsNotStartedMin = 0;
 export const getDashboardSummaryResponseActiveRunProgressItemPreparationStatusCountsNotStartedMax = 50;
@@ -4911,6 +4918,7 @@ export const getDashboardSummaryResponseQualityAttentionMax = 18;
 export const getDashboardSummaryResponseRecentRunsItemRevisionMin = 0;
 export const getDashboardSummaryResponseRecentRunsItemRevisionMax = 9007199254740991;
 
+export const getDashboardSummaryResponseRecentRunsItemScheduledForRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const getDashboardSummaryResponseRecentRunsItemScheduleSourceOneFileMax = 255;
 
 export const getDashboardSummaryResponseRecentRunsItemScheduleSourceOneSheetMax = 80;
@@ -5005,9 +5013,113 @@ export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequi
 
 export const getDashboardSummaryResponseRecentRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceMax = 200;
 
+export const getDashboardSummaryResponseTodayCompletedRunsItemRevisionMin = 0;
+export const getDashboardSummaryResponseTodayCompletedRunsItemRevisionMax = 9007199254740991;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemScheduledForRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getDashboardSummaryResponseTodayCompletedRunsItemScheduleSourceOneFileMax = 255;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemScheduleSourceOneSheetMax = 80;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemScheduleSourceOneRowMax = 20000;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemScheduleSourceOneBrandMax = 120;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemScheduleSourceOneFlavorMax = 120;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemSetupSnapshotLabelMax = 120;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemSetupSnapshotTargetCasesMax = 9007199254740991;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemSetupSnapshotPlanningExpectedProfileRevisionMin = 0;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemSetupSnapshotPlanningExpectedNameRevisionMin = 0;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemSetupSnapshotPlanningOptionsUnitsPerCaseMax = 1000;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemSetupSnapshotPlanningOptionsSectionIdMax = 200;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemSetupSnapshotPlanningOptionsLinksItemItemIdMax = 200;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemSetupSnapshotPlanningOptionsLinksItemRecipeIdMax = 200;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemSetupSnapshotPlanningOptionsLinksItemAmountColumnMax = 100;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemSetupSnapshotPlanningOptionsLinksItemBatchColumnMax = 10000;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemSetupSnapshotPlanningOptionsLinksMax = 200;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneNameResolutionRulesItemSourceBrandMax = 120;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneNameResolutionRulesItemSourceNameMax = 300;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneNameResolutionRulesItemTargetBrandMax = 120;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneNameResolutionRulesItemTargetNameMax = 300;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsOptionsUnitsPerCaseMax = 1000;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsOptionsSectionIdMax = 200;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemItemIdMax = 200;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemRecipeIdMax = 200;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemAmountColumnMax = 100;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemBatchColumnMax = 10000;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsOptionsLinksMax = 200;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneRangeMax = 120;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneUnitMax = 20;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneSourceMax = 500;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemIdMax = 300;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemNameMax = 200;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemInstructionMax = 1000;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemSourceMax = 500;
+
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemSourceColumnMax = 32;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMin = 0;
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax = 3650;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsPreparationItemsMax = 500;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsProductSetupLineMax = 120;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemValueMax = 1000;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemSourceMax = 500;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesMax = 100;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsProductSetupAllergensItemMax = 120;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsProductSetupAllergensMax = 100;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemValueMax = 1000;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemSourceMax = 500;
+
+export const getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceMax = 200;
+
+export const getDashboardSummaryResponseTodayCompletedRunsMax = 4;
+
 
 
 export const GetDashboardSummaryResponse = zod.object({
+  "productionDay": zod.object({
+  "date": zod.string().regex(getDashboardSummaryResponseProductionDayDateRegExp).describe('Calendar date in the facility production timezone.'),
+  "timezone": zod.string()
+}),
   "facility": zod.object({
   "id": zod.string().uuid(),
   "name": zod.string(),
@@ -5016,7 +5128,8 @@ export const GetDashboardSummaryResponse = zod.object({
   "counts": zod.object({
   "active": zod.number().int(),
   "planned": zod.number().int(),
-  "completed": zod.number().int()
+  "completed": zod.number().int(),
+  "completedToday": zod.number().int().describe('Runs completed since midnight in the facility production timezone.')
 }),
   "activeRuns": zod.array(zod.object({
   "id": zod.string().uuid(),
@@ -5024,7 +5137,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "revision": zod.number().int().min(getDashboardSummaryResponseActiveRunsItemRevisionMin).max(getDashboardSummaryResponseActiveRunsItemRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
-  "scheduledFor": zod.coerce.date().nullable(),
+  "scheduledFor": zod.string().regex(getDashboardSummaryResponseActiveRunsItemScheduledForRegExp).nullable().describe('Calendar date in the facility schedule; it is not an instant.'),
   "scheduleNotes": zod.string().nullable(),
   "scheduleSource": zod.union([zod.object({
   "importId": zod.string().uuid(),
@@ -5252,7 +5365,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "revision": zod.number().int().min(getDashboardSummaryResponsePlannedRunsItemRevisionMin).max(getDashboardSummaryResponsePlannedRunsItemRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
-  "scheduledFor": zod.coerce.date().nullable(),
+  "scheduledFor": zod.string().regex(getDashboardSummaryResponsePlannedRunsItemScheduledForRegExp).nullable().describe('Calendar date in the facility schedule; it is not an instant.'),
   "scheduleNotes": zod.string().nullable(),
   "scheduleSource": zod.union([zod.object({
   "importId": zod.string().uuid(),
@@ -5502,7 +5615,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "revision": zod.number().int().min(getDashboardSummaryResponseRecentRunsItemRevisionMin).max(getDashboardSummaryResponseRecentRunsItemRevisionMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
-  "scheduledFor": zod.coerce.date().nullable(),
+  "scheduledFor": zod.string().regex(getDashboardSummaryResponseRecentRunsItemScheduledForRegExp).nullable().describe('Calendar date in the facility schedule; it is not an instant.'),
   "scheduleNotes": zod.string().nullable(),
   "scheduleSource": zod.union([zod.object({
   "importId": zod.string().uuid(),
@@ -5723,7 +5836,235 @@ export const GetDashboardSummaryResponse = zod.object({
   "startedAt": zod.coerce.date(),
   "endedAt": zod.coerce.date().nullable()
 }))
+})),
+  "todayCompletedRuns": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.enum(['planned', 'running', 'paused', 'completed']),
+  "revision": zod.number().int().min(getDashboardSummaryResponseTodayCompletedRunsItemRevisionMin).max(getDashboardSummaryResponseTodayCompletedRunsItemRevisionMax),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "scheduledFor": zod.string().regex(getDashboardSummaryResponseTodayCompletedRunsItemScheduledForRegExp).nullable().describe('Calendar date in the facility schedule; it is not an instant.'),
+  "scheduleNotes": zod.string().nullable(),
+  "scheduleSource": zod.union([zod.object({
+  "importId": zod.string().uuid(),
+  "file": zod.string().max(getDashboardSummaryResponseTodayCompletedRunsItemScheduleSourceOneFileMax),
+  "sheet": zod.string().max(getDashboardSummaryResponseTodayCompletedRunsItemScheduleSourceOneSheetMax),
+  "row": zod.number().int().min(1).max(getDashboardSummaryResponseTodayCompletedRunsItemScheduleSourceOneRowMax),
+  "brand": zod.string().max(getDashboardSummaryResponseTodayCompletedRunsItemScheduleSourceOneBrandMax),
+  "flavor": zod.string().max(getDashboardSummaryResponseTodayCompletedRunsItemScheduleSourceOneFlavorMax)
+}),zod.null()]),
+  "startedAt": zod.coerce.date().nullable(),
+  "pausedAt": zod.coerce.date().nullable(),
+  "resumedAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "setupSnapshot": zod.object({
+  "label": zod.string().min(1).max(getDashboardSummaryResponseTodayCompletedRunsItemSetupSnapshotLabelMax),
+  "targetCases": zod.number().int().min(1).max(getDashboardSummaryResponseTodayCompletedRunsItemSetupSnapshotTargetCasesMax),
+  "productProfileId": zod.string().uuid().nullish(),
+  "planning": zod.object({
+  "expectedProfileRevision": zod.number().int().min(getDashboardSummaryResponseTodayCompletedRunsItemSetupSnapshotPlanningExpectedProfileRevisionMin),
+  "expectedNameRevision": zod.number().int().min(getDashboardSummaryResponseTodayCompletedRunsItemSetupSnapshotPlanningExpectedNameRevisionMin),
+  "options": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(getDashboardSummaryResponseTodayCompletedRunsItemSetupSnapshotPlanningOptionsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(getDashboardSummaryResponseTodayCompletedRunsItemSetupSnapshotPlanningOptionsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(getDashboardSummaryResponseTodayCompletedRunsItemSetupSnapshotPlanningOptionsLinksItemItemIdMax),
+  "recipeId": zod.string().max(getDashboardSummaryResponseTodayCompletedRunsItemSetupSnapshotPlanningOptionsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(getDashboardSummaryResponseTodayCompletedRunsItemSetupSnapshotPlanningOptionsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(getDashboardSummaryResponseTodayCompletedRunsItemSetupSnapshotPlanningOptionsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(getDashboardSummaryResponseTodayCompletedRunsItemSetupSnapshotPlanningOptionsLinksMax).optional()
+})
+}).optional()
+}),
+  "productSnapshot": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "brand": zod.string(),
+  "flavor": zod.string(),
+  "revision": zod.number().int(),
+  "productData": zod.record(zod.string(), zod.unknown()),
+  "nameResolution": zod.object({
+  "revision": zod.number().int(),
+  "rules": zod.array(zod.object({
+  "source": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneNameResolutionRulesItemSourceBrandMax),
+  "name": zod.string().min(1).max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneNameResolutionRulesItemSourceNameMax)
+}),
+  "target": zod.object({
+  "kind": zod.enum(['brand', 'flavor', 'recipe', 'ingredient']),
+  "brand": zod.string().max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneNameResolutionRulesItemTargetBrandMax),
+  "name": zod.string().min(1).max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneNameResolutionRulesItemTargetNameMax)
+})
 }))
+}).optional(),
+  "runRequirements": zod.object({
+  "version": zod.literal(1),
+  "productLabel": zod.string(),
+  "profileRevision": zod.number().int(),
+  "nameRevision": zod.number().int(),
+  "targetCases": zod.number().int(),
+  "unitsPerCase": zod.number().int().nullable(),
+  "casePackSource": zod.string(),
+  "totalPizzas": zod.number().int().nullable(),
+  "status": zod.enum(['ready', 'needs_review']),
+  "options": zod.object({
+  "unitsPerCase": zod.number().int().min(1).max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsOptionsUnitsPerCaseMax).optional(),
+  "sectionId": zod.string().max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsOptionsSectionIdMax).optional(),
+  "links": zod.array(zod.object({
+  "itemId": zod.string().max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemItemIdMax),
+  "recipeId": zod.string().max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemRecipeIdMax).nullish(),
+  "amountColumn": zod.string().max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemAmountColumnMax).optional(),
+  "usageUnit": zod.enum(['oz', 'lb', 'g', 'kg', 'each']).optional(),
+  "batchColumn": zod.number().int().min(1).max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsOptionsLinksItemBatchColumnMax).optional(),
+  "directIngredient": zod.boolean().optional()
+})).max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsOptionsLinksMax).optional()
+}),
+  "sections": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "source": zod.string(),
+  "notes": zod.array(zod.string())
+})),
+  "sectionId": zod.string().nullable(),
+  "finishedWeightSpec": zod.union([zod.object({
+  "range": zod.string().max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneRangeMax).nullable(),
+  "unit": zod.string().max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneUnitMax).nullable(),
+  "source": zod.string().max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsFinishedWeightSpecOneSourceMax)
+}),zod.null()]).optional(),
+  "recipes": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "brand": zod.string(),
+  "kind": zod.string(),
+  "source": zod.string(),
+  "columns": zod.array(zod.object({
+  "column": zod.number().int(),
+  "label": zod.string(),
+  "unit": zod.string().nullable(),
+  "yield": zod.number().nullable()
+})),
+  "issues": zod.array(zod.string())
+})),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
+  "station": zod.string(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "batchPreparation": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "originalName": zod.string(),
+  "source": zod.string(),
+  "ingredientRole": zod.enum(['sauce', 'pep_applicator', 'cheese_applicator', 'ingredient']),
+  "ingredientRoleConfirmed": zod.boolean().optional(),
+  "sourceCoordinates": zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int().nullable(),
+  "nameColumn": zod.string().nullable()
+}),
+  "station": zod.string(),
+  "stationArea": zod.enum(['dough_prep', 'sauce_prep', 'dough_sauce_prep', 'production_line', 'freeze_tunnel', 'freezing_packaging', 'warehouse']).optional(),
+  "amountChoices": zod.array(zod.object({
+  "column": zod.string(),
+  "value": zod.string()
+})),
+  "amountColumn": zod.string().nullable(),
+  "usageUnit": zod.string().nullable(),
+  "perPizza": zod.number().nullable(),
+  "totalRequired": zod.number().nullable(),
+  "recipeId": zod.string().nullable(),
+  "recipeSource": zod.string().nullable(),
+  "directIngredient": zod.boolean(),
+  "batchColumn": zod.number().int().nullable(),
+  "batchUnit": zod.string().nullable(),
+  "batchYield": zod.number().nullable(),
+  "batchesExact": zod.number().nullable(),
+  "wholeBatches": zod.number().int().nullable(),
+  "remainder": zod.number().nullable(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "perBatch": zod.number(),
+  "exactRequired": zod.number(),
+  "wholeBatchRequired": zod.number()
+})),
+  "instructions": zod.array(zod.string()),
+  "issues": zod.array(zod.string())
+})),
+  "preparation": zod.array(zod.string()),
+  "preparationItems": zod.array(zod.object({
+  "id": zod.string().min(1).max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemIdMax),
+  "name": zod.string().min(1).max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemNameMax),
+  "instruction": zod.string().min(1).max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemInstructionMax),
+  "source": zod.string().min(1).max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemSourceMax),
+  "sourceRow": zod.number().int().min(1).nullable(),
+  "sourceColumn": zod.string().max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemSourceColumnMax).nullable(),
+  "daysEarly": zod.number().int().min(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMin).max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsPreparationItemsItemDaysEarlyMax).nullable()
+})).max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsPreparationItemsMax).optional(),
+  "packaging": zod.array(zod.string()),
+  "issues": zod.array(zod.string()),
+  "productSetup": zod.object({
+  "line": zod.string().max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsProductSetupLineMax).nullable(),
+  "lineStatus": zod.enum(['confirmed', 'missing', 'conflict']),
+  "lineCandidates": zod.array(zod.object({
+  "value": zod.string().max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemValueMax),
+  "source": zod.string().max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesItemSourceMax)
+})).max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsProductSetupLineCandidatesMax),
+  "allergens": zod.array(zod.string().min(1).max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsProductSetupAllergensItemMax)).max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsProductSetupAllergensMax),
+  "allergenReview": zod.enum(['unreviewed', 'confirmed', 'not_applicable']),
+  "allergenEvidence": zod.array(zod.object({
+  "value": zod.string().max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemValueMax),
+  "source": zod.string().max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceItemSourceMax)
+})).max(getDashboardSummaryResponseTodayCompletedRunsItemProductSnapshotOneRunRequirementsProductSetupAllergenEvidenceMax)
+}).optional()
+}).optional(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "mergedIntoId": zod.string().uuid().nullable()
+}),zod.null()]),
+  "pauseIntervals": zod.array(zod.object({
+  "startedAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().nullable()
+}))
+})).max(getDashboardSummaryResponseTodayCompletedRunsMax)
 })
 
 

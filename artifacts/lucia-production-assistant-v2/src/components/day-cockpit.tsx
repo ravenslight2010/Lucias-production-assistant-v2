@@ -11,6 +11,7 @@ import {
   RotateCcw,
   WifiOff,
 } from 'lucide-react';
+import { formatProductionDate, isRunCarriedOver } from '../production-day';
 import './day-cockpit.css';
 
 export type CockpitRole = 'owner' | 'manager' | 'operator' | null;
@@ -184,7 +185,12 @@ function RunCard({ run, props, progress }: {
       >
         <span className="day-run-card-top">
           <span className={statusClass(run.status)}>{statusLabels[run.status]}</span>
-          {attention && <span className="day-attention-tag"><CircleAlert size={12} /> Review</span>}
+          <span className="day-run-card-tags">
+            {props.summary && isRunCarriedOver(run, props.summary.productionDay.date, props.summary.productionDay.timezone) && (
+              <span className="day-carryover-tag" data-testid={`badge-carryover-${run.id}`}>Carryover</span>
+            )}
+            {attention && <span className="day-attention-tag"><CircleAlert size={12} /> Review</span>}
+          </span>
         </span>
         <strong className="day-run-name">{run.setupSnapshot.label}</strong>
         <span className="day-run-card-meta">
@@ -272,7 +278,10 @@ export function DayCockpit(props: DayCockpitProps) {
   const progressMap = new Map((summary?.activeRunProgress ?? []).map((item) => [item.runId, item]));
   const active = summary?.activeRuns ?? [];
   const planned = summary?.plannedRuns ?? [];
-  const completed = summary?.recentRuns.filter((run) => run.status === 'completed') ?? [];
+  const completed = summary?.todayCompletedRuns ?? [];
+  const carriedOverCount = summary
+    ? [...active, ...planned].filter((run) => isRunCarriedOver(run, summary.productionDay.date, summary.productionDay.timezone)).length
+    : 0;
   const qualityItems = summary?.qualityAttention ?? [];
   const recentImports = props.recentImports ?? [];
   const importReviewCount = recentImports.filter((batch) => batch.status === 'draft').length;
@@ -304,7 +313,7 @@ export function DayCockpit(props: DayCockpitProps) {
     <main className="day-cockpit" data-role={props.role ?? 'unknown'} data-testid="day-cockpit">
       <header className="day-cockpit-heading">
         <div>
-          <div className="day-cockpit-kicker"><span className="day-live-dot" /> Shift control <span className="day-context-separator">/</span> {formatDate(new Date())}</div>
+          <div className="day-cockpit-kicker"><span className="day-live-dot" /> Shift control <span className="day-context-separator">/</span> {formatProductionDate(summary.productionDay.date, summary.productionDay.timezone)}</div>
           <h1>{summary.facility.name}</h1>
           <p>Production state, confirmed across the floor.</p>
         </div>
@@ -324,10 +333,21 @@ export function DayCockpit(props: DayCockpitProps) {
 
       {props.error && <div className="day-refresh-notice" role="status" data-testid="status-cockpit-refresh">{props.error} Showing the last saved shift view.</div>}
 
+      <div className="day-rollover-note" role="status" data-testid="note-production-day-rollover">
+        <Clock3 size={16} aria-hidden="true" />
+        <span>
+          <strong>New production day · midnight</strong>
+          {carriedOverCount
+            ? `${carriedOverCount} visible unfinished ${carriedOverCount === 1 ? 'run is' : 'runs are'} carried forward. Run timers and recorded progress remain unchanged.`
+            : 'Unfinished runs carry forward; timers and recorded progress are not reset.'}
+          <small>Facility time: {summary.productionDay.timezone}</small>
+        </span>
+      </div>
+
       <section className="day-metrics" aria-label="Shift totals">
         <div className="day-metric day-metric-active"><span className="day-metric-label">On the floor</span><strong>{summary.counts.active}</strong><small>{summary.counts.active === 1 ? 'active run' : 'active runs'}</small></div>
         <div className="day-metric"><span className="day-metric-label">Up next</span><strong>{summary.counts.planned}</strong><small>{summary.counts.planned === 1 ? 'planned run' : 'planned runs'}</small></div>
-        <div className="day-metric"><span className="day-metric-label">Logged today</span><strong>{summary.counts.completed}</strong><small>completed runs</small></div>
+        <div className="day-metric"><span className="day-metric-label">Logged today</span><strong>{summary.counts.completedToday}</strong><small>completed runs</small></div>
         <div className={`day-attention-summary${qualityItems.length ? ' has-attention' : ''}`}>
           <span className="day-attention-icon">{qualityItems.length ? <CircleAlert size={17} /> : <Check size={17} />}</span>
           <span><strong>{qualityItems.length ? `${qualityItems.length} needs review` : 'Quality in view'}</strong><small>{qualityItems.length ? 'Checks need a second look' : 'No outstanding quality flags'}</small></span>
@@ -470,8 +490,4 @@ function formatTime(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(date);
-}
-
-function formatDate(value: Date) {
-  return new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'short', day: 'numeric' }).format(value);
 }

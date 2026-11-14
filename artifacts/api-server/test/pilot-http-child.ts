@@ -43,7 +43,7 @@ app.use(productionRouter);
 app.use(
   (
     error: unknown,
-    _req: Request,
+    req: Request,
     res: Response,
     _next: NextFunction,
   ) => {
@@ -51,6 +51,7 @@ app.use(
       res.status(error.statusCode).json({ error: error.message });
       return;
     }
+    process.stderr.write(`Pilot server error on ${req.method} ${req.path}: ${error instanceof Error ? error.stack : String(error)}\n`);
     res.status(500).json({ error: "Request could not be completed." });
   },
 );

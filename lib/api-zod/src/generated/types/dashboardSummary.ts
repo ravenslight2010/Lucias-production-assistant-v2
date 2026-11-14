@@ -8,10 +8,12 @@
 import type { DashboardQualityAttention } from './dashboardQualityAttention.ts';
 import type { DashboardRunProgress } from './dashboardRunProgress.ts';
 import type { DashboardSummaryCounts } from './dashboardSummaryCounts.ts';
+import type { DashboardSummaryProductionDay } from './dashboardSummaryProductionDay.ts';
 import type { Facility } from './facility.ts';
 import type { Run } from './run.ts';
 
 export interface DashboardSummary {
+  productionDay: DashboardSummaryProductionDay;
   facility: Facility;
   counts: DashboardSummaryCounts;
   activeRuns: Run[];
@@ -22,4 +24,6 @@ export interface DashboardSummary {
   /** @maxItems 18 */
   qualityAttention: DashboardQualityAttention[];
   recentRuns: Run[];
+  /** @maxItems 4 */
+  todayCompletedRuns: Run[];
 }

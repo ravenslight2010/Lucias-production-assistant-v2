@@ -10,7 +10,7 @@ import type { DashboardPreparationStatusCounts } from './dashboardPreparationSta
 
 export interface DashboardRunProgress {
   runId: string;
-  /** @maxItems 4 */
+  /** @maxItems 7 */
   areas: DashboardAreaProgress[];
   preparationStatusCounts: DashboardPreparationStatusCounts;
 }

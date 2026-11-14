@@ -14,7 +14,7 @@ export interface RunRequirementsProgress {
      * @maximum 1000000
      */
   targetCases: number;
-  /** @maxItems 4 */
+  /** @maxItems 7 */
   areas: RunRequirementProgressArea[];
   /** @maxItems 400 */
   items: RunRequirementProgressItem[];

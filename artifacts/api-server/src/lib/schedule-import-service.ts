@@ -26,6 +26,17 @@ export type ScheduleImportInput = {
   planningByProfile: { productProfileId: string; review: RunPlanningReview }[];
 };
 
+type ScheduleImportRunSummary = {
+  id: string;
+  label: string;
+  scheduledFor: string;
+  targetCases: number;
+  needsReview: boolean | null;
+  requirementItemCount: number | null;
+  sourceSheet: string;
+  sourceRow: number;
+};
+
 function stableUuid(...parts: string[]) {
   const hex = createHash("sha256").update(parts.join("\0")).digest("hex").slice(0, 32).split("");
   hex[12] = "5";
@@ -53,6 +64,7 @@ function previousImportResult(
   summary: unknown,
   importId: string,
   expectedRequestHash: string,
+  fallbackRuns: ScheduleImportRunSummary[],
 ) {
   if (!summary || typeof summary !== "object" || Array.isArray(summary)) {
     throw new HttpError(409, "This schedule import record is incomplete and cannot be replayed.");
@@ -73,8 +85,26 @@ function previousImportResult(
     importedCount: record.importedCount,
     ignoredPastCount: record.ignoredPastCount,
     needsReviewRunCount: record.needsReviewRunCount,
+    runs: Array.isArray(record.runs) ? record.runs : fallbackRuns,
     replayed: true,
   };
+}
+
+function fallbackRunSummaries(
+  facilityId: string,
+  sourceHash: string,
+  rows: ScheduleImportRow[],
+): ScheduleImportRunSummary[] {
+  return rows.map((row) => ({
+    id: stableUuid("scheduled-run", facilityId, sourceHash, row.source.sheet, String(row.source.row)),
+    label: `${row.brand} / ${row.flavor}`,
+    scheduledFor: row.date,
+    targetCases: row.casesPlanned,
+    needsReview: null,
+    requirementItemCount: null,
+    sourceSheet: row.source.sheet,
+    sourceRow: row.source.row,
+  }));
 }
 
 export async function importSchedule(input: ScheduleImportInput & {
@@ -116,6 +146,11 @@ export async function importSchedule(input: ScheduleImportInput & {
   );
   const importId = stableUuid("schedule-import", input.facilityId, normalizedInput.sourceHash);
   const expectedHash = requestHash(normalizedInput, canonicalRows, ignoredPastCount);
+  const legacyRunSummaries = fallbackRunSummaries(
+    input.facilityId,
+    normalizedInput.sourceHash,
+    canonicalRows,
+  );
 
   return db.transaction(async (tx) => {
     await lockProfileNames(tx, input.facilityId);
@@ -130,7 +165,7 @@ export async function importSchedule(input: ScheduleImportInput & {
       ))
       .limit(1);
     if (previousBatch) {
-      return previousImportResult(previousBatch.summary, importId, expectedHash);
+      return previousImportResult(previousBatch.summary, importId, expectedHash, legacyRunSummaries);
     }
 
     const profileIds = [...new Set(normalizedRows.map((row) => row.productProfileId))];
@@ -244,12 +279,23 @@ export async function importSchedule(input: ScheduleImportInput & {
     const needsReviewRunCount = runValues.filter(
       (run) => run.productSnapshot?.runRequirements.status === "needs_review",
     ).length;
+    const runs: ScheduleImportRunSummary[] = runValues.map((run) => ({
+      id: run.id,
+      label: run.name,
+      scheduledFor: run.scheduledFor,
+      targetCases: run.targetCases,
+      needsReview: run.productSnapshot?.runRequirements.status === "needs_review",
+      requirementItemCount: run.productSnapshot?.runRequirements.items.length ?? 0,
+      sourceSheet: run.scheduleSource.sheet,
+      sourceRow: run.scheduleSource.row,
+    }));
     const summary = {
       requestHash: expectedHash,
       importDate: input.importDate,
       importedCount: insertedRuns.length,
       ignoredPastCount,
       needsReviewRunCount,
+      runs,
     };
     const [batch] = await tx
       .insert(facilityImportBatchesTable)
@@ -281,7 +327,7 @@ export async function importSchedule(input: ScheduleImportInput & {
         ))
         .limit(1);
       if (!concurrentBatch) throw new HttpError(409, "The schedule import could not be confirmed. Refresh the import history before retrying.");
-      return previousImportResult(concurrentBatch.summary, importId, expectedHash);
+      return previousImportResult(concurrentBatch.summary, importId, expectedHash, runs);
     }
     return { importId, ...summary, replayed: false };
   });

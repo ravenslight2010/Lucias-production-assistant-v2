@@ -2606,7 +2606,43 @@ components:
           minimum: 0
         replayed:
           type: boolean
-      required: [importId, importedCount, ignoredPastCount, needsReviewRunCount, replayed]
+        runs:
+          type: array
+          maxItems: 5000
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              id:
+                type: string
+                format: uuid
+              label:
+                type: string
+                minLength: 1
+                maxLength: 260
+              scheduledFor:
+                type: string
+                format: date
+              targetCases:
+                type: integer
+                minimum: 1
+                maximum: 2147483647
+              needsReview:
+                type: [boolean, "null"]
+              requirementItemCount:
+                type: [integer, "null"]
+                minimum: 0
+                maximum: 500
+              sourceSheet:
+                type: string
+                minLength: 1
+                maxLength: 120
+              sourceRow:
+                type: integer
+                minimum: 1
+                maximum: 2147483647
+            required: [id, label, scheduledFor, targetCases, needsReview, requirementItemCount, sourceSheet, sourceRow]
+      required: [importId, importedCount, ignoredPastCount, needsReviewRunCount, replayed, runs]
     RunCreateInput:
       type: object
       properties:

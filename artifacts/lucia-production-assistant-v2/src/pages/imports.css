@@ -55,8 +55,146 @@
   margin-top: 14px;
 }
 
+.import-progress {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.import-progress-step {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  min-height: 38px;
+  padding: 5px 7px;
+  border-bottom: 2px solid hsl(var(--border));
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.import-progress-marker {
+  display: grid;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font: 10px var(--app-font-mono, monospace);
+}
+
+.import-progress-current {
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary));
+}
+
+.import-progress-complete {
+  border-color: #2f7457;
+  color: #236447;
+}
+
+.import-progress-attention {
+  border-color: #a65435;
+  color: #873f2a;
+}
+
+.schedule-import-results {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0 16px;
+  padding: 15px;
+  border: 1px solid hsl(var(--border));
+  border-left: 4px solid #2f7457;
+  border-radius: 8px;
+  background: hsl(var(--card));
+}
+
+.schedule-import-results h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.schedule-import-results p {
+  margin: 5px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+}
+
+.schedule-import-results ol {
+  display: grid;
+  gap: 6px;
+  max-height: 340px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.schedule-import-results li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+  background: hsl(var(--background));
+}
+
+.schedule-import-results li > a {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+  color: hsl(var(--primary));
+  text-decoration: none;
+}
+
+.schedule-import-results li > a strong,
+.schedule-import-results li > a span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-import-results li > a strong { font-size: 12px; }
+.schedule-import-results li > a span { color: hsl(var(--muted-foreground)); font-size: 10px; }
+
+.import-run-review {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border-radius: 4px;
+  color: #236447;
+  background: #e6f2e9;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.import-run-review.is-review {
+  color: #793f2e;
+  background: #fae9e3;
+}
+
+.import-run-review.is-unknown {
+  color: #735321;
+  background: #f5efd9;
+}
+
 @media (min-width: 760px) {
   .schedule-planning-toggle {
     width: auto;
   }
+}
+
+@media (max-width: 560px) {
+  .import-progress { gap: 2px; }
+  .import-progress-step { flex-direction: column; justify-content: center; gap: 3px; padding: 4px 2px; font-size: 10px; text-align: center; }
+  .schedule-import-results { padding: 11px; }
+  .schedule-import-results li { align-items: flex-start; flex-direction: column; }
 }

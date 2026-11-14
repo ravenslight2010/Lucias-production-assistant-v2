@@ -1039,6 +1039,7 @@ router.post(
       req.log.info({
         importId: response.importId,
         importedCount: response.importedCount,
+        runCount: response.runs.length,
         ignoredPastCount: response.ignoredPastCount,
         needsReviewRunCount: response.needsReviewRunCount,
         replayed: response.replayed,

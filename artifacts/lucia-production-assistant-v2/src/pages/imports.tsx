@@ -5,6 +5,7 @@ import {
   GitMerge, LoaderCircle, Pencil, RefreshCw, ShieldCheck, Upload,
 } from 'lucide-react';
 import {
+  getGetDashboardSummaryQueryKey,
   getListProductProfilesQueryKey,
   getGetNameLibraryQueryKey,
   getListImportBatchesQueryKey,
@@ -735,6 +736,7 @@ function WorkbookReview({
             refreshProfileLibraries(client);
             void client.invalidateQueries({ queryKey: getListImportBatchesQueryKey() });
             void client.invalidateQueries({ queryKey: getListRunsQueryKey() });
+            void client.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
           },
         });
       } catch (error) {
@@ -1078,6 +1080,20 @@ function WorkbookReview({
   const sourcePreviewSheets = isOperationalKind(kind) && selectedOperationalSheets.length
     ? workbook?.sheets.filter((sheet) => selectedOperationalSheets.includes(sheet.name)) ?? []
     : workbook?.sheets.slice(0, 4) ?? [];
+  const importApplied = Boolean(savedMessage);
+  const importApplying = importer.isPending
+    || scheduleImporter.isPending
+    || Object.values(shippingImportStates).some((state) => state.status === 'saving');
+  const activeImportStep = parseError
+    ? 1
+    : !workbook
+      ? 0
+      : importApplied
+        ? 4
+        : importApplying
+          ? 3
+          : 2;
+  const importSteps = ['Upload', 'Parse', 'Review', 'Apply', kind === 'schedule' ? 'Runs created' : 'Profile saved'];
 
   return (
     <section className="panel import-panel" aria-labelledby="workbook-heading">
@@ -1086,6 +1102,28 @@ function WorkbookReview({
       <p className="field-help" style={{ display: 'block', lineHeight: 1.6, marginBottom: 17 }}>
         Choose a workbook, inspect its source cells, then explicitly save it as a facility profile. Nothing is applied until you import.
       </p>
+      <ol className="import-progress" aria-label="Workbook import steps" data-testid="import-progress">
+        {importSteps.map((step, index) => {
+          const status = parseError && index === 1
+            ? 'attention'
+            : importApplied || index < activeImportStep
+              ? 'complete'
+              : index === activeImportStep
+                ? 'current'
+                : 'upcoming';
+          return (
+            <li
+              key={step}
+              className={`import-progress-step import-progress-${status}`}
+              data-testid={`import-step-${index}`}
+              aria-current={status === 'current' ? 'step' : undefined}
+            >
+              <span className="import-progress-marker" aria-hidden="true">{status === 'complete' ? '✓' : index + 1}</span>
+              <span>{step}</span>
+            </li>
+          );
+        })}
+      </ol>
       <div className={previewMode ? 'upload-zone upload-zone-disabled' : 'upload-zone'}>
         <label htmlFor="workbook-file">
           <Upload size={21} aria-hidden="true" />
@@ -1129,6 +1167,8 @@ function WorkbookReview({
             <select id="workbook-kind" data-testid="select-workbook-kind" value={kind} disabled={previewMode} onChange={(event) => {
               const nextKind = event.target.value as ImportKind | '';
               setKind(nextKind);
+              setSavedMessage('');
+              setValidation('');
               if (nextKind === 'cheese' && selectedOperationalSheets.length > 1) setSelectedOperationalSheets(selectedOperationalSheets.slice(0, 1));
               if (isOperationalKind(nextKind) && selectedOperationalSheets.length === 0 && workbook.sheets.length > 0) {
                 setSelectedOperationalSheets([workbook.sheets[0].name]);
@@ -1501,6 +1541,30 @@ function WorkbookReview({
                 {scheduleImporter.isError && <div className={errorStatus(scheduleImporter.error) === 409 ? 'notice' : 'error-banner'} role="alert">{errorText(scheduleImporter.error, 'Schedule import failed. No partial runs were saved.')}</div>}
                 {savedMessage && <div className="notice" role="status"><ShieldCheck size={15} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />{savedMessage}</div>}
                 {scheduleImporter.isSuccess && savedMessage && <Link href="/runs" className="button button-secondary" data-testid="link-imported-runs">Open the planned runs <ArrowRight size={14} /></Link>}
+                {scheduleImporter.isSuccess && savedMessage && scheduleImporter.data?.runs.length > 0 && <section className="schedule-import-results" aria-labelledby="schedule-import-results-title" data-testid="schedule-import-results">
+                  <div>
+                    <h3 id="schedule-import-results-title">Saved requirement snapshots</h3>
+                    <p>{scheduleImporter.data.needsReviewRunCount
+                      ? `${scheduleImporter.data.needsReviewRunCount} imported ${scheduleImporter.data.needsReviewRunCount === 1 ? 'run needs' : 'runs need'} source review.`
+                      : 'Every created run has its own captured requirements.'}
+                    </p>
+                  </div>
+                  <ol>
+                    {scheduleImporter.data.runs.slice(0, 20).map((run) => (
+                      <li key={run.id}>
+                        <Link href={`/runs/${encodeURIComponent(run.id)}`} data-testid={`link-imported-run-${run.id}`}>
+                          <strong>{run.label}</strong>
+                          <span>{run.scheduledFor} · {run.targetCases.toLocaleString()} cases · {run.requirementItemCount === null ? 'Saved snapshot' : `${run.requirementItemCount} requirement lines`}</span>
+                        </Link>
+                        <span className={`import-run-review ${run.needsReview === null ? 'is-unknown' : run.needsReview ? 'is-review' : 'is-ready'}`}>
+                          {run.needsReview === null ? 'Review snapshot' : run.needsReview ? 'Needs review' : 'Ready'}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                  {scheduleImporter.data.runs.length > 20 && <p className="field-help">Showing the first 20 of {scheduleImporter.data.runs.length} runs. Open the run queue for the full list.</p>}
+                  <Link href="/runs" className="button button-secondary" data-testid="link-all-imported-runs">View all planned runs <ArrowRight size={14} /></Link>
+                </section>}
                 <button className="button button-primary" type="submit" disabled={previewMode || !online || scheduleImporter.isPending || !hasScheduleMappings || !hasSchedulePlanning || schedulePreview.errors.length > 0} data-testid="button-import-schedule">
                   {scheduleImporter.isPending ? <LoaderCircle size={16} className="spin" /> : <ArrowDownToLine size={16} />}
                   {scheduleImporter.isPending ? 'Creating reviewed run plans…' : `Import ${schedulePreview.runs.length} planned ${schedulePreview.runs.length === 1 ? 'run' : 'runs'}`}

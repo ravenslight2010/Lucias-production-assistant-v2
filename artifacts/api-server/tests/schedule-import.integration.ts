@@ -112,6 +112,9 @@ test("simultaneous identical schedule imports create one batch and one set of ru
     assert.equal(results.filter((result) => result.replayed).length, 1);
     assert.deepEqual(results.map((result) => result.importedCount), [2, 2]);
     assert.deepEqual(results.map((result) => result.needsReviewRunCount), [2, 2]);
+    assert.deepEqual(results[0].runs, results[1].runs);
+    assert.equal(results[0].runs.length, 2);
+    assert.ok(results[0].runs.every((run) => run.needsReview && run.requirementItemCount !== null));
 
     const runs = await db
       .select({ id: productionRunsTable.id, productSnapshot: productionRunsTable.productSnapshot })
@@ -145,6 +148,11 @@ test("schedule run requirements are mandatory and changed review choices cannot 
     );
     const first = await importSchedule(scenario.input);
     assert.equal(first.needsReviewRunCount, 2);
+    assert.equal(first.runs.length, 2);
+    assert.deepEqual(
+      first.runs.map((run) => [run.sourceSheet, run.sourceRow, run.targetCases]).sort(),
+      [["Weekly schedule", 4, 24], ["Weekly schedule", 5, 5]].sort(),
+    );
 
     await assert.rejects(
       importSchedule({

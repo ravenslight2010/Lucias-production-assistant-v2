@@ -157,6 +157,7 @@ export * from './runStationProgressUpdateResultOutcome.ts';
 export * from './runStatus.ts';
 export * from './scheduleImportInput.ts';
 export * from './scheduleImportResult.ts';
+export * from './scheduleImportResultRunsItem.ts';
 export * from './scheduleImportRow.ts';
 export * from './scheduleImportRowSource.ts';
 export * from './scheduleProductPlanning.ts';

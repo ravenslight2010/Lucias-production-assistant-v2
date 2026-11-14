@@ -11,8 +11,10 @@ import {
 import {
   getGetDashboardSummaryQueryKey,
   getGetFacilityContextQueryKey,
+  getGetFacilityInventoryQueryKey,
   getGetRunQueryKey,
   getGetRunStationProgressQueryKey,
+  getListImportBatchesQueryKey,
   getListProductProfilesQueryKey,
   getListRunsQueryKey,
   revokeV2Session,
@@ -22,8 +24,10 @@ import {
   useCreateRun,
   useGetDashboardSummary,
   useGetFacilityContext,
+  useGetFacilityInventory,
   useGetRun,
   useHealthCheck,
+  useListImportBatches,
   useListRuns,
   useListProductProfiles,
 } from '@workspace/api-client-react';
@@ -460,7 +464,29 @@ function FacilityDashboard({ role }: { role: CockpitRole }) {
     query: { queryKey: getGetDashboardSummaryQueryKey(), refetchInterval: online ? 5000 : false },
     request: { credentials: 'include' },
   });
+  const importHistory = useListImportBatches({
+    query: { queryKey: getListImportBatchesQueryKey(), refetchInterval: online ? 60_000 : false },
+    request: { credentials: 'include' },
+  });
+  const inventory = useGetFacilityInventory({
+    query: { queryKey: getGetFacilityInventoryQueryKey(), refetchInterval: online ? 30_000 : false },
+    request: { credentials: 'include' },
+  });
   const data = summary.data;
+  const recentImports = (importHistory.data?.imports ?? []).slice(0, 3).map((batch) => ({
+    id: batch.id,
+    sourceName: batch.sourceName,
+    importKind: batch.importKind,
+    status: batch.status,
+    createdAt: new Date(String(batch.appliedAt ?? batch.createdAt)).toLocaleDateString(),
+    scheduleRunCount: batch.scheduleRunCount,
+  }));
+  const inventorySummary = inventory.data
+    ? {
+        trackedItems: inventory.data.items.length,
+        belowZeroItems: inventory.data.items.filter((item) => item.onHand < 0).length,
+      }
+    : null;
   const primaryAction = role && data && role !== 'operator' && data.activeRuns.length === 0 && data.plannedRuns.length === 0
     ? { kind: 'link' as const, label: 'Load day plan', href: '/imports' }
     : dashboardPrimaryAction(role, data?.activeRuns ?? [], data?.plannedRuns ?? [], Boolean(data));
@@ -481,6 +507,12 @@ function FacilityDashboard({ role }: { role: CockpitRole }) {
           primaryActionLabel={primaryAction.kind === 'link' ? primaryAction.label : null}
           onPrimaryAction={primaryAction.kind === 'link' ? () => setLocation(primaryAction.href) : undefined}
           primaryActionNotice={primaryAction.kind === 'notice' ? primaryAction.text : null}
+          recentImports={recentImports}
+          importHistoryError={importHistory.isError}
+          onOpenImports={() => setLocation('/imports')}
+          inventorySummary={inventorySummary}
+          inventoryError={inventory.isError}
+          onOpenInventory={() => setLocation('/inventory')}
           loading={summary.isLoading}
           error={summary.isError ? getErrorMessage(summary.error, 'Dashboard data could not be refreshed.') : null}
           onRetry={() => void summary.refetch()}
@@ -640,6 +672,13 @@ function DayCockpitVisualPreviewPage() {
           focusedRunId={activeRun.id}
           onFocusRun={() => {}}
           onOpenRun={() => {}}
+          recentImports={[
+            { id: 'preview-schedule', sourceName: 'Production schedule.xlsx', importKind: 'schedule', status: 'applied', createdAt: 'Today', scheduleRunCount: 3 },
+            { id: 'preview-dough', sourceName: 'Dough procedures.xlsx', importKind: 'dough', status: 'draft', createdAt: 'Yesterday', scheduleRunCount: null },
+          ]}
+          inventorySummary={{ trackedItems: 12, belowZeroItems: 1 }}
+          onOpenImports={() => {}}
+          onOpenInventory={() => {}}
           showContextStrip={false}
         />
       </div>

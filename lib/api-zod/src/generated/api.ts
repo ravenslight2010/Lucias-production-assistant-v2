@@ -1340,6 +1340,19 @@ export const importScheduleResponseIgnoredPastCountMin = 0;
 
 export const importScheduleResponseNeedsReviewRunCountMin = 0;
 
+export const importScheduleResponseRunsItemLabelMax = 260;
+
+export const importScheduleResponseRunsItemTargetCasesMax = 2147483647;
+
+export const importScheduleResponseRunsItemRequirementItemCountMin = 0;
+export const importScheduleResponseRunsItemRequirementItemCountMax = 500;
+
+export const importScheduleResponseRunsItemSourceSheetMax = 120;
+
+export const importScheduleResponseRunsItemSourceRowMax = 2147483647;
+
+export const importScheduleResponseRunsMax = 5000;
+
 
 
 export const ImportScheduleResponse = zod.object({
@@ -1347,7 +1360,17 @@ export const ImportScheduleResponse = zod.object({
   "importedCount": zod.number().int().min(importScheduleResponseImportedCountMin),
   "ignoredPastCount": zod.number().int().min(importScheduleResponseIgnoredPastCountMin),
   "needsReviewRunCount": zod.number().int().min(importScheduleResponseNeedsReviewRunCountMin),
-  "replayed": zod.boolean()
+  "replayed": zod.boolean(),
+  "runs": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(importScheduleResponseRunsItemLabelMax),
+  "scheduledFor": zod.coerce.date(),
+  "targetCases": zod.number().int().min(1).max(importScheduleResponseRunsItemTargetCasesMax),
+  "needsReview": zod.boolean().nullable(),
+  "requirementItemCount": zod.number().int().min(importScheduleResponseRunsItemRequirementItemCountMin).max(importScheduleResponseRunsItemRequirementItemCountMax).nullable(),
+  "sourceSheet": zod.string().min(1).max(importScheduleResponseRunsItemSourceSheetMax),
+  "sourceRow": zod.number().int().min(1).max(importScheduleResponseRunsItemSourceRowMax)
+})).max(importScheduleResponseRunsMax)
 })
 
 

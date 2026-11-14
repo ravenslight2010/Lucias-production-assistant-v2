@@ -8,30 +8,29 @@ separate-project pilot or signed-in floor workflow has been verified.
 
 | Package | Status | Evidence / remaining verification |
 |---|---|---|
-| U1 — Day cockpit and app shell | Implemented | Today shows active and queued runs, station count coverage, preparation readiness, quality attention, and recent completions. The nav prioritizes Today, Live run, Stations, Imports, Inventory, then Run queue and manager tools. The focused run is remembered locally and exposed on operational routes. Import-review and stock-shortage badges are not yet part of the dashboard API contract. |
-| U2 — Live run workspace | Implemented in code; floor verification open | Run detail keeps the run timer and station counts tied to the server's shared line lifecycle, includes preparation pulls, current requirements, quality checks, and inventory-use confirmation, and now offers quick section navigation. Verify the full station lineup, retry after a network failure, and two signed-in sessions refreshing the same run. |
+| U1 — Day cockpit and app shell | Implemented in code | Today shows active and queued runs, station count coverage, preparation readiness, quality attention, recent completions, recent import batches, and a compact stock snapshot. Draft batches need review and tracked balances below zero are flagged; the app does not invent low-stock thresholds. The focused run remains visible on operational routes. |
+| U2 — Live run workspace | Implemented in code; signed-in floor verification open | Run detail keeps the run timer and station counts tied to the server's shared line lifecycle, includes preparation pulls, current requirements, quality checks, inventory-use confirmation, and quick section navigation. API and lifecycle tests pass. Verify live retry after a network failure and two signed-in sessions refreshing the same run. |
 | U3 — Run strip and multi-run awareness | Implemented | Active and planned runs are visible together. Selecting a run updates the persistent focus; the selection survives route changes and browser reloads. The current summary response limits planned and recent runs, so very large day queues still need a dedicated queue view. |
-| U4 — Operational imports | Partial | Imports remain in the operational shell and schedule review filters out earlier dates while preserving source review. A successful schedule import now links to the run queue. Verify the whole real-workbook-to-run path with the uploaded fixtures; a shared upload/review/apply stepper and direct links to each created run remain. |
-| U5 — Inventory as a production surface | Partial | Inventory has opening stock and audited adjustments; run detail shows proposed use, shortages, and explicit confirmation before a stock deduction. Verify confirmed production updates balances and history across sessions. A cockpit stock badge is not in the current dashboard summary. |
-| U6 — Quality in the flow | Partial | Quality measurements are run-tied, and the cockpit displays failed or unresolved checks. Verify a failed and an unresolved check through the signed-in import-to-run-to-dashboard flow. |
-| U7 — Industrial visual system | Partial | The cockpit has dedicated compact operational styling, prominent counts, explicit state colors, and responsive layouts. Extend shared tokens and complete contrast/accessibility review across existing manager, import, inventory, and station screens. |
-| U8 — Feedback and trust | Implemented in code; live retry verification open | Run commands and station updates use revisions and idempotency; stale revisions show a conflict and refresh; offline controls are disabled; successful commands show saved state. Exercise real network loss and retry behavior on two sessions. |
-| U9 — Dense-screen performance | Partial | Dashboard and run data refresh at the existing five-second interval and station lineup input is bounded by the API. Verify a facility's full lineup and large requirement plan on a floor tablet; virtualization is not currently implemented. |
+| U4 — Operational imports | Implemented in code; signed-in apply verification open | Imports have Upload → Parse → Review → Apply → Runs created progress. Past schedule rows are excluded; source cells and row warnings remain reviewable. Schedule results link to each run and show its captured requirement summary. Uploaded workbook parser fixtures pass; verify apply and replay in a signed-in disposable facility. |
+| U5 — Inventory as a production surface | Implemented in code; shared-session verification open | Inventory has opening stock and audited adjustments; run detail shows proposed use, shortages, and explicit confirmation before a stock deduction. Today shows tracked item count and below-zero balances without guessing thresholds. Verify confirmed updates and history across signed-in sessions. |
+| U6 — Quality in the flow | Implemented in code; signed-in workflow verification open | Quality measurements are tied to runs, configured tolerances come from captured product requirements, and the cockpit displays failed or unresolved checks. API and tolerance logic tests pass; verify a failed and unresolved check through a signed-in run. |
+| U7 — Industrial visual system | Implemented for cockpit and importer; broader contrast review open | The cockpit has shared density and status tokens, prominent counts, and responsive layouts. Cockpit and importer previews were checked at phone, tablet, and desktop sizes. Existing manager, inventory, and station screens still need a full contrast/accessibility pass. |
+| U8 — Feedback and trust | Implemented in code; live retry verification open | Run commands and station updates use revisions and idempotency; stale revisions show a conflict and refresh; offline controls are disabled; successful commands show saved state. Automated lifecycle and retry-safety tests pass. Exercise real network loss and retry behavior on two signed-in sessions. |
+| U9 — Dense-screen performance | Bounded in code; floor-device verification open | Dashboard refreshes every five seconds, station progress uses the existing ten-second refresh, and station layouts are capped at 50 entries. Verify a full facility lineup and large requirement plan on a floor tablet; the current cap does not require virtualization. |
 
 ## Development-only visual check
 
 Open `/__visual-preview/day-cockpit` to inspect the cockpit with synthetic
-active, planned, completed, station-progress, preparation, and quality data.
-This route does not call the API or save changes. The cockpit and persistent
-run strip were visually checked at phone (402 × 874), tablet (768 × 1024), and
-desktop (1440 × 1000) sizes.
+active, planned, completed, station-progress, preparation, quality, recent
+imports, and inventory data. Open `/__visual-preview/imports` to inspect the
+review-step importer with synthetic product-spec data. These routes do not call
+the API or save changes. Both were visually checked at phone and desktop sizes;
+the cockpit was also checked at tablet size.
 
 ## Verification recorded for this change
 
-- V2 TypeScript typecheck passed.
-- V2 tests passed: 89 importer, planning, lifecycle, and UI-logic tests.
-- Production PWA build checks passed: 2 tests.
-- The dev-only cockpit preview was visually checked at phone, tablet, and desktop sizes.
-- Signed-in multi-session browser checks and the separate-project production
-  pilot remain unverified. Use synthetic/disposable V2 data only until those
-  checks are explicitly completed.
+- Workspace TypeScript typecheck passed.
+- V2 tests passed: 89 importer, planning, lifecycle, and UI-logic tests; 2 production PWA build checks passed.
+- API server tests passed: 101 tests, including schedule import tests against disposable PostgreSQL.
+- The development-only cockpit preview was visually checked at phone (402 × 874), tablet (768 × 1024), and desktop (1440 × 1000); the importer preview was checked at phone and desktop sizes.
+- The signed-in browser flow, two-session floor checks, and separate-project production pilot remain unverified. Use synthetic/disposable V2 data until those checks are completed.

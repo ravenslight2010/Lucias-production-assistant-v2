@@ -5,6 +5,7 @@
  * Run-control API for Lucia's Production Assistant V2
  * OpenAPI spec version: 0.1.0
  */
+import type { ScheduleImportResultRunsItem } from './scheduleImportResultRunsItem.ts';
 
 export interface ScheduleImportResult {
   importId: string;
@@ -15,4 +16,6 @@ export interface ScheduleImportResult {
   /** @minimum 0 */
   needsReviewRunCount: number;
   replayed: boolean;
+  /** @maxItems 5000 */
+  runs: ScheduleImportResultRunsItem[];
 }

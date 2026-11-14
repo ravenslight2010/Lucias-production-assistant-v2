@@ -87,6 +87,7 @@ export async function verifyScheduleImport(page, baseURL, resumeAfterImport = nu
     await eventually(async () => assert.equal(await page.getByTestId('select-workbook-kind').inputValue(), 'schedule'));
     await visibleText(page.getByTestId('text-schedule-run-count'), '3 eligible rows');
     await visibleText(page.getByTestId('schedule-past-rows-notice'), '1 past schedule row was ignored');
+    await visibleText(page.getByTestId('import-progress'), 'Review');
     await visibleText(page.getByTestId('schedule-past-rows-notice'), today);
     for (const [index, row] of fixture.expected.entries()) {
       const preview = page.getByTestId(`schedule-row-${index}`);
@@ -144,6 +145,20 @@ export async function verifyScheduleImport(page, baseURL, resumeAfterImport = nu
   assert.equal(first.replayed, false);
   assert.equal(first.importedCount, 3);
   assert.equal(first.ignoredPastCount, 1);
+  if (!resumeAfterImport) {
+    assert.equal(first.runs.length, 3);
+    for (const run of first.runs) {
+      assert.ok(run.id);
+      assert.ok(run.label);
+      assert.ok(run.scheduledFor);
+      assert.ok(run.targetCases > 0);
+      assert.ok(run.requirementItemCount >= 0);
+      await visibleText(page.getByTestId(`link-imported-run-${run.id}`), run.label);
+      await visibleText(page.getByTestId(`link-imported-run-${run.id}`), `${run.targetCases} cases`);
+    }
+    await visibleText(page.getByTestId('schedule-import-results'), 'Saved requirement snapshots');
+    await visibleText(page.getByTestId('import-progress'), 'Runs created');
+  }
   if (!resumeAfterImport) await visibleText(page.getByTestId('schedule-preview'), '3 planned runs were created with saved requirements. 1 past row was ignored.');
   const history = page.getByTestId(`row-import-${first.importId}`);
   await visibleText(history, fixture.name);

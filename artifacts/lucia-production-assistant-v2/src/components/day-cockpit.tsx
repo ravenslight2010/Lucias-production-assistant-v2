@@ -15,6 +15,20 @@ import './day-cockpit.css';
 
 export type CockpitRole = 'owner' | 'manager' | 'operator' | null;
 
+export type CockpitImport = {
+  id: string;
+  sourceName: string;
+  importKind: string;
+  status: 'draft' | 'applied';
+  createdAt: string;
+  scheduleRunCount: number | null;
+};
+
+export type CockpitInventorySummary = {
+  trackedItems: number;
+  belowZeroItems: number;
+};
+
 export type DayCockpitProps = {
   summary: DashboardSummary | null;
   role: CockpitRole;
@@ -35,6 +49,12 @@ export type DayCockpitProps = {
   primaryActionLabel?: string | null;
   onPrimaryAction?: () => void;
   primaryActionNotice?: string | null;
+  recentImports?: CockpitImport[];
+  importHistoryError?: boolean;
+  onOpenImports?: () => void;
+  inventorySummary?: CockpitInventorySummary | null;
+  inventoryError?: boolean;
+  onOpenInventory?: () => void;
   showContextStrip?: boolean;
 };
 
@@ -254,6 +274,9 @@ export function DayCockpit(props: DayCockpitProps) {
   const planned = summary?.plannedRuns ?? [];
   const completed = summary?.recentRuns.filter((run) => run.status === 'completed') ?? [];
   const qualityItems = summary?.qualityAttention ?? [];
+  const recentImports = props.recentImports ?? [];
+  const importReviewCount = recentImports.filter((batch) => batch.status === 'draft').length;
+  const inventorySummary = props.inventorySummary ?? null;
 
   if (props.loading && !summary) {
     return (
@@ -386,6 +409,52 @@ export function DayCockpit(props: DayCockpitProps) {
                 ))}
               </ul>
             ) : <div className="day-recent-empty">Completed runs from this shift will be recorded here.</div>}
+          </section>
+
+          <section className="day-side-panel day-side-imports" aria-labelledby="day-imports-title" data-testid="panel-cockpit-imports">
+            <div className="day-side-head">
+              <div><span className="day-side-label">Source activity</span><h2 id="day-imports-title">Recent imports</h2></div>
+              <span className={`day-side-count${importReviewCount ? ' has-attention' : ''}`} aria-label={`${importReviewCount} imports need review`}>
+                {importReviewCount.toString().padStart(2, '0')}
+              </span>
+            </div>
+            {props.importHistoryError && recentImports.length === 0 ? (
+              <div className="day-recent-empty" role="status">Import history is unavailable. The rest of the cockpit is still current.</div>
+            ) : recentImports.length ? (
+              <ul className="day-import-list">
+                {recentImports.slice(0, 3).map((batch) => (
+                  <li key={batch.id}>
+                    <div>
+                      <strong>{batch.sourceName}</strong>
+                      <small>{batch.importKind.replaceAll('_', ' ')} · {batch.createdAt}{batch.importKind === 'schedule' && batch.scheduleRunCount !== null ? ` · ${batch.scheduleRunCount} planned` : ''}</small>
+                    </div>
+                    <span className={`day-import-status day-import-status-${batch.status}`}>{batch.status === 'draft' ? 'Review' : 'Applied'}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="day-recent-empty">Reviewed workbooks will appear here after import.</div>
+            )}
+            {props.onOpenImports && <button type="button" className="day-import-open" onClick={props.onOpenImports} data-testid="button-open-cockpit-imports">Open import activity <ArrowUpRight size={13} aria-hidden="true" /></button>}
+          </section>
+
+          <section className="day-side-panel day-side-inventory" aria-labelledby="day-inventory-title" data-testid="panel-cockpit-inventory">
+            <div className="day-side-head">
+              <div><span className="day-side-label">Stock snapshot</span><h2 id="day-inventory-title">Inventory</h2></div>
+              <span className={`day-side-count${inventorySummary?.belowZeroItems ? ' has-attention' : ''}`}>
+                {inventorySummary?.trackedItems.toString().padStart(2, '0') ?? '—'}
+              </span>
+            </div>
+            {props.inventoryError && !inventorySummary ? (
+              <div className="day-recent-empty" role="status">Inventory summary is unavailable. No stock status is being guessed.</div>
+            ) : inventorySummary ? (
+              <p className={`day-inventory-summary${inventorySummary.belowZeroItems ? ' has-shortage' : ''}`}>
+                {inventorySummary.belowZeroItems
+                  ? `${inventorySummary.belowZeroItems} tracked ${inventorySummary.belowZeroItems === 1 ? 'item is' : 'items are'} below zero.`
+                  : `${inventorySummary.trackedItems} tracked ${inventorySummary.trackedItems === 1 ? 'ingredient' : 'ingredients'} on hand.`}
+              </p>
+            ) : <div className="day-recent-empty">On-hand balances will appear after inventory is recorded.</div>}
+            {props.onOpenInventory && <button type="button" className="day-import-open" onClick={props.onOpenInventory} data-testid="button-open-cockpit-inventory">Review stock and usage <ArrowUpRight size={13} aria-hidden="true" /></button>}
           </section>
 
           <div className="day-shift-footnote"><span className="day-shift-footnote-line" /><span>Every update is revisioned<br />and visible to the whole team.</span></div>

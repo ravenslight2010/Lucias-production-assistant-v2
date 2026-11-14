@@ -1633,6 +1633,39 @@ export interface ScheduleImportInput {
   planningByProfile: ScheduleProductPlanning[];
 }
 
+export type ScheduleImportResultRunsItem = {
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 260
+     */
+  label: string;
+  scheduledFor: string;
+  /**
+     * @minimum 1
+     * @maximum 2147483647
+     */
+  targetCases: number;
+  /** @nullable */
+  needsReview: boolean | null;
+  /**
+     * @minimum 0
+     * @maximum 500
+     * @nullable
+     */
+  requirementItemCount: number | null;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  sourceSheet: string;
+  /**
+     * @minimum 1
+     * @maximum 2147483647
+     */
+  sourceRow: number;
+};
+
 export interface ScheduleImportResult {
   importId: string;
   /** @minimum 0 */
@@ -1642,6 +1675,8 @@ export interface ScheduleImportResult {
   /** @minimum 0 */
   needsReviewRunCount: number;
   replayed: boolean;
+  /** @maxItems 5000 */
+  runs: ScheduleImportResultRunsItem[];
 }
 
 export interface RunCreateInput {

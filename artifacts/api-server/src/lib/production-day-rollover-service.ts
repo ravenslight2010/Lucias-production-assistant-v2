@@ -53,6 +53,7 @@ export async function closeUnfinishedRunsFromPriorDays(facilityId: string) {
     if (expired.length === 0) return 0;
 
     const detectedAt = new Date();
+    let closedRunCount = 0;
     for (const run of expired) {
       const endedAt =
         run.endedAt instanceof Date ? run.endedAt : new Date(String(run.endedAt));
@@ -85,6 +86,7 @@ export async function closeUnfinishedRunsFromPriorDays(facilityId: string) {
         )
         .returning({ id: productionRunsTable.id });
       if (!updated) continue;
+      closedRunCount += 1;
 
       const event = {
         runId: run.id,
@@ -115,6 +117,6 @@ export async function closeUnfinishedRunsFromPriorDays(facilityId: string) {
       });
     }
 
-    return expired.length;
+    return closedRunCount;
   });
 }

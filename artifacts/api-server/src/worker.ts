@@ -5,6 +5,8 @@ import {
   attachDbPoolMetrics,
   closeDbPoolAndObserveShutdown,
 } from "./lib/db-pool-metrics";
+import { closeUnfinishedRunsFromPriorDays } from "./lib/production-day-rollover-service";
+import { createProductionDayRolloverScheduler } from "./lib/production-day-rollover-scheduler";
 
 const poolMetrics = attachDbPoolMetrics({
   pool,
@@ -39,6 +41,42 @@ let stopping = false;
 let timer: NodeJS.Timeout | undefined;
 let syntheticMarkerCreated = false;
 let firstSuccessfulCheck = true;
+
+const productionDayRolloverScheduler = createProductionDayRolloverScheduler({
+  getProductionDay: async () => {
+    const result = await db.execute(
+      sql`select to_char(now() AT TIME ZONE 'America/Chicago', 'YYYY-MM-DD') as day`,
+    );
+    const row = result.rows[0] as { day?: unknown } | undefined;
+    if (typeof row?.day !== "string" || !row.day) {
+      throw new Error("The database did not return the current production day.");
+    }
+    return row.day;
+  },
+  getFacilityIds: async () => {
+    const facilities = await db
+      .select({ id: facilitiesTable.id })
+      .from(facilitiesTable);
+    return facilities.map((facility) => facility.id);
+  },
+  closeFacilityRuns: closeUnfinishedRunsFromPriorDays,
+  onComplete: (result) => {
+    logger.info(result, "Production-day rollover sweep completed");
+  },
+  onError: (error, productionDay) => {
+    const errorCode =
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      typeof error.code === "string"
+        ? error.code
+        : "rollover_sweep_failed";
+    logger.error(
+      { errorCode, productionDay },
+      "Production-day rollover sweep failed",
+    );
+  },
+});
 
 async function checkDatabase(): Promise<void> {
   await db.execute(sql`select 1`);
@@ -95,6 +133,7 @@ async function runHeartbeat(): Promise<void> {
   if (stopping) return;
   try {
     await checkDatabase();
+    await productionDayRolloverScheduler();
   } catch (error) {
     const errorCode =
       typeof error === "object" &&

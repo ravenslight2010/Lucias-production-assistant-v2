@@ -84,10 +84,13 @@ jobs:
       - name: API server unit tests (no local initdb)
         # facility-invitation.integration.test.mjs boots disposable Postgres via initdb;
         # run that under API integration once the runner image provides initdb reliably.
+        # app-health.test.mjs intentionally omits CLERK_SECRET_KEY and uses a disposable
+        # TCP listener; DATABASE_URL may be unreachable and still must not 500.
         run: |
           pnpm --filter @workspace/api-server run build
           pnpm --filter @workspace/api-server exec node --test \
             test/health.test.mjs \
+            test/app-health.test.mjs \
             test/supervisor.test.mjs \
             test/db-pool-metrics.test.mjs
 

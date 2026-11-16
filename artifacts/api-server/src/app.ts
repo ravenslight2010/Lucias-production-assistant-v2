@@ -4,6 +4,7 @@ import { clerkMiddleware } from "@clerk/express";
 import { publishableKeyFromHost } from "@clerk/shared/keys";
 import pinoHttp from "pino-http";
 import router from "./routes";
+import healthRouter from "./routes/health";
 import { logger } from "./lib/logger";
 import {
   CLERK_PROXY_PATH,
@@ -34,6 +35,9 @@ app.use(
     },
   }),
 );
+// Liveness must stay reachable without Clerk credentials so Replit startup
+// probes and local diagnostics can observe api/db/worker status.
+app.use("/api", healthRouter);
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 app.use(
   clerkMiddleware((req) => ({

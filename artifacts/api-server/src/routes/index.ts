@@ -1,10 +1,9 @@
 import { Router, type IRouter } from "express";
-import healthRouter from "./health";
 import productionRouter from "./production";
 
 const router: IRouter = Router();
 
-router.use(healthRouter);
+// /api/healthz is mounted in app.ts before Clerk middleware.
 router.use(productionRouter);
 
 export default router;

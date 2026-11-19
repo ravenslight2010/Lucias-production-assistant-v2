@@ -15,7 +15,7 @@
     "@replit/connectors-sdk": "^0.7.0"
   },
   "devDependencies": {
-    "prettier": "^3.10.0",
+    "prettier": "^3.10.1",
     "typescript": "~7.0.2"
   },
   "pnpm": {
